@@ -1,0 +1,54 @@
+# Spring Boot Application
+spring:
+  application:
+    name: common-service
+  config:
+    import: optional: nacos:common-service.yml
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+
+# Server
+server:
+  port: 8080
+
+# MyBatis-Plus
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.travel.assistant.*.entity
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# JWT
+jwt:
+  secret: travel-assistant-secret-key-must-be-at-least-256-bits-long-for-hs256
+  expiration: 86400000
+  header: Authorization
+  prefix: "Bearer "
+
+# Knife4j
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: default
+      paths-to-match: /**
+      packages-to-scan: com.travel.assistant
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_CN

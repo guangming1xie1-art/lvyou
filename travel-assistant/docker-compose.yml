@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: travel-assistant-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: travel_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Nacos 服务发现和配置中心
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: travel-assistant-nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: postgres
+      NACOS_DB_NUM: 1
+      DB_URL: jdbc:postgresql://postgres:5432/nacos_config
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: travel-assistant-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Gateway 服务
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: travel-assistant-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_SERVER_ADDR: nacos:8848
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      - nacos
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Auth 服务
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: travel-assistant-auth
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_SERVER_ADDR: nacos:8848
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8081:8081"
+    depends_on:
+      - nacos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Travel Request 服务
+  travel-request-service:
+    build:
+      context: ./travel-request-service
+      dockerfile: Dockerfile
+    container_name: travel-assistant-travel-request
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_SERVER_ADDR: nacos:8848
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8082:8082"
+    depends_on:
+      - nacos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Travel Plan 服务
+  travel-plan-service:
+    build:
+      context: ./travel-plan-service
+      dockerfile: Dockerfile
+    container_name: travel-assistant-travel-plan
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_SERVER_ADDR: nacos:8848
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8083:8083"
+    depends_on:
+      - nacos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+  # Order 服务
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: travel-assistant-order
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      NACOS_SERVER_ADDR: nacos:8848
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8084:8084"
+    depends_on:
+      - nacos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - travel-network
+    restart: unless-stopped
+
+networks:
+  travel-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
