@@ -39,3 +39,19 @@ lerna-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
+.env.agent
+
+# Python logs
+travel-assistant-agent/logs/
+travel-assistant-agent/*.log
