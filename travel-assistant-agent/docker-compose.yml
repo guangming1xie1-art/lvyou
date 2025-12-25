@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: travel-assistant-agent
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Claude (optional)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-3-5-sonnet-20241022}
+      CLAUDE_MAX_TOKENS: ${CLAUDE_MAX_TOKENS:-4096}
+      CLAUDE_TEMPERATURE: ${CLAUDE_TEMPERATURE:-0.7}
+
+      # PostgreSQL
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/travel_assistant}
+
+      # Backend API (optional)
+      BACKEND_API_URL: ${BACKEND_API_URL:-http://localhost:3000/api}
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+
+      # MCP (placeholder)
+      MCP_ENABLED: ${MCP_ENABLED:-false}
+    networks:
+      - travel-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: travel-assistant-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=travel_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  travel-network:
+    driver: bridge
+    name: travel-network
+
+volumes:
+  postgres_data:
