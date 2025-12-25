@@ -1,0 +1,52 @@
+# Spring Boot Application
+spring:
+  application:
+    name: gateway
+  config:
+    import: optional: nacos:gateway.yml
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 30s
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 100
+          max-wait: -1ms
+          max-idle: 50
+          min-idle: 10
+
+# Server
+server:
+  port: 8080
+
+# Management
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:travel-assistant-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  expiration: ${JWT_EXPIRATION:86400000}
+  header: Authorization
+  prefix: "Bearer "
+
+# Logging
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.travel.assistant.gateway: DEBUG
