@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/plans',
+    path: '/plan-display',
     element: (
       <Layout>
         <PlanDisplay />
@@ -34,7 +34,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/plans/:id',
+    path: '/plan-detail',
     element: (
       <Layout>
         <PlanDetail />
