@@ -1,0 +1,39 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: auth-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/travel_assistant}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        file-extension: yaml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:dev-secret-key-please-change-32bytes-123456}
+    ttl: ${APP_JWT_TTL:12h}

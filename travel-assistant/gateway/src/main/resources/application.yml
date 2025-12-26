@@ -1,0 +1,53 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: gateway
+
+  main:
+    web-application-type: reactive
+
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        file-extension: yaml
+
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+
+        - id: travel-request-service
+          uri: lb://travel-request-service
+          predicates:
+            - Path=/api/requests/**
+
+        - id: travel-plan-service
+          uri: lb://travel-plan-service
+          predicates:
+            - Path=/api/plans/**
+
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

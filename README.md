@@ -2,6 +2,8 @@
 
 智能旅游助手 MVP 前端项目，基于 React + Vite + TypeScript 构建。
 
+> 后端 Spring Cloud 微服务基础架构位于 `travel-assistant/` 目录，详见 `travel-assistant/README.md`。
+
 ## 技术栈
 
 - **React 18** - 前端框架
