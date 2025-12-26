@@ -3,7 +3,7 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: .
+      context: ./travel-assistant-front
       dockerfile: Dockerfile
     container_name: travel-assistant-frontend
     ports:
@@ -17,3 +17,4 @@ services:
 networks:
   travel-network:
     driver: bridge
+    name: travel-network
