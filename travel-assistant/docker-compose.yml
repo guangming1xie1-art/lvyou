@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: travel-assistant-ms-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: travel_assistant
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_ms_data:/var/lib/postgresql/data
+    networks:
+      - travel-network
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: travel-assistant-nacos
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+    ports:
+      - '8848:8848'
+    networks:
+      - travel-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: travel-assistant-gateway
+    ports:
+      - '8080:8080'
+    environment:
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      - nacos
+    networks:
+      - travel-network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: travel-assistant-auth-service
+    ports:
+      - '8081:8081'
+    environment:
+      NACOS_ADDR: nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      APP_JWT_SECRET: dev-secret-key-please-change-32bytes-123456
+    depends_on:
+      - nacos
+      - postgres
+    networks:
+      - travel-network
+
+  travel-request-service:
+    build:
+      context: .
+      dockerfile: travel-request-service/Dockerfile
+    container_name: travel-assistant-travel-request-service
+    ports:
+      - '8082:8082'
+    environment:
+      NACOS_ADDR: nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - nacos
+      - postgres
+    networks:
+      - travel-network
+
+  travel-plan-service:
+    build:
+      context: .
+      dockerfile: travel-plan-service/Dockerfile
+    container_name: travel-assistant-travel-plan-service
+    ports:
+      - '8083:8083'
+    environment:
+      NACOS_ADDR: nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - nacos
+      - postgres
+    networks:
+      - travel-network
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: travel-assistant-order-service
+    ports:
+      - '8084:8084'
+    environment:
+      NACOS_ADDR: nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - nacos
+      - postgres
+    networks:
+      - travel-network
+
+networks:
+  travel-network:
+    driver: bridge
+    name: travel-network
+
+volumes:
+  postgres_ms_data:

@@ -55,3 +55,14 @@ ENV/
 # Python logs
 travel-assistant-agent/logs/
 travel-assistant-agent/*.log
+
+# Java / Maven
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/timing.properties
+
+# IntelliJ (Java)
+*.iml
