@@ -56,7 +56,12 @@ class Settings(BaseSettings):
     )
 
     # MCP (Model Context Protocol)
-    mcp_enabled: bool = Field(default=False, alias="MCP_ENABLED")
+    mcp_enabled: bool = Field(default=True, alias="MCP_ENABLED")
+    mcp_server_url: str = Field(
+        default="http://localhost:8765",
+        alias="MCP_SERVER_URL"
+    )
+    mcp_transport: str = Field(default="stdio", alias="MCP_TRANSPORT")
 
     @property
     def is_production(self) -> bool:

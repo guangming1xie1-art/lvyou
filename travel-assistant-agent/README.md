@@ -27,9 +27,24 @@ travel-assistant-agent/
 ├── src/                     # 源代码目录
 │   ├── main.py              # FastAPI 应用入口
 │   ├── config.py            # 配置管理
+│   ├── mcp_server/          # MCP Server & Skills
+│   │   ├── __init__.py
+│   │   ├── server.py        # MCP Server 实现
+│   │   ├── config.py        # MCP 配置
+│   │   ├── README.md        # MCP 文档
+│   │   └── skills/          # Skills 实现
+│   │       ├── __init__.py
+│   │       ├── base_skill.py
+│   │       ├── destination.py
+│   │       ├── pricing.py
+│   │       ├── reviews.py
+│   │       ├── weather.py
+│   │       └── planning.py
 │   ├── agents/              # Agent 实现
 │   │   ├── __init__.py
 │   │   ├── base.py          # Agent 基类
+│   │   ├── mcp_client.py    # MCP Client
+│   │   ├── skill_agent.py   # Skill-based Agent
 │   │   ├── info_collection.py   # 信息收集 Agent
 │   │   ├── search.py            # 搜索 Agent
 │   │   ├── recommendation.py    # 推荐 Agent
@@ -37,7 +52,7 @@ travel-assistant-agent/
 │   ├── workflows/           # LangGraph 工作流
 │   │   ├── __init__.py
 │   │   └── planning_workflow.py
-│   ├── tools/               # MCP 工具集成
+│   ├── tools/               # 工具集成
 │   │   ├── __init__.py
 │   │   └── mcp_tools.py
 │   ├── models/              # 数据模型
@@ -137,8 +152,130 @@ curl -X POST http://localhost:8000/agent/start-planning \
 }
 ```
 
+### `GET /mcp/skills`
+列出所有可用的 MCP Skills
+
+**响应示例**：
+```json
+{
+  "skills": [
+    {
+      "name": "search_destination",
+      "description": "Search for travel destination information...",
+      "category": "destination",
+      "version": "1.0.0",
+      "input_schema": {...},
+      "output_schema": {...}
+    }
+  ],
+  "total_count": 5
+}
+```
+
+### `GET /mcp/status`
+获取 MCP 客户端状态
+
+**响应示例**：
+```json
+{
+  "mcp_enabled": true,
+  "connected": true,
+  "skills_count": 5,
+  "skills": [
+    "search_destination",
+    "query_prices",
+    "get_destination_reviews",
+    "get_weather",
+    "create_travel_plan"
+  ]
+}
+```
+
+### `POST /mcp/call-skill`
+调用单个 Skill
+
+**请求体**：
+```json
+{
+  "skill_name": "search_destination",
+  "parameters": {
+    "destination": "Tokyo",
+    "include_tips": true
+  }
+}
+```
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "skill_name": "search_destination",
+  "result": {
+    "destination": "Tokyo",
+    "country": "Japan",
+    "highlights": [...]
+  },
+  "execution_time_ms": 15.23
+}
+```
+
+### `POST /mcp/batch-call`
+批量调用多个 Skills（并行执行）
+
+**请求体**：
+```json
+{
+  "calls": [
+    {"skill_name": "search_destination", "parameters": {"destination": "Tokyo"}},
+    {"skill_name": "get_weather", "parameters": {"destination": "Tokyo"}}
+  ]
+}
+```
+
+### `POST /agent/demo-planning-with-skills`
+使用 MCP Skills 进行旅行规划演示
+
+**请求体**：
+```json
+{
+  "destination": "Tokyo",
+  "duration_days": 5,
+  "budget": 2000,
+  "start_date": "2024-04-01",
+  "end_date": "2024-04-06",
+  "interests": ["culture", "food"],
+  "accommodation_type": "mid-range",
+  "pace": "moderate",
+  "use_template": "comprehensive"
+}
+```
+
+**响应示例**：
+```json
+{
+  "request_id": "uuid-string",
+  "destination": "Tokyo",
+  "skills_used": [
+    "search_destination",
+    "query_prices",
+    "get_destination_reviews",
+    "get_weather",
+    "create_travel_plan"
+  ],
+  "skill_results": {...},
+  "travel_plan": {
+    "title": "Tokyo Adventure",
+    "overview": "Experience the perfect blend...",
+    "itinerary": [...],
+    "budget_breakdown": {...},
+    "packing_list": [...],
+    "tips": [...]
+  }
+}
+```
+
 ### `POST /agent/start-planning`
-启动旅行规划流程
+启动传统旅行规划流程（LangGraph 工作流）
 
 **请求体**：
 ```json
@@ -166,7 +303,102 @@ curl -X POST http://localhost:8000/agent/start-planning \
 }
 ```
 
-## 🤖 Agent 架构
+## 🤖 Claude Skills (MCP 集成)
+
+本服务实现了 **Claude Skills** 通过 **MCP (Model Context Protocol)** 的集成，为 Agent 提供结构化的能力扩展。
+
+### MCP Skills 架构
+
+```
+travel-assistant-agent (Python FastAPI)
+    │
+    ├── MCP Client (src/agents/mcp_client.py)
+    │       │
+    │       └── 连接到本地 Skills Registry
+    │               │
+    │               ├── SearchDestinationSkill  ── 目的地搜索
+    │               ├── QueryPricesSkill        ── 价格查询
+    │               ├── GetDestinationReviewsSkill ── 评论获取
+    │               ├── GetWeatherSkill         ── 天气查询
+    │               └── CreateTravelPlanSkill   ── 行程规划
+```
+
+### Skills 特性
+
+| Skill | 功能 | 示例参数 |
+|-------|------|---------|
+| `search_destination` | 搜索目的地信息（景点、文化、最佳旅行时间） | `{"destination": "Tokyo"}` |
+| `query_prices` | 查询酒店和机票价格 | `{"destination": "Tokyo", "check_in": "2024-04-01"}` |
+| `get_destination_reviews` | 获取用户评价和评分 | `{"destination": "Tokyo", "limit": 5}` |
+| `get_weather` | 查询天气预报 | `{"destination": "Tokyo", "start_date": "2024-04-01"}` |
+| `create_travel_plan` | 生成完整旅行行程 | `{"destination": "Tokyo", "duration_days": 5, "budget": 2000}` |
+
+### Skill 调用示例
+
+```bash
+# 1. 列出所有 Skills
+curl http://localhost:8000/mcp/skills
+
+# 2. 调用单个 Skill
+curl -X POST http://localhost:8000/mcp/call-skill \
+  -H "Content-Type: application/json" \
+  -d '{"skill_name": "search_destination", "parameters": {"destination": "Tokyo"}}'
+
+# 3. 批量调用 Skills
+curl -X POST http://localhost:8000/mcp/batch-call \
+  -H "Content-Type: application/json" \
+  -d '{
+    "calls": [
+      {"skill_name": "search_destination", "parameters": {"destination": "Tokyo"}},
+      {"skill_name": "get_weather", "parameters": {"destination": "Tokyo"}}
+    ]
+  }'
+
+# 4. 演示完整规划流程
+curl -X POST http://localhost:8000/agent/demo-planning-with-skills \
+  -H "Content-Type: application/json" \
+  -d '{
+    "destination": "Tokyo",
+    "duration_days": 5,
+    "budget": 2000,
+    "start_date": "2024-04-01",
+    "end_date": "2024-04-06"
+  }'
+```
+
+### Skill 工作流模板
+
+系统提供三种预定义的工作流模板：
+
+| 模板 | Skills | 用途 |
+|------|--------|------|
+| `basic` | destination → pricing → planning | 基础规划 |
+| `comprehensive` | destination → pricing → reviews → weather → planning | 完整调研 |
+| `quick` | destination → reviews | 快速了解 |
+
+### 添加新 Skill
+
+1. 在 `src/mcp_server/skills/` 创建新文件，继承 `BaseSkill`
+2. 定义 `name`、`description`、`category`、`version`
+3. 实现 `input_schema` 和 `output_schema`
+4. 实现 `async execute()` 方法
+5. 在 `skills/__init__.py` 注册 Skill
+
+详细文档请参考：[MCP Server README](src/mcp_server/README.md)
+
+### Agent 集成
+
+`SkillBasedAgent` 类演示了如何将 Skills 整合到 Agent 决策流程：
+
+```python
+from agents import SkillBasedAgent
+
+agent = SkillBasedAgent()
+result = await agent.run({
+    "user_message": "Plan a 5-day trip to Tokyo",
+    "metadata": {"budget": 2000}
+})
+```
 
 本服务使用 **LangGraph** 编排 4 个专门的 Agent：
 
@@ -284,10 +516,11 @@ docker run -d \
 ✅ Claude API 集成  
 ✅ PostgreSQL 连接  
 ✅ Docker 支持  
+✅ MCP (Model Context Protocol) 工具集成  
+✅ Claude Skills 实现（5个演示 Skills）  
 
 🔜 待完善功能：
 - LLM 响应解析和结构化输出
-- MCP (Model Context Protocol) 工具集成
 - DeepAgent 深度推理框架
 - 异步任务队列
 - 详细的业务逻辑实现

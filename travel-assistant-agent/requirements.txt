@@ -20,6 +20,9 @@ anthropic>=0.8.0
 psycopg2-binary>=2.9.9
 sqlalchemy>=2.0.25
 
+# MCP (Model Context Protocol)
+# The MCP package provides the protocol for skill definitions and invocation
+mcp>=1.0.0
+
 # Optional / placeholders for future integration
-# mcp
 # deepagent
