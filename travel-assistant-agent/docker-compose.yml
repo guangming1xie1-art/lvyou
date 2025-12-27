@@ -29,8 +29,10 @@ services:
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
 
-      # MCP (placeholder)
-      MCP_ENABLED: ${MCP_ENABLED:-false}
+      # MCP (Model Context Protocol)
+      MCP_ENABLED: ${MCP_ENABLED:-true}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-http://localhost:8765}
+      MCP_TRANSPORT: ${MCP_TRANSPORT:-stdio}
     networks:
       - travel-network
     depends_on:
