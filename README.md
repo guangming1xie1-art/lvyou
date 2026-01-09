@@ -1,12 +1,98 @@
 # lvyou
 
+智能旅游助手平台 - AI-Powered Travel Assistant Platform
+
 This repository is organized as a small monorepo with **three independent sub-projects**:
 
 - `travel-assistant-front/` — React 18 + TypeScript + Vite frontend
 - `travel-assistant/` — Java Spring Cloud microservices (API)
 - `travel-assistant-agent/` — Python FastAPI agent service (LangChain/LangGraph)
 
-## Quick start
+## OpenSpec Integration
+
+This project uses **OpenSpec** as the single source of truth for project specifications, change tracking, and AI-human alignment.
+
+### Documentation Structure
+
+```
+openspec/
+├── project.md              # Project-wide conventions and standards
+├── AGENTS.md               # AI agent workflow guidance (auto-generated)
+├── OPENSPEC_WORKFLOW.md    # Step-by-step workflow guide
+├── specs/
+│   ├── frontend/spec.md    # Frontend specifications
+│   ├── backend-java/spec.md # Java backend specifications
+│   ├── backend-agent/spec.md # Python Agent specifications
+│   └── integration/spec.md  # API contracts between services
+└── changes/
+    └── example-feature/    # Sample change demonstrating the workflow
+```
+
+### Key Documents
+
+| Document | Purpose |
+|----------|---------|
+| [openspec/project.md](openspec/project.md) | Project conventions, naming, architecture |
+| [openspec/OPENSPEC_WORKFLOW.md](openspec/OPENSPEC_WORKFLOW.md) | How to use OpenSpec with cto.new |
+| [openspec/specs/frontend/spec.md](openspec/specs/frontend/spec.md) | Frontend component architecture, state management |
+| [openspec/specs/backend-java/spec.md](openspec/specs/backend-java/spec.md) | Java REST API design, microservices |
+| [openspec/specs/backend-agent/spec.md](openspec/specs/backend-agent/spec.md) | Claude Skills, LangGraph workflows |
+| [openspec/specs/integration/spec.md](openspec/specs/integration/spec.md) | API contracts, data flow |
+
+### Using OpenSpec with cto.new
+
+1. **Read relevant specifications** before starting work
+2. **Reference the change** when creating cto.new tasks
+3. **Follow conventions** from `openspec/project.md`
+4. **Update specifications** as you implement
+5. **Validate changes** with `openspec validate`
+
+See [OPENSPEC_WORKFLOW.md](openspec/OPENSPEC_WORKFLOW.md) for detailed guidance.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      User Browser                               │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  travel-assistant-front (React 18 + Vite)                       │
+│  Port: 3000 (dev) / 80 (prod)                                   │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ HTTP REST API
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  travel-assistant (Spring Cloud Gateway)                        │
+│  Port: 8080                                                     │
+└───────┬─────────────────┬───────────────────┬───────────────────┘
+        │                 │                   │
+        ▼                 ▼                   ▼
+┌───────────────┐ ┌───────────────┐ ┌───────────────────────┐
+│ auth-service  │ │ travel-       │ │ travel-plan-service   │
+│ Port: 8081    │ │ request-      │ │ Port: 8083            │
+│ JWT Auth      │ │ service       │ │ Plan Generation       │
+│               │ │ Port: 8082    │ │ - Calls Agent Service │
+│               │ │ Request Mgmt  │ │                       │
+└───────────────┘ └───────────────┘ └───────────────────────┘
+        │                 │                   │
+        └─────────────────┼───────────────────┘
+                          │
+                          ▼ (Internal API)
+┌─────────────────────────────────────────────────────────────────┐
+│  travel-assistant-agent (FastAPI + LangGraph + Claude)          │
+│  Port: 8000                                                      │
+│  - AI Travel Planning                                            │
+│  - Claude Skills (MCP)                                           │
+│  - Destination/Pricing/Weather/Reviews                           │
+└─────────────────────────────────────────────────────────────────┘
+
+Data Layer: PostgreSQL (Port 5432)
+Service Discovery: Nacos (Port 8848)
+```
+
+## Quick Start
 
 ### Frontend (development)
 
@@ -46,3 +132,39 @@ docker compose up --build
 ```
 
 See `travel-assistant-agent/README.md` for configuration and details.
+
+## Project Structure
+
+### Frontend (`travel-assistant-front/`)
+
+- React 18 + TypeScript + Vite
+- Zustand for state management
+- TanStack Query for data fetching
+- Tailwind CSS for styling
+- Vitest for testing
+
+### Java Backend (`travel-assistant/`)
+
+- Spring Boot 3.2 + Spring Cloud 2023
+- Spring Cloud Alibaba Nacos
+- Spring Cloud Gateway
+- PostgreSQL database
+
+### Python Agent (`travel-assistant-agent/`)
+
+- FastAPI + Python 3.10+
+- LangChain + LangGraph
+- Claude 3.5 Sonnet (Anthropic API)
+- MCP (Model Context Protocol)
+
+## Contributing
+
+1. Read the [OpenSpec project conventions](openspec/project.md)
+2. Review relevant [service specifications](openspec/specs/)
+3. Create a change proposal for new features
+4. Follow the [workflow guide](openspec/OPENSPEC_WORKFLOW.md)
+5. Ensure code passes linting and tests
+
+## License
+
+ISC
