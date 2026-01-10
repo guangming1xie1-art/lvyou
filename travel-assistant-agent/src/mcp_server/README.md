@@ -2,6 +2,8 @@
 
 This module provides Claude Skills integration via MCP (Model Context Protocol) for the Travel Assistant Agent.
 
+> **Architecture Update (v2.0)**: Skills are now organized by **Agent responsibility** rather than functionality type. See [SKILLS_ARCHITECTURE.md](./SKILLS_ARCHITECTURE.md) for detailed documentation.
+
 ## Overview
 
 The MCP (Model Context Protocol) enables the Agent to:
@@ -15,29 +17,55 @@ The MCP (Model Context Protocol) enables the Agent to:
 ```
 travel-assistant-agent (Python FastAPI)
     │
+    ├── Four Agent Types
+    │   ├── InfoCollectionAgent (信息收集代理)
+    │   ├── SearchAgent (搜索代理)
+    │   ├── RecommendationAgent (推荐代理)
+    │   └── BookingAgent (预订代理)
+    │
     ├── MCP Client (src/agents/mcp_client.py)
     │       │
     │       └── Connects to MCP Server
     │               │
-    │               └── Skills Registry
-    │                       ├── SearchDestinationSkill
-    │                       ├── QueryPricesSkill
-    │                       ├── GetDestinationReviewsSkill
-    │                       ├── GetWeatherSkill
-    │                       └── CreateTravelPlanSkill
+    │               └── Skill Registry (15 skills)
+    │                       ├── Info Collection (3 skills)
+    │                       ├── Search (4 skills)
+    │                       ├── Recommendation (4 skills)
+    │                       └── Booking (4 skills)
 ```
 
-## Skills
+## Skills by Agent Type
 
-### Available Skills
+### InfoCollectionAgent (3 skills)
+| Skill | Description |
+|-------|-------------|
+| `get_user_preferences` | Extract and structure user travel requirements |
+| `validate_user_input` | Validate and normalize user input data |
+| `suggest_destinations` | Recommend destinations based on preferences |
 
-| Skill | Category | Description |
-|-------|----------|-------------|
-| `search_destination` | destination | Search and get destination information including attractions, culture, and tips |
-| `query_prices` | pricing | Query hotel and flight prices for budgeting |
-| `get_destination_reviews` | reviews | Fetch user reviews, ratings, and sentiment analysis |
-| `get_weather` | weather | Get current weather and forecast for destinations |
-| `create_travel_plan` | planning | Generate comprehensive travel itineraries |
+### SearchAgent (4 skills)
+| Skill | Description |
+|-------|-------------|
+| `search_flights` | Search for available flights |
+| `search_hotels` | Search for available hotels |
+| `compare_results` | Compare and rank search results |
+| `filter_by_budget` | Filter options within budget |
+
+### RecommendationAgent (4 skills)
+| Skill | Description |
+|-------|-------------|
+| `get_destination_info` | General destination information |
+| `get_attractions` | Popular attractions and activities |
+| `get_weather_forecast` | Weather forecast for travel dates |
+| `get_destination_reviews` | User reviews and ratings |
+
+### BookingAgent (4 skills)
+| Skill | Description |
+|-------|-------------|
+| `create_booking` | Create initial booking order |
+| `process_payment` | Handle payment processing |
+| `confirm_booking` | Confirm booking and send confirmation |
+| `get_booking_status` | Check booking status |
 
 ### Skill Schema
 
@@ -56,7 +84,12 @@ Each skill follows the MCP specification with:
 ```python
 import httpx
 
+# List all skills
 response = httpx.get("http://localhost:8000/mcp/skills")
+print(response.json())
+
+# Filter by agent type
+response = httpx.get("http://localhost:8000/mcp/skills?agent_type=search")
 print(response.json())
 ```
 
@@ -65,15 +98,15 @@ Response:
 {
   "skills": [
     {
-      "name": "search_destination",
-      "description": "Search for travel destination information...",
-      "category": "destination",
+      "name": "search_flights",
+      "description": "Search and return available flights...",
+      "category": "search",
       "version": "1.0.0",
       "input_schema": {...},
       "output_schema": {...}
     }
   ],
-  "total_count": 5
+  "total_count": 4
 }
 ```
 
@@ -132,17 +165,26 @@ print(response.json())
 
 ## Adding New Skills
 
-### 1. Create Skill Class
+### 1. Choose Agent Type
 
-Create a new file in `src/mcp_server/skills/`:
+Determine which agent should own this skill:
+- `info_collection` - User requirements and preferences
+- `search` - Finding flights, hotels, options
+- `recommendation` - Destination insights and activities
+- `booking` - Booking process and payments
+
+### 2. Create Skill Class
+
+Create a new file in the appropriate agent directory:
+`src/mcp_server/skills/{agent_type}/my_new_skill.py`
 
 ```python
-from .base_skill import BaseSkill
+from ..base_skill import BaseSkill
 
 class MyNewSkill(BaseSkill):
     name = "my_new_skill"
+    agent_type = "search"  # Choose appropriate agent type
     description = "Description of what my skill does"
-    category = "my_category"
     version = "1.0.0"
     
     @property
@@ -164,31 +206,60 @@ class MyNewSkill(BaseSkill):
             }
         }
     
-    async def execute(self, param1: str) -> dict:
+    async def execute(self, param1: str, **kwargs) -> dict:
+        # Validate input
+        if not self.validate_input({"param1": param1}):
+            raise ValueError("Invalid input")
+        
         # Your skill logic here
         return {"result": f"Processed: {param1}"}
 ```
 
-### 2. Register the Skill
+### 3. Export from Agent Module
 
-Edit `src/mcp_server/skills/__init__.py`:
+Edit `src/mcp_server/skills/{agent_type}/__init__.py`:
 
 ```python
-from .my_new import MyNewSkill
+from .my_new_skill import MyNewSkill
 
-SKILL_REGISTRY = {
+__all__ = [
     # ... existing skills ...
-    "my_new_skill": MyNewSkill(),
-}
+    "MyNewSkill",
+]
 ```
 
-### 3. Use the Skill
+### 4. Register the Skill
+
+Edit `src/mcp_server/skill_registry.py`:
+
+```python
+from .skills.search import MyNewSkill
+
+class SkillRegistry:
+    def _register_all_skills(self):
+        # ... existing registrations ...
+        self.register(MyNewSkill())
+```
+
+Also add to `src/mcp_server/skills/__init__.py`:
+
+```python
+from .search import MyNewSkill
+
+SKILL_REGISTRY["my_new_skill"] = MyNewSkill()
+```
+
+### 5. Use the Skill
 
 Skills are automatically discoverable via the MCP endpoints:
 
 ```python
 import httpx
 
+# List skills for specific agent
+response = httpx.get("http://localhost:8000/mcp/skills?agent_type=search")
+
+# Call the new skill
 response = httpx.post(
     "http://localhost:8000/mcp/call-skill",
     json={

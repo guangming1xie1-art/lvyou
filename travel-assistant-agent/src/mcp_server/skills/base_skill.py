@@ -6,11 +6,15 @@ import json
 
 
 class BaseSkill(ABC):
-    """Base class for all Claude Skills"""
+    """Base class for all Claude Skills
+    
+    Each skill should be an independent tool unit that belongs to a specific agent.
+    Skills are organized by which Agent uses them (agent_type).
+    """
     
     name: str = "base_skill"
     description: str = "Base skill class"
-    category: str = "general"
+    agent_type: str = "general"  # Which agent uses this skill (info_collection, search, recommendation, booking)
     version: str = "1.0.0"
     
     @property
@@ -36,6 +40,22 @@ class BaseSkill(ABC):
         """Execute the skill with given parameters"""
         raise NotImplementedError
     
+    def validate_input(self, data: Dict[str, Any]) -> bool:
+        """Validate input data against input schema
+        
+        Args:
+            data: Input data to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        # Basic validation - check required fields
+        required = self.input_schema.get("required", [])
+        for field in required:
+            if field not in data:
+                return False
+        return True
+    
     def to_definition(self) -> Dict[str, Any]:
         """Convert skill to MCP definition format"""
         return {
@@ -43,7 +63,7 @@ class BaseSkill(ABC):
             "description": self.description,
             "inputSchema": self.input_schema,
             "outputSchema": self.output_schema,
-            "category": self.category,
+            "agentType": self.agent_type,
             "version": self.version
         }
     

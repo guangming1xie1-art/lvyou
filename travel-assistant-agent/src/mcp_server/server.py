@@ -40,10 +40,22 @@ class MCPServer:
         self.running = False
         logger.info("MCP Server stopped")
     
-    def list_skills(self) -> List[Dict]:
-        """List all available skills with their definitions"""
-        definitions = get_skill_definitions()
-        logger.info(f"Listing {len(definitions)} skills")
+    def list_skills(self, agent_type: Optional[str] = None) -> List[Dict]:
+        """List all available skills with their definitions
+        
+        Args:
+            agent_type: Optional filter by agent type (info_collection, search, recommendation, booking)
+            
+        Returns:
+            List of skill definitions
+        """
+        if agent_type:
+            skills = get_skills_by_category(agent_type)
+            definitions = [skill.to_definition() for skill in skills]
+            logger.info(f"Listing {len(definitions)} skills for agent_type '{agent_type}'")
+        else:
+            definitions = get_skill_definitions()
+            logger.info(f"Listing {len(definitions)} skills")
         return definitions
     
     def get_skill_info(self, skill_name: str) -> Optional[Dict]:
@@ -52,7 +64,7 @@ class MCPServer:
         if skill:
             return {
                 "definition": skill.to_definition(),
-                "category": skill.category,
+                "agentType": skill.agent_type,
                 "version": skill.version
             }
         return None

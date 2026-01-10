@@ -201,21 +201,28 @@ async def get_status(request_id: str):
 # ============== MCP Endpoints ==============
 
 @app.get("/mcp/skills", response_model=MCPSkillsListResponse)
-async def list_mcp_skills():
+async def list_mcp_skills(agent_type: Optional[str] = None):
     """
-    List all available MCP skills.
+    List all available MCP skills, optionally filtered by agent type.
     
-    Returns a list of all skills registered with the MCP server,
-    including their names, descriptions, categories, and schemas.
+    Args:
+        agent_type: Filter skills by agent type (info_collection, search, recommendation, booking)
+    
+    Returns a list of skills registered with the MCP server,
+    including their names, descriptions, agent types, and schemas.
     """
     mcp_client = get_mcp_client()
     skills = mcp_client.list_skills()
+    
+    # Filter by agent_type if provided
+    if agent_type:
+        skills = [s for s in skills if s.agent_type == agent_type]
     
     skill_infos = [
         MCPSkillInfo(
             name=s.name,
             description=s.description,
-            category=s.category,
+            category=s.agent_type,  # Use agent_type as category for API compatibility
             version=s.version,
             input_schema=s.input_schema,
             output_schema=s.output_schema
