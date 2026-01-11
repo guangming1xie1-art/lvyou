@@ -12,7 +12,7 @@ from datetime import datetime
 import logging
 
 from .config import MCPServerConfig, SkillDefinition
-from .skills import get_skill, get_skill_definitions, get_skill_names
+from .skills import get_skill, get_skill_definitions, get_skill_names, get_skills_by_category
 
 logger = logging.getLogger(__name__)
 
