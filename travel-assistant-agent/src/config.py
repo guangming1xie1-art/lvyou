@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     )
     mcp_transport: str = Field(default="stdio", alias="MCP_TRANSPORT")
 
+    # Java API
+    java_api_base_url: str = Field(
+        default="http://localhost:8080/api",
+        alias="JAVA_API_BASE_URL"
+    )
+    java_api_timeout: int = Field(default=30, alias="JAVA_API_TIMEOUT")
+    java_api_max_retries: int = Field(default=3, alias="JAVA_API_MAX_RETRIES")
+    java_api_auth_token: str = Field(default="", alias="JAVA_API_AUTH_TOKEN")
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
