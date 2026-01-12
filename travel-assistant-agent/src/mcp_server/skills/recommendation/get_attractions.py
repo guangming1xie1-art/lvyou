@@ -2,19 +2,23 @@
 
 from typing import Any, Dict, List
 from ..base_skill import BaseSkill
+from src.utils.java_api_client import java_api_client, JavaAPIError
+from src.utils.logger import app_logger
 
 
 class GetAttractionsSkill(BaseSkill):
     """Get popular attractions and activities at a destination
-    
+
     This skill provides a list of must-see attractions, activities,
     and experiences at a given destination.
+
+    Version 2.0.0: Refactored to call Java API instead of local mock implementation.
     """
-    
+
     name = "get_attractions"
     agent_type = "recommendation"
     description = "Get popular attractions, activities, and experiences at a destination"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -74,204 +78,76 @@ class GetAttractionsSkill(BaseSkill):
         max_results: int = 10,
         **kwargs
     ) -> Dict[str, Any]:
-        """Get attractions for destination
-        
+        """Get attractions for destination by calling Java API
+
         Args:
             destination: Destination name
-            category: Filter by category
+            category: Filter by category (all, culture, nature, food, entertainment, adventure)
             max_results: Maximum results
-            
+
         Returns:
             List of attractions and activities
         """
         if not self.validate_input({"destination": destination}):
             raise ValueError("Invalid input: destination is required")
-        
-        # Mock attractions database
-        mock_attractions = {
-            "tokyo": [
-                {
-                    "name": "Senso-ji Temple",
-                    "category": "culture",
-                    "description": "Tokyo's oldest temple with vibrant atmosphere",
-                    "rating": 4.5,
-                    "estimated_duration": "1-2 hours",
-                    "best_time_to_visit": "Early morning to avoid crowds",
-                    "entrance_fee": "Free",
-                    "must_see": True
-                },
-                {
-                    "name": "Shibuya Crossing",
-                    "category": "entertainment",
-                    "description": "World's busiest pedestrian crossing",
-                    "rating": 4.3,
-                    "estimated_duration": "30 minutes",
-                    "best_time_to_visit": "Evening for full effect",
-                    "entrance_fee": "Free",
-                    "must_see": True
-                },
-                {
-                    "name": "Tsukiji Outer Market",
-                    "category": "food",
-                    "description": "Fresh seafood and street food paradise",
-                    "rating": 4.6,
-                    "estimated_duration": "2-3 hours",
-                    "best_time_to_visit": "Morning (6-10 AM)",
-                    "entrance_fee": "Free",
-                    "must_see": True
-                },
-                {
-                    "name": "Tokyo Skytree",
-                    "category": "entertainment",
-                    "description": "Tallest structure in Japan with observation decks",
-                    "rating": 4.4,
-                    "estimated_duration": "2 hours",
-                    "best_time_to_visit": "Sunset",
-                    "entrance_fee": "$25-35",
-                    "must_see": False
-                },
-                {
-                    "name": "Meiji Shrine",
-                    "category": "culture",
-                    "description": "Peaceful shrine in a forested area",
-                    "rating": 4.5,
-                    "estimated_duration": "1 hour",
-                    "best_time_to_visit": "Morning",
-                    "entrance_fee": "Free",
-                    "must_see": True
+
+        app_logger.info(f"GetAttractionsSkill: Fetching attractions for {destination} (category: {category})")
+
+        try:
+            # Call Java API to get attractions
+            result = await java_api_client.get_attractions(
+                destination=destination,
+                category=category if category != "all" else None,
+                sort_by="rating"
+            )
+
+            attractions = result.get("attractions", [])
+
+            app_logger.info(f"GetAttractionsSkill: Found {len(attractions)} attractions in {destination}")
+
+            # Transform Java API response to match skill output schema
+            # JavaAPIClient returns attractions with fields like: attraction_id, name, category, rating, etc.
+            # Skill output schema expects: name, category, description, rating, estimated_duration, best_time_to_visit, entrance_fee, must_see
+            transformed_attractions = []
+            for attraction in attractions[:max_results]:
+                transformed = {
+                    "name": attraction.get("name", ""),
+                    "category": attraction.get("category", "culture"),
+                    "description": attraction.get("description", ""),
+                    "rating": attraction.get("rating", 0.0),
+                    "estimated_duration": f"{attraction.get('duration_hours', 2)} hours",
+                    "best_time_to_visit": attraction.get("opening_hours", "Anytime"),
+                    "entrance_fee": f"${attraction.get('ticket_price', 0)}" if attraction.get("ticket_price", 0) > 0 else "Free",
+                    "must_see": attraction.get("rating", 0) >= 4.5  # Mark high-rated attractions as must-see
                 }
-            ],
-            "paris": [
-                {
-                    "name": "Eiffel Tower",
-                    "category": "culture",
-                    "description": "Iconic iron tower and Paris symbol",
-                    "rating": 4.7,
-                    "estimated_duration": "2-3 hours",
-                    "best_time_to_visit": "Sunset",
-                    "entrance_fee": "$15-30",
-                    "must_see": True
-                },
-                {
-                    "name": "Louvre Museum",
-                    "category": "culture",
-                    "description": "World's largest art museum",
-                    "rating": 4.8,
-                    "estimated_duration": "3-4 hours",
-                    "best_time_to_visit": "Weekday mornings",
-                    "entrance_fee": "$17",
-                    "must_see": True
-                },
-                {
-                    "name": "Seine River Cruise",
-                    "category": "entertainment",
-                    "description": "Scenic boat tour past major landmarks",
-                    "rating": 4.5,
-                    "estimated_duration": "1 hour",
-                    "best_time_to_visit": "Evening",
-                    "entrance_fee": "$15-25",
-                    "must_see": False
-                },
-                {
-                    "name": "Montmartre & Sacré-Cœur",
-                    "category": "culture",
-                    "description": "Charming hilltop neighborhood with basilica",
-                    "rating": 4.6,
-                    "estimated_duration": "2-3 hours",
-                    "best_time_to_visit": "Morning or late afternoon",
-                    "entrance_fee": "Free (basilica)",
-                    "must_see": True
+                transformed_attractions.append(transformed)
+
+            return {
+                "destination": destination,
+                "attractions": transformed_attractions,
+                "total_count": len(transformed_attractions)
+            }
+
+        except JavaAPIError as e:
+            app_logger.error(f"GetAttractionsSkill: Java API error - {e}")
+            return {
+                "destination": destination,
+                "attractions": [],
+                "total_count": 0,
+                "error": {
+                    "code": "JAVA_API_ERROR",
+                    "message": str(e),
+                    "status_code": getattr(e, "status_code", None)
                 }
-            ],
-            "bali": [
-                {
-                    "name": "Uluwatu Temple",
-                    "category": "culture",
-                    "description": "Clifftop temple with sunset Kecak dance",
-                    "rating": 4.7,
-                    "estimated_duration": "2-3 hours",
-                    "best_time_to_visit": "Sunset",
-                    "entrance_fee": "$3-5",
-                    "must_see": True
-                },
-                {
-                    "name": "Tegallalang Rice Terraces",
-                    "category": "nature",
-                    "description": "Stunning rice paddies with jungle swing",
-                    "rating": 4.5,
-                    "estimated_duration": "2 hours",
-                    "best_time_to_visit": "Morning",
-                    "entrance_fee": "$1-2",
-                    "must_see": True
-                },
-                {
-                    "name": "Sacred Monkey Forest",
-                    "category": "nature",
-                    "description": "Forest sanctuary with playful monkeys",
-                    "rating": 4.4,
-                    "estimated_duration": "1-2 hours",
-                    "best_time_to_visit": "Morning",
-                    "entrance_fee": "$5",
-                    "must_see": False
-                },
-                {
-                    "name": "Mount Batur Sunrise Trek",
-                    "category": "adventure",
-                    "description": "Volcano hike to watch sunrise",
-                    "rating": 4.8,
-                    "estimated_duration": "5-6 hours",
-                    "best_time_to_visit": "Predawn start",
-                    "entrance_fee": "$35-50 (guided)",
-                    "must_see": True
+            }
+        except Exception as e:
+            app_logger.error(f"GetAttractionsSkill: Unexpected error - {e}")
+            return {
+                "destination": destination,
+                "attractions": [],
+                "total_count": 0,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": str(e)
                 }
-            ]
-        }
-        
-        # Get attractions for destination
-        dest_lower = destination.lower().strip()
-        attractions = mock_attractions.get(dest_lower, [])
-        
-        # If not found, try partial match
-        if not attractions:
-            for key, value in mock_attractions.items():
-                if dest_lower in key or key in dest_lower:
-                    attractions = value
-                    break
-        
-        # Default attractions if not found
-        if not attractions:
-            attractions = [
-                {
-                    "name": "Main City Square",
-                    "category": "culture",
-                    "description": "Central gathering place with local flavor",
-                    "rating": 4.0,
-                    "estimated_duration": "1 hour",
-                    "best_time_to_visit": "Anytime",
-                    "entrance_fee": "Free",
-                    "must_see": True
-                },
-                {
-                    "name": "Local Market",
-                    "category": "food",
-                    "description": "Traditional market with local products",
-                    "rating": 4.2,
-                    "estimated_duration": "1-2 hours",
-                    "best_time_to_visit": "Morning",
-                    "entrance_fee": "Free",
-                    "must_see": False
-                }
-            ]
-        
-        # Filter by category
-        if category != "all":
-            attractions = [a for a in attractions if a["category"] == category]
-        
-        # Limit results
-        attractions = attractions[:max_results]
-        
-        return {
-            "destination": destination,
-            "attractions": attractions,
-            "total_count": len(attractions)
-        }
+            }
