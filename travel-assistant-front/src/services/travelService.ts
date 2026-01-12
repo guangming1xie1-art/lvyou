@@ -146,4 +146,22 @@ export const travelService = {
       payment_method: paymentMethod,
     })
   },
+
+  /**
+   * 与 Agent 进行对话
+   */
+  agentChat: async (message: string, history: any[] = [], attachments: any = {}): Promise<any> => {
+    return await http.post(API_ENDPOINTS.AGENT.CHAT, {
+      message,
+      conversation_history: history,
+      attachments,
+    })
+  },
+
+  /**
+   * 获取 Agent 状态
+   */
+  getAgentStatus: async (): Promise<any> => {
+    return await http.get(API_ENDPOINTS.AGENT.STATUS)
+  },
 }

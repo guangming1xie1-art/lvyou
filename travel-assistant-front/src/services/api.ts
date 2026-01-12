@@ -50,6 +50,12 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/orders/${id}/cancel`,
     PAY: (id: string) => `/orders/${id}/pay`,
   },
+
+  // Agent 相关
+  AGENT: {
+    CHAT: '/agent/chat',
+    STATUS: '/agent/status',
+  },
 }
 
 export default API_ENDPOINTS
