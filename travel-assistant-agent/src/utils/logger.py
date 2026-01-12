@@ -7,7 +7,10 @@ from pathlib import Path
 
 from loguru import logger
 
-from config import settings
+try:
+    from config import settings
+except ModuleNotFoundError:
+    from src.config import settings
 
 
 def setup_logger():

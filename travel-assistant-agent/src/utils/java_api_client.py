@@ -21,8 +21,15 @@ import asyncio
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from config import settings
-from utils.logger import app_logger
+try:
+    from config import settings
+except ModuleNotFoundError:
+    from src.config import settings
+
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
 
 
 # =============================================================================

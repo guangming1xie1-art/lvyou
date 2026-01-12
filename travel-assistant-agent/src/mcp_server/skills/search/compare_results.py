@@ -2,6 +2,7 @@
 
 from typing import Any, Dict, List
 from ..base_skill import BaseSkill
+from src.utils.logger import app_logger
 
 
 class CompareResultsSkill(BaseSkill):
@@ -10,12 +11,18 @@ class CompareResultsSkill(BaseSkill):
     This skill takes multiple flight or hotel options and compares them
     based on various criteria (price, rating, convenience) to help users
     make informed decisions.
+    
+    Version 2.0.0: Updated to align with three-tier architecture refactor.
+    Note: This skill performs client-side comparison logic on already-fetched results.
+    It does not need to call Java API as it analyzes data that's already in memory.
+    Future optimization: Could potentially call Java API's compare endpoint if complex
+    server-side comparison logic is needed.
     """
     
     name = "compare_results"
     agent_type = "search"
     description = "Compare and rank search results based on various criteria"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -90,7 +97,10 @@ class CompareResultsSkill(BaseSkill):
         max_recommendations: int = 3,
         **kwargs
     ) -> Dict[str, Any]:
-        """Compare and rank results
+        """Compare and rank results using client-side logic
+        
+        This method performs in-memory comparison and ranking of search results.
+        It does not call Java API as it operates on data already fetched.
         
         Args:
             result_type: Type of results (flights, hotels, mixed)
@@ -103,6 +113,8 @@ class CompareResultsSkill(BaseSkill):
         """
         if not self.validate_input({"result_type": result_type, "results": results}):
             raise ValueError("Invalid input: result_type and results are required")
+        
+        app_logger.info(f"CompareResultsSkill: Comparing {len(results)} {result_type} results")
         
         if not results:
             return {
@@ -167,6 +179,11 @@ class CompareResultsSkill(BaseSkill):
         best_value = max(scored_results, key=lambda x: x["scores"]["price_score"])
         best_quality = max(scored_results, key=lambda x: x["scores"]["quality_score"])
         most_convenient = max(scored_results, key=lambda x: x["scores"]["convenience_score"])
+        
+        app_logger.info(
+            f"CompareResultsSkill: Generated {len(top_recommendations)} recommendations "
+            f"from {len(results)} input results"
+        )
         
         return {
             "top_recommendations": top_recommendations,

@@ -9,11 +9,11 @@
 - Java API 客户端: java_api_client
 """
 
-from utils.logger import app_logger
-from utils.db import db_manager
-from utils.api_client import APIClient, BackendAPIClient, backend_client
-from utils.claude import ClaudeClient, claude_client
-from utils.java_api_client import (
+from .logger import app_logger
+from .db import db_manager
+from .api_client import APIClient, BackendAPIClient, backend_client
+from .claude import ClaudeClient, claude_client
+from .java_api_client import (
     java_api_client,
     JavaAPIClient,
     JavaAPIError,

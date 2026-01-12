@@ -3,6 +3,8 @@
 from typing import Any, Dict, List
 from datetime import datetime, timedelta
 from ..base_skill import BaseSkill
+from src.utils.java_api_client import java_api_client, JavaAPIError
+from src.utils.logger import app_logger
 
 
 class SearchFlightsSkill(BaseSkill):
@@ -10,12 +12,14 @@ class SearchFlightsSkill(BaseSkill):
     
     This skill queries available flights for a given route and date range,
     returning flight options with pricing and schedule information.
+    
+    Version 2.0.0: Refactored to call Java API instead of local mock implementation.
     """
     
     name = "search_flights"
     agent_type = "search"
     description = "Search and return available flights for given route and dates"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -115,7 +119,7 @@ class SearchFlightsSkill(BaseSkill):
         max_results: int = 10,
         **kwargs
     ) -> Dict[str, Any]:
-        """Search for flights
+        """Search for flights by calling Java API
         
         Args:
             origin: Departure location
@@ -127,7 +131,7 @@ class SearchFlightsSkill(BaseSkill):
             max_results: Maximum results to return
             
         Returns:
-            Flight search results
+            Flight search results with outbound_flights, return_flights, and search_metadata
         """
         if not self.validate_input({
             "origin": origin,
@@ -137,75 +141,77 @@ class SearchFlightsSkill(BaseSkill):
         }):
             raise ValueError("Invalid input: origin, destination, departure_date, and passengers are required")
         
-        # Mock flight data
-        airlines = [
-            {"name": "SkyAir", "code": "SA"},
-            {"name": "Global Wings", "code": "GW"},
-            {"name": "Pacific Airlines", "code": "PA"},
-            {"name": "EuroFly", "code": "EF"},
-            {"name": "AsiaJet", "code": "AJ"}
-        ]
+        app_logger.info(f"SearchFlightsSkill: Searching flights from {origin} to {destination} on {departure_date}")
         
-        # Generate mock outbound flights
-        outbound_flights = []
-        base_price = 200 if cabin_class == "economy" else 500 if cabin_class == "premium_economy" else 1200 if cabin_class == "business" else 3000
-        
-        for i in range(min(max_results, 5)):
-            airline = airlines[i % len(airlines)]
-            dep_time = f"{8 + i * 2}:00"
-            duration = 180 + i * 30  # 3-4.5 hours
-            stops = 0 if i < 3 else 1
-            price_variation = 1.0 + (i * 0.15)  # Price increases with later flights
+        try:
+            # Call Java API to search flights
+            trip_type = "roundtrip" if return_date else "oneway"
+            result = await java_api_client.search_flights(
+                origin=origin,
+                destination=destination,
+                departure_date=departure_date,
+                passengers=passengers,
+                return_date=return_date,
+                cabin_class=cabin_class,
+                trip_type=trip_type
+            )
             
-            outbound_flights.append({
-                "flight_id": f"FL-{airline['code']}-{i+1:03d}",
-                "airline": airline["name"],
-                "flight_number": f"{airline['code']}{100 + i}",
-                "departure_time": dep_time,
-                "arrival_time": f"{int(dep_time.split(':')[0]) + duration // 60}:{duration % 60:02d}",
-                "duration_minutes": duration,
-                "stops": stops,
-                "price_per_person": round(base_price * price_variation, 2),
-                "total_price": round(base_price * price_variation * passengers, 2),
-                "currency": "USD",
-                "available_seats": 15 - i * 2,
-                "cabin_class": cabin_class
-            })
-        
-        # Generate mock return flights if round trip
-        return_flights = []
-        if return_date:
-            for i in range(min(max_results, 5)):
-                airline = airlines[i % len(airlines)]
-                dep_time = f"{9 + i * 2}:00"
-                duration = 180 + i * 30
-                stops = 0 if i < 3 else 1
-                price_variation = 1.0 + (i * 0.12)
-                
-                return_flights.append({
-                    "flight_id": f"FL-{airline['code']}-R-{i+1:03d}",
-                    "airline": airline["name"],
-                    "flight_number": f"{airline['code']}{200 + i}",
-                    "departure_time": dep_time,
-                    "arrival_time": f"{int(dep_time.split(':')[0]) + duration // 60}:{duration % 60:02d}",
-                    "duration_minutes": duration,
-                    "stops": stops,
-                    "price_per_person": round(base_price * price_variation, 2),
-                    "total_price": round(base_price * price_variation * passengers, 2),
-                    "currency": "USD",
-                    "available_seats": 12 - i * 2,
-                    "cabin_class": cabin_class
-                })
-        
-        return {
-            "outbound_flights": outbound_flights,
-            "return_flights": return_flights if return_date else [],
-            "search_metadata": {
-                "origin": origin,
-                "destination": destination,
-                "departure_date": departure_date,
-                "return_date": return_date or "one-way",
-                "passengers": passengers,
-                "results_count": len(outbound_flights)
+            # Transform Java API response to match skill output schema
+            outbound_flights = result.get("outbound_flights", [])
+            return_flights = result.get("return_flights", [])
+            
+            app_logger.info(
+                f"SearchFlightsSkill: Found {len(outbound_flights)} outbound flights "
+                f"and {len(return_flights)} return flights"
+            )
+            
+            return {
+                "outbound_flights": outbound_flights,
+                "return_flights": return_flights,
+                "search_metadata": {
+                    "origin": origin,
+                    "destination": destination,
+                    "departure_date": departure_date,
+                    "return_date": return_date or "one-way",
+                    "passengers": passengers,
+                    "results_count": len(outbound_flights)
+                }
             }
-        }
+            
+        except JavaAPIError as e:
+            app_logger.error(f"SearchFlightsSkill: Java API error - {e}")
+            return {
+                "outbound_flights": [],
+                "return_flights": [],
+                "search_metadata": {
+                    "origin": origin,
+                    "destination": destination,
+                    "departure_date": departure_date,
+                    "return_date": return_date or "one-way",
+                    "passengers": passengers,
+                    "results_count": 0
+                },
+                "error": {
+                    "code": "JAVA_API_ERROR",
+                    "message": str(e),
+                    "status_code": getattr(e, "status_code", None)
+                }
+            }
+        except Exception as e:
+            app_logger.error(f"SearchFlightsSkill: Unexpected error - {e}")
+            return {
+                "outbound_flights": [],
+                "return_flights": [],
+                "search_metadata": {
+                    "origin": origin,
+                    "destination": destination,
+                    "departure_date": departure_date,
+                    "return_date": return_date or "one-way",
+                    "passengers": passengers,
+                    "results_count": 0
+                },
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": str(e)
+                }
+            }
