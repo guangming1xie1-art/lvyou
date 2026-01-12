@@ -22,6 +22,7 @@ from agents import (
     MCPSkillsPlanner
 )
 from src.api import routes as api_routes
+from src.api import websocket as websocket_routes
 
 
 # ============== MCP-related Models ==============
@@ -153,6 +154,10 @@ app.add_middleware(
 # Register REST API routes
 app.include_router(api_routes.router)
 app_logger.info("REST API routes registered")
+
+# Register WebSocket routes
+app.include_router(websocket_routes.router)
+app_logger.info("WebSocket routes registered")
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -295,23 +295,50 @@ export interface ApiConfig {
   retries: number
 }
 
-// WebSocket 相关类型（可选）
+// WebSocket 相关类型
 export interface WebSocketConfig {
   url: string
   reconnectInterval: number
   maxReconnectAttempts: number
 }
 
-export interface TaskUpdateMessage {
-  type: 'task_update'
-  data: {
-    task_id: string
-    status: TaskStatus
-    progress: number
-    result?: unknown
-    error?: ErrorDetail
-  }
+export type WSAction = 'search' | 'recommend' | 'book'
+
+export interface WSBaseMessage {
+  type: 'progress' | 'intermediate' | 'complete' | 'error'
+  action: WSAction
+  timestamp: number
 }
+
+export interface ProgressMessage extends WSBaseMessage {
+  type: 'progress'
+  status: string
+  progress: number
+  message: string
+}
+
+export interface IntermediateMessage extends WSBaseMessage {
+  type: 'intermediate'
+  data: any
+}
+
+export interface CompleteMessage extends WSBaseMessage {
+  type: 'complete'
+  data: any
+  duration_ms: number
+}
+
+export interface ErrorMessage extends WSBaseMessage {
+  type: 'error'
+  error: string
+  code: string
+}
+
+export type WSIncomingMessage = 
+  | ProgressMessage 
+  | IntermediateMessage 
+  | CompleteMessage 
+  | ErrorMessage
 
 // 通用 API 响应包装器
 export interface ApiResponseWrapper<T> {

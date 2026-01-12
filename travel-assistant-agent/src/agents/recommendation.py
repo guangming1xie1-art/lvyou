@@ -3,7 +3,7 @@
 基于搜索结果和用户偏好，生成定制化的旅行方案推荐。
 使用 LLM 进行推理和方案生成。
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Callable, Awaitable
 from src.utils.logger import app_logger
 from src.utils.claude import claude_client
 from src.agents.error_handler import AgentErrorHandler
@@ -12,17 +12,40 @@ from .base import BaseAgent
 class RecommendationAgent(BaseAgent):
     name = "recommendation_agent"
 
-    async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(
+        self, 
+        state: Dict[str, Any], 
+        on_progress: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
+    ) -> Dict[str, Any]:
         app_logger.info(f"Starting agent {self.name}")
+
+        if on_progress:
+            await on_progress({"status": "starting", "progress": 0.1, "message": "正在启动推荐代理..."})
 
         collected_info = state.get("collected_info", {})
         search_results = state.get("search_results", [])
 
         try:
+            if on_progress:
+                await on_progress({"status": "thinking", "progress": 0.4, "message": "正在根据您的需求生成旅行方案..."})
+
             recommendations = await self._generate_recommendations(
                 collected_info, search_results
             )
+            
+            if on_progress:
+                await on_progress({
+                    "status": "partial_results", 
+                    "progress": 0.8, 
+                    "message": "已生成初步推荐方案",
+                    "data": {"recommendations": recommendations}
+                })
+
             state["recommendations"] = recommendations
+            
+            if on_progress:
+                await on_progress({"status": "completed", "progress": 1.0, "message": "推荐方案生成完成"})
+
             app_logger.info(f"Agent {self.name} completed successfully", rec_count=len(recommendations))
             return state
         except Exception as e:

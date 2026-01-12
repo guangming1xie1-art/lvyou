@@ -1,4 +1,7 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { useWebSocketRecommend } from '../hooks/useWebSocketRecommend'
+import LoadingProgress from '../components/common/LoadingProgress'
 
 const PLANS = [
   {
@@ -32,15 +35,77 @@ const PLANS = [
 ]
 
 export const PlanDisplay = () => {
+  const location = useLocation()
+  const formData = location.state?.formData || {}
+  const { data, loading, error, progress, status, recommend, cancel } = useWebSocketRecommend()
+
+  const steps = ['准备', '搜索目的地', '生成建议', '完成']
+  
+  const getCurrentStepIndex = () => {
+    if (progress < 0.2) return 0
+    if (progress < 0.5) return 1
+    if (progress < 0.8) return 2
+    if (progress < 1) return 3
+    return 3
+  }
+
+  useEffect(() => {
+    if (formData.destination) {
+      recommend({
+        destination: formData.destination,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        preferences: [] // 可以从 formData 获取更多
+      })
+    }
+  }, [formData.destination, recommend])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <LoadingProgress
+            progress={progress}
+            status={status}
+            steps={steps}
+            currentStepIndex={getCurrentStepIndex()}
+            onCancel={cancel}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-3xl shadow-xl max-w-md">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">规划失败</h2>
+          <p className="text-gray-500 mb-8">{error.message}</p>
+          <Link to="/info-collection" className="bg-primary-600 text-white px-8 py-3 rounded-xl font-bold">
+            重新尝试
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">为您生成的 3 套专属方案</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">为您生成的专属方案</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            基于您的需求，AI 智能引擎为您匹配了以下三种风格的行程。您可以对比选择最心仪的一款。
+            基于您的需求，AI 智能引擎为您匹配了以下行程。
           </p>
+          {data && (
+            <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-xl inline-block">
+              📍 已为您分析 {data.destination_info?.name} 的 {data.attractions?.length} 个热门景点
+            </div>
+          )}
         </div>
+        {/* ... (rest of the PLANS rendering) */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           {PLANS.map((plan) => (
