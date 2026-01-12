@@ -4,6 +4,16 @@ from typing import Any, Dict
 from datetime import datetime
 from ..base_skill import BaseSkill
 
+try:
+    from utils.java_api_client import java_api_client, JavaAPIError
+except ModuleNotFoundError:
+    from src.utils.java_api_client import java_api_client, JavaAPIError
+
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
+
 
 class ConfirmBookingSkill(BaseSkill):
     """Confirm booking and send confirmation details
@@ -15,7 +25,7 @@ class ConfirmBookingSkill(BaseSkill):
     name = "confirm_booking"
     agent_type = "booking"
     description = "Confirm booking after payment and send confirmation details"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -98,60 +108,103 @@ class ConfirmBookingSkill(BaseSkill):
             Booking confirmation details
         """
         if not self.validate_input({"booking_id": booking_id, "transaction_id": transaction_id}):
-            raise ValueError("Invalid input: booking_id and transaction_id are required")
+            app_logger.error(f"ConfirmBookingSkill: Invalid input for booking {booking_id}")
+            return {
+                "confirmation_status": "failed",
+                "booking_id": booking_id,
+                "confirmation_number": None,
+                "error": {
+                    "code": "INVALID_INPUT",
+                    "message": "booking_id and transaction_id are required"
+                }
+            }
         
-        # Generate confirmation number
-        confirmation_number = f"CONF-{booking_id.split('-')[-1]}"
-        confirmed_at = datetime.now()
+        app_logger.info(f"Confirming booking {booking_id} with transaction {transaction_id}")
         
-        # Mock booking details retrieval
-        # In production, this would fetch actual booking data from database
-        booking_details = {
-            "destination": "Tokyo, Japan",
-            "dates": "2024-05-01 to 2024-05-07",
-            "travelers": 2,
-            "total_paid": 2850.00
-        }
-        
-        # Generate document URLs (mock)
-        base_url = "https://bookings.example.com/documents"
-        documents = {
-            "eticket_url": f"{base_url}/eticket/{booking_id}.pdf",
-            "hotel_voucher_url": f"{base_url}/voucher/{booking_id}.pdf",
-            "itinerary_url": f"{base_url}/itinerary/{booking_id}.pdf"
-        }
-        
-        # Important information
-        important_info = [
-            "Please arrive at airport 3 hours before international departure",
-            "Valid passport required for international travel",
-            "Hotel check-in time: 3:00 PM, check-out: 11:00 AM",
-            "Keep confirmation number for reference",
-            "Download and print all travel documents"
-        ]
-        
-        # Next steps
-        next_steps = [
-            "Download and save your travel documents",
-            "Check passport validity (must be valid 6 months beyond travel dates)",
-            "Review visa requirements for your destination",
-            "Consider travel insurance if not already purchased",
-            "Check airline baggage policies",
-            "Add trip to your calendar",
-            "Check-in online 24 hours before departure"
-        ]
-        
-        # Simulate sending confirmation email
-        email_sent = customer_email is not None
-        
-        return {
-            "confirmation_status": "confirmed",
-            "booking_id": booking_id,
-            "confirmation_number": confirmation_number,
-            "confirmed_at": confirmed_at.isoformat(),
-            "booking_details": booking_details,
-            "confirmation_email_sent": email_sent,
-            "documents": documents,
-            "important_info": important_info,
-            "next_steps": next_steps
-        }
+        try:
+            # Call Java API
+            result = await java_api_client.confirm_booking(booking_id=booking_id)
+            
+            confirmation_number = result.get("confirmation_number")
+            confirmed_at = result.get("confirmed_at") or datetime.now().isoformat()
+            
+            app_logger.info(f"Booking {booking_id} confirmed successfully: {confirmation_number}")
+            
+            # Fetch details if not in result
+            # Mocking the rest for consistency with output_schema
+            booking_details = {
+                "destination": "Unknown",
+                "dates": "See confirmation",
+                "travelers": 0,
+                "total_paid": 0.0
+            }
+            
+            # Try to get more info from result if available
+            if "details" in result:
+                details = result["details"]
+                booking_details.update({
+                    "destination": details.get("destination", "Unknown"),
+                    "travelers": details.get("travelers", 0),
+                    "total_paid": result.get("total_amount", 0.0)
+                })
+
+            base_url = "https://bookings.example.com/documents"
+            documents = {
+                "eticket_url": f"{base_url}/eticket/{booking_id}.pdf",
+                "hotel_voucher_url": f"{base_url}/voucher/{booking_id}.pdf",
+                "itinerary_url": f"{base_url}/itinerary/{booking_id}.pdf"
+            }
+            
+            important_info = [
+                "Please arrive at airport 3 hours before international departure",
+                "Valid passport required for international travel",
+                "Hotel check-in time: 3:00 PM, check-out: 11:00 AM",
+                "Keep confirmation number for reference",
+                "Download and print all travel documents"
+            ]
+            
+            next_steps = [
+                "Download and save your travel documents",
+                "Check passport validity (must be valid 6 months beyond travel dates)",
+                "Review visa requirements for your destination",
+                "Consider travel insurance if not already purchased",
+                "Check airline baggage policies",
+                "Add trip to your calendar",
+                "Check-in online 24 hours before departure"
+            ]
+            
+            return {
+                "confirmation_status": result.get("status", "confirmed"),
+                "booking_id": booking_id,
+                "confirmation_number": confirmation_number,
+                "confirmed_at": confirmed_at,
+                "booking_details": booking_details,
+                "confirmation_email_sent": customer_email is not None,
+                "documents": documents,
+                "important_info": important_info,
+                "next_steps": next_steps
+            }
+
+        except JavaAPIError as e:
+            app_logger.error(f"ConfirmBookingSkill: Java API error for booking {booking_id} - {e}")
+            return {
+                "confirmation_status": "failed",
+                "booking_id": booking_id,
+                "confirmation_number": None,
+                "error": {
+                    "code": "JAVA_API_ERROR",
+                    "message": str(e),
+                    "status_code": getattr(e, "status_code", None)
+                }
+            }
+        except Exception as e:
+            app_logger.error(f"ConfirmBookingSkill: Unexpected error for booking {booking_id} - {e}", exc_info=True)
+            return {
+                "confirmation_status": "failed",
+                "booking_id": booking_id,
+                "confirmation_number": None,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "确认预订失败，请稍后重试"
+                }
+            }

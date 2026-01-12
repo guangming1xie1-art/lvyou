@@ -1,8 +1,18 @@
 """GetBookingStatusSkill - Check booking status"""
 
 from typing import Any, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..base_skill import BaseSkill
+
+try:
+    from utils.java_api_client import java_api_client, JavaAPIError
+except ModuleNotFoundError:
+    from src.utils.java_api_client import java_api_client, JavaAPIError
+
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
 
 
 class GetBookingStatusSkill(BaseSkill):
@@ -15,7 +25,7 @@ class GetBookingStatusSkill(BaseSkill):
     name = "get_booking_status"
     agent_type = "booking"
     description = "Check current status and details of a booking"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -116,129 +126,107 @@ class GetBookingStatusSkill(BaseSkill):
             Booking status and details
         """
         if not self.validate_input({"booking_id": booking_id}):
-            raise ValueError("Invalid input: booking_id is required")
-        
-        # Mock booking status lookup
-        # In production, this would query the database
-        
-        # Simulate different booking statuses
-        now = datetime.now()
-        
-        # Parse booking to determine mock status
-        if "FAILED" in booking_id.upper():
-            status = "cancelled"
-        elif "PENDING" in booking_id.upper():
-            status = "pending_payment"
-        else:
-            status = "confirmed"
-        
-        booking_date = now.replace(day=now.day - 5).isoformat()
-        last_updated = now.isoformat()
-        
-        # Mock trip details
-        from datetime import timedelta
-        departure_date = (now + timedelta(days=30)).strftime("%Y-%m-%d")
-        return_date = (now + timedelta(days=37)).strftime("%Y-%m-%d")
-        days_until_trip = 30
-        
-        trip_details = {
-            "destination": "Tokyo, Japan",
-            "departure_date": departure_date,
-            "return_date": return_date,
-            "travelers": 2,
-            "days_until_trip": days_until_trip
-        }
-        
-        # Payment info
-        payment_info = {
-            "amount_paid": 2850.00 if status == "confirmed" else 0,
-            "currency": "USD",
-            "payment_status": "completed" if status == "confirmed" else "pending",
-            "transaction_id": f"TXN-{booking_id.split('-')[-1]}" if status == "confirmed" else None
-        }
-        
-        # Updates timeline
-        updates = [
-            {
-                "timestamp": booking_date,
-                "type": "booking_created",
-                "message": "Booking created successfully"
-            }
-        ]
-        
-        if status == "confirmed":
-            updates.append({
-                "timestamp": booking_date,
-                "type": "payment_received",
-                "message": "Payment processed successfully"
-            })
-            updates.append({
-                "timestamp": booking_date,
-                "type": "booking_confirmed",
-                "message": "Booking confirmed - confirmation email sent"
-            })
-        elif status == "pending_payment":
-            updates.append({
-                "timestamp": now.isoformat(),
-                "type": "payment_pending",
-                "message": "Awaiting payment - booking will expire in 24 hours"
-            })
-        elif status == "cancelled":
-            updates.append({
-                "timestamp": last_updated,
-                "type": "booking_cancelled",
-                "message": "Booking was cancelled"
-            })
-        
-        # Available actions based on status
-        available_actions = []
-        if status == "pending_payment":
-            available_actions = ["complete_payment", "cancel_booking"]
-        elif status == "confirmed":
-            if days_until_trip > 7:
-                available_actions = ["modify_booking", "cancel_booking", "add_services"]
-            else:
-                available_actions = ["view_details", "download_documents"]
-        
-        result = {
-            "booking_id": booking_id,
-            "status": status,
-            "booking_date": booking_date,
-            "last_updated": last_updated,
-            "customer_info": {
-                "name": "John Doe",
-                "email": customer_email or "customer@example.com"
-            },
-            "trip_details": trip_details,
-            "payment_info": payment_info,
-            "updates": updates,
-            "available_actions": available_actions
-        }
-        
-        # Add detailed booking info if requested
-        if include_details and status == "confirmed":
-            result["flight_details"] = {
-                "outbound": {
-                    "airline": "SkyAir",
-                    "flight_number": "SA101",
-                    "departure": "10:00 AM",
-                    "arrival": "2:30 PM",
-                    "date": departure_date
-                },
-                "return": {
-                    "airline": "SkyAir",
-                    "flight_number": "SA202",
-                    "departure": "3:00 PM",
-                    "arrival": "9:30 PM",
-                    "date": return_date
+            app_logger.error("GetBookingStatusSkill: Invalid input - booking_id is required")
+            return {
+                "booking_id": booking_id,
+                "status": "unknown",
+                "trip_details": {},
+                "error": {
+                    "code": "INVALID_INPUT",
+                    "message": "booking_id is required"
                 }
             }
-            result["hotel_details"] = {
-                "name": "Grand Plaza Hotel",
-                "check_in": departure_date,
-                "check_out": return_date,
-                "room_type": "Deluxe King Room",
-                "nights": 7
-            }
         
-        return result
+        app_logger.info(f"Fetching status for booking {booking_id}")
+        
+        try:
+            # Call Java API
+            result = await java_api_client.get_booking_status(booking_id=booking_id)
+            
+            status = result.get("status", "unknown")
+            app_logger.info(f"Booking {booking_id} status: {status}")
+            
+            # Enrich and transform result to match output_schema
+            booking_date = result.get("created_at") or datetime.now().isoformat()
+            last_updated = result.get("updated_at") or datetime.now().isoformat()
+            
+            # Use data from result or provide sensible defaults
+            details = result.get("details", {})
+            trip_info = details.get("trip_details", {})
+            
+            departure_date = trip_info.get("departure_date") or (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+            return_date = trip_info.get("return_date") or (datetime.now() + timedelta(days=37)).strftime("%Y-%m-%d")
+            
+            trip_details = {
+                "destination": trip_info.get("destination", "Unknown"),
+                "departure_date": departure_date,
+                "return_date": return_date,
+                "travelers": trip_info.get("travelers", 1),
+                "days_until_trip": trip_info.get("days_until_trip", 30)
+            }
+            
+            payment_info = {
+                "amount_paid": result.get("total_amount", 0.0) if status == "confirmed" else 0.0,
+                "currency": result.get("currency", "USD"),
+                "payment_status": "completed" if status == "confirmed" else "pending",
+                "transaction_id": result.get("transaction_id")
+            }
+            
+            updates = result.get("updates", [
+                {
+                    "timestamp": booking_date,
+                    "type": "booking_created",
+                    "message": "Booking created successfully"
+                }
+            ])
+            
+            available_actions = []
+            if status == "pending_payment":
+                available_actions = ["complete_payment", "cancel_booking"]
+            elif status == "confirmed":
+                available_actions = ["view_details", "modify_booking", "cancel_booking"]
+            
+            output = {
+                "booking_id": booking_id,
+                "status": status,
+                "booking_date": booking_date,
+                "last_updated": last_updated,
+                "customer_info": {
+                    "name": details.get("customer_info", {}).get("name", "Valued Customer"),
+                    "email": customer_email or details.get("customer_info", {}).get("email", "customer@example.com")
+                },
+                "trip_details": trip_details,
+                "payment_info": payment_info,
+                "updates": updates,
+                "available_actions": available_actions
+            }
+            
+            if include_details and status == "confirmed":
+                output["flight_details"] = details.get("selected_flight")
+                output["hotel_details"] = details.get("selected_hotel")
+                
+            return output
+
+        except JavaAPIError as e:
+            app_logger.error(f"GetBookingStatusSkill: Java API error for booking {booking_id} - {e}")
+            return {
+                "booking_id": booking_id,
+                "status": "unknown",
+                "trip_details": {},
+                "error": {
+                    "code": "JAVA_API_ERROR",
+                    "message": str(e),
+                    "status_code": getattr(e, "status_code", None)
+                }
+            }
+        except Exception as e:
+            app_logger.error(f"GetBookingStatusSkill: Unexpected error for booking {booking_id} - {e}", exc_info=True)
+            return {
+                "booking_id": booking_id,
+                "status": "unknown",
+                "trip_details": {},
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "查询预订状态失败，请稍后重试"
+                }
+            }
