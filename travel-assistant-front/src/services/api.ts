@@ -55,6 +55,11 @@ export const API_ENDPOINTS = {
   AGENT: {
     CHAT: '/agent/chat',
     STATUS: '/agent/status',
+    SEARCH: '/agent/search',
+    RECOMMEND: '/agent/recommend',
+    BOOK: '/agent/book',
+    TASK_STATUS: (taskId: string) => `/agent/status/${taskId}`,
+    TASKS: '/agent/tasks',
   },
 }
 

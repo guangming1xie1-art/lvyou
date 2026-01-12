@@ -171,3 +171,6 @@ export interface ApiError {
   message: string
   details?: unknown
 }
+
+// 导出 Agent API 类型
+export * from './api'
