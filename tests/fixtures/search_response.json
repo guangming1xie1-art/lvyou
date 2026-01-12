@@ -1,0 +1,134 @@
+{
+  "success": true,
+  "task_id": "test-search-task-123",
+  "outbound_flights": [
+    {
+      "flight_id": "FL123456",
+      "airline": "Sample Airline",
+      "flight_number": "SA123",
+      "departure_time": "2025-02-01T08:00:00",
+      "arrival_time": "2025-02-01T12:00:00",
+      "duration": 240,
+      "stops": 0,
+      "price_per_adult": 600.0,
+      "price_per_child": 400.0,
+      "total_price": 1200.0,
+      "currency": "USD",
+      "cabin_class": "economy",
+      "aircraft_type": "Boeing 787",
+      "departure_airport": "PEK",
+      "arrival_airport": "HND",
+      "baggage_allowance": "20kg",
+      "meal_included": true,
+      "refundable": false,
+      "available_seats": 150
+    },
+    {
+      "flight_id": "FL789012",
+      "airline": "Another Airline",
+      "flight_number": "AA456",
+      "departure_time": "2025-02-01T10:30:00",
+      "arrival_time": "2025-02-01T14:45:00",
+      "duration": 255,
+      "stops": 1,
+      "price_per_adult": 550.0,
+      "price_per_child": 380.0,
+      "total_price": 1100.0,
+      "currency": "USD",
+      "cabin_class": "economy",
+      "aircraft_type": "Airbus A350",
+      "departure_airport": "PEK",
+      "arrival_airport": "NRT",
+      "baggage_allowance": "25kg",
+      "meal_included": true,
+      "refundable": true,
+      "available_seats": 200
+    }
+  ],
+  "return_flights": [
+    {
+      "flight_id": "FL345678",
+      "airline": "Sample Airline",
+      "flight_number": "SA456",
+      "departure_time": "2025-02-14T14:00:00",
+      "arrival_time": "2025-02-14T18:00:00",
+      "duration": 240,
+      "stops": 0,
+      "price_per_adult": 600.0,
+      "price_per_child": 400.0,
+      "total_price": 1200.0,
+      "currency": "USD",
+      "cabin_class": "economy",
+      "aircraft_type": "Boeing 787",
+      "departure_airport": "HND",
+      "arrival_airport": "PEK",
+      "baggage_allowance": "20kg",
+      "meal_included": true,
+      "refundable": false,
+      "available_seats": 150
+    }
+  ],
+  "hotels": [
+    {
+      "hotel_id": "HT789012",
+      "name": "Luxury Hotel Tokyo",
+      "rating": 4.8,
+      "price_per_night": 250.0,
+      "currency": "USD",
+      "address": "1-1-1 Shinjuku, Tokyo",
+      "location": {
+        "latitude": 35.6895,
+        "longitude": 139.6917
+      },
+      "amenities": ["WiFi", "Pool", "Gym", "Restaurant", "Spa"],
+      "room_types": ["Standard", "Deluxe", "Suite"],
+      "images": [
+        "https://example.com/hotel1.jpg",
+        "https://example.com/hotel2.jpg"
+      ],
+      "description": "Luxury hotel in the heart of Tokyo",
+      "distance_from_airport": 25.0,
+      "free_breakfast": true,
+      "free_cancellation": true,
+      "total_reviews": 1250,
+      "overall_rating": 4.7
+    },
+    {
+      "hotel_id": "HT234567",
+      "name": "Business Hotel Shinjuku",
+      "rating": 4.2,
+      "price_per_night": 150.0,
+      "currency": "USD",
+      "address": "2-3-4 Shinjuku, Tokyo",
+      "location": {
+        "latitude": 35.6900,
+        "longitude": 139.6920
+      },
+      "amenities": ["WiFi", "Restaurant"],
+      "room_types": ["Standard", "Business"],
+      "images": [
+        "https://example.com/business1.jpg"
+      ],
+      "description": "Affordable business hotel",
+      "distance_from_airport": 28.0,
+      "free_breakfast": false,
+      "free_cancellation": true,
+      "total_reviews": 875,
+      "overall_rating": 4.1
+    }
+  ],
+  "search_metadata": {
+    "origin": "Beijing",
+    "destination": "Tokyo",
+    "departure_date": "2025-02-01",
+    "return_date": "2025-02-14",
+    "passengers": 2,
+    "cabin_class": "economy",
+    "trip_type": "roundtrip",
+    "search_timestamp": "2024-01-15T10:30:00Z",
+    "results_count": {
+      "flights": 2,
+      "hotels": 2
+    }
+  }
+}

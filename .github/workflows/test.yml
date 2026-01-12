@@ -1,0 +1,81 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd travel-assistant-agent
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-mock pytest-timeout httpx
+      
+      - name: Run backend tests
+        run: |
+          cd travel-assistant-agent
+          python -m pytest tests/test_e2e_api.py -v
+      
+      - name: Run API integration tests
+        run: |
+          python tests/api_integration_test.py
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          cd travel-assistant-front
+          npm install
+      
+      - name: Run frontend tests
+        run: |
+          cd travel-assistant-front
+          npm run test
+      
+      - name: Generate coverage report
+        run: |
+          cd travel-assistant-front
+          npm run test -- --coverage
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          cd travel-assistant-front
+          npm install
+      
+      - name: Run linting
+        run: |
+          cd travel-assistant-front
+          npx eslint . --ext .ts,.tsx
+      
+      - name: Check formatting
+        run: |
+          cd travel-assistant-front
+          npx prettier --check .
