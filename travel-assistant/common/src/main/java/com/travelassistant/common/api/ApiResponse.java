@@ -1,14 +1,23 @@
 package com.travelassistant.common.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "Unified API response wrapper / 统一 API 响应包装")
 public class ApiResponse<T> {
+  @Schema(description = "Business status code / 业务状态码", example = "0")
   private final int code;
+
+  @Schema(description = "Message / 提示信息", example = "OK")
   private final String message;
+
+  @Schema(description = "Response payload / 返回数据")
   private final T data;
+
+  @Schema(description = "Response timestamp (UTC) / 响应时间戳 (UTC)")
   private final Instant timestamp;
 
   private ApiResponse(int code, String message, T data) {
