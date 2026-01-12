@@ -72,6 +72,20 @@ class Settings(BaseSettings):
     java_api_max_retries: int = Field(default=3, alias="JAVA_API_MAX_RETRIES")
     java_api_auth_token: str = Field(default="", alias="JAVA_API_AUTH_TOKEN")
 
+    # JWT Authentication
+    jwt_secret_key: str = Field(
+        default="your-super-secret-key-change-in-production",
+        alias="JWT_SECRET_KEY"
+    )
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_expire_days: int = Field(default=7, alias="REFRESH_TOKEN_EXPIRE_DAYS")
+
+    # Security
+    require_https: bool = Field(default=False, alias="REQUIRE_HTTPS")
+    min_password_length: int = Field(default=8, alias="MIN_PASSWORD_LENGTH")
+    require_special_chars: bool = Field(default=True, alias="REQUIRE_SPECIAL_CHARS")
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

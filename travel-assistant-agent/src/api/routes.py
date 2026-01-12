@@ -5,7 +5,7 @@ Provides HTTP endpoints for search, recommendation, and booking operations
 import uuid
 import asyncio
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from .schemas import (
     SearchRequest, SearchResponse,
     RecommendRequest, RecommendResponse,
@@ -14,6 +14,9 @@ from .schemas import (
 )
 from ..agents import get_mcp_client
 from ..utils.logger import app_logger
+from ..auth.dependencies import get_current_active_user, get_current_user
+from ..security import rate_limiter, audit_logger
+from ..auth.models import User
 
 
 # Create API router
@@ -81,7 +84,11 @@ def _format_task_status(task_data: Dict[str, Any]) -> Dict[str, Any]:
 # ============== Search Endpoint ==============
 
 @router.post("/search", response_model=SearchResponse)
-async def search_travel(request: SearchRequest):
+async def search_travel(
+    request: SearchRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Search for flights and hotels
     
@@ -96,8 +103,22 @@ async def search_travel(request: SearchRequest):
     - **cabin_class**: Cabin class (economy, premium_economy, business, first)
     - **include_hotels**: Whether to search for hotels
     """
+    # Check rate limit
+    await rate_limiter.check_limit(http_request)
+    
     task_id = await _create_task("search", request.dict())
     app_logger.info(f"[{task_id}] Search request received", request=request.dict())
+    
+    # Log API call
+    await audit_logger.log_api_call(
+        user_id=current_user.id,
+        action="search",
+        endpoint="/api/agent/search",
+        method="POST",
+        params=request.dict(),
+        ip_address=http_request.client.host if http_request.client else None,
+        user_agent=http_request.headers.get("user-agent")
+    )
     
     try:
         await _update_task(task_id, status="processing", progress=0.1)
@@ -246,7 +267,11 @@ async def search_travel(request: SearchRequest):
 # ============== Recommendation Endpoint ==============
 
 @router.post("/recommend", response_model=RecommendResponse)
-async def recommend_travel(request: RecommendRequest):
+async def recommend_travel(
+    request: RecommendRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Get travel recommendations
     
@@ -261,8 +286,22 @@ async def recommend_travel(request: RecommendRequest):
     - **end_date**: End date (YYYY-MM-DD)
     - **preferences**: Travel preferences (nature, culture, food, etc.)
     """
+    # Check rate limit
+    await rate_limiter.check_limit(http_request)
+    
     task_id = await _create_task("recommend", request.dict())
     app_logger.info(f"[{task_id}] Recommend request received for {request.destination}")
+    
+    # Log API call
+    await audit_logger.log_api_call(
+        user_id=current_user.id,
+        action="recommend",
+        endpoint="/api/agent/recommend",
+        method="POST",
+        params=request.dict(),
+        ip_address=http_request.client.host if http_request.client else None,
+        user_agent=http_request.headers.get("user-agent")
+    )
     
     try:
         await _update_task(task_id, status="processing", progress=0.1)
@@ -443,7 +482,11 @@ async def recommend_travel(request: RecommendRequest):
 # ============== Booking Endpoint ==============
 
 @router.post("/book", response_model=BookResponse)
-async def create_booking(request: BookRequest):
+async def create_booking(
+    request: BookRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Create a travel booking
     
@@ -457,8 +500,22 @@ async def create_booking(request: BookRequest):
     - **passengers**: List of passenger details
     - **additional_services**: Additional services to include
     """
+    # Check rate limit
+    await rate_limiter.check_limit(http_request)
+    
     task_id = await _create_task("booking", request.dict())
     app_logger.info(f"[{task_id}] Booking request received for {request.trip_details.get('destination')}")
+    
+    # Log API call
+    await audit_logger.log_api_call(
+        user_id=current_user.id,
+        action="book",
+        endpoint="/api/agent/book",
+        method="POST",
+        params=request.dict(),
+        ip_address=http_request.client.host if http_request.client else None,
+        user_agent=http_request.headers.get("user-agent")
+    )
     
     try:
         await _update_task(task_id, status="processing", progress=0.2)
@@ -559,7 +616,11 @@ async def create_booking(request: BookRequest):
 # ============== Status Endpoint ==============
 
 @router.get("/status/{task_id}", response_model=StatusResponse)
-async def get_task_status(task_id: str):
+async def get_task_status(
+    task_id: str,
+    http_request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
     """
     Get task status
     
@@ -575,6 +636,17 @@ async def get_task_status(task_id: str):
     
     task_data = _task_store[task_id]
     app_logger.info(f"Status request for task {task_id}: {task_data['status']}")
+    
+    # Log API call
+    await audit_logger.log_api_call(
+        user_id=current_user.id,
+        action="get_status",
+        endpoint=f"/api/agent/status/{task_id}",
+        method="GET",
+        params={"task_id": task_id},
+        ip_address=http_request.client.host if http_request.client else None,
+        user_agent=http_request.headers.get("user-agent")
+    )
     
     return _format_task_status(task_data)
 
