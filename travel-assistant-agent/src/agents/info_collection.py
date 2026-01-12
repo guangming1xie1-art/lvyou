@@ -7,16 +7,16 @@
 - 偏好类型（美食、自然、文化等）
 """
 from typing import Any, Dict
-from utils.logger import app_logger
-from utils.claude import claude_client
+from src.utils.logger import app_logger
+from src.utils.claude import claude_client
+from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
-
 
 class InfoCollectionAgent(BaseAgent):
     name = "info_collection_agent"
 
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        app_logger.info(f"[{self.name}] Starting information collection")
+        app_logger.info(f"Starting agent {self.name}")
 
         user_message = state.get("user_message", "")
         if not user_message:
@@ -29,12 +29,12 @@ class InfoCollectionAgent(BaseAgent):
                 **(state.get("collected_info") or {}),
                 **collected_info,
             }
-            app_logger.info(f"[{self.name}] Collected info: {state['collected_info']}")
+            app_logger.info(f"Agent {self.name} completed successfully", collected_keys=list(collected_info.keys()))
+            return state
         except Exception as e:
-            app_logger.error(f"[{self.name}] Error: {e}")
-            state["error"] = str(e)
-
-        return state
+            error_res = AgentErrorHandler.handle_agent_error(self.name, e, state=state)
+            state.update(error_res)
+            return state
 
     async def _extract_info(self, user_message: str) -> Dict[str, Any]:
         if not claude_client.is_ready():

@@ -5,16 +5,15 @@ MVP 阶段仅提供骨架，后续接入 MCP 工具/后端服务。
 """
 from typing import Any, Dict, List
 
-from utils.logger import app_logger
-
+from src.utils.logger import app_logger
+from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
-
 
 class SearchAgent(BaseAgent):
     name = "search_agent"
 
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        app_logger.info(f"[{self.name}] Starting search")
+        app_logger.info(f"Starting agent {self.name}")
 
         collected_info = state.get("collected_info", {})
         destination = collected_info.get("destination")
@@ -22,12 +21,12 @@ class SearchAgent(BaseAgent):
         try:
             search_results = await self._search(destination)
             state["search_results"] = search_results
-            app_logger.info(f"[{self.name}] Search results count: {len(search_results)}")
+            app_logger.info(f"Agent {self.name} completed successfully", results_count=len(search_results))
+            return state
         except Exception as e:
-            app_logger.error(f"[{self.name}] Error: {e}")
-            state["error"] = str(e)
-
-        return state
+            error_res = AgentErrorHandler.handle_agent_error(self.name, e, state=state)
+            state.update(error_res)
+            return state
 
     async def _search(self, destination: str) -> List[Dict[str, Any]]:
         if not destination or destination == "未指定":

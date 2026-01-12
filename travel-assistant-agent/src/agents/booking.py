@@ -4,15 +4,15 @@
 MVP 阶段先保留骨架接口。
 """
 from typing import Any, Dict
-from utils.logger import app_logger
+from src.utils.logger import app_logger
+from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
-
 
 class BookingAgent(BaseAgent):
     name = "booking_agent"
 
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        app_logger.info(f"[{self.name}] Starting booking process")
+        app_logger.info(f"Starting agent {self.name}")
 
         recommendations = state.get("recommendations", [])
 
@@ -23,12 +23,12 @@ class BookingAgent(BaseAgent):
                 "recommendations": recommendations,
                 "booking": booking_status
             }
-            app_logger.info(f"[{self.name}] Booking status: {booking_status}")
+            app_logger.info(f"Agent {self.name} completed successfully", status=booking_status.get("status"))
+            return state
         except Exception as e:
-            app_logger.error(f"[{self.name}] Error: {e}")
-            state["error"] = str(e)
-
-        return state
+            error_res = AgentErrorHandler.handle_agent_error(self.name, e, state=state)
+            state.update(error_res)
+            return state
 
     async def _book(self, recommendations):
         if not recommendations:

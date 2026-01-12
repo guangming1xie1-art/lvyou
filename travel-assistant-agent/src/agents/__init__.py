@@ -4,6 +4,8 @@ from .recommendation import RecommendationAgent
 from .booking import BookingAgent
 from .mcp_client import MCPClient, get_mcp_client, init_mcp_client, MCPSkill, MCPSkillResult
 from .skill_agent import SkillBasedAgent, MCPSkillsPlanner
+from .error_handler import AgentErrorHandler
+from .orchestrator import AgentOrchestrator
 
 __all__ = [
     "InfoCollectionAgent",
@@ -17,4 +19,6 @@ __all__ = [
     "MCPSkillResult",
     "SkillBasedAgent",
     "MCPSkillsPlanner",
+    "AgentErrorHandler",
+    "AgentOrchestrator",
 ]

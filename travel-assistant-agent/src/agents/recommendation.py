@@ -4,16 +4,16 @@
 使用 LLM 进行推理和方案生成。
 """
 from typing import Any, Dict, List
-from utils.logger import app_logger
-from utils.claude import claude_client
+from src.utils.logger import app_logger
+from src.utils.claude import claude_client
+from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
-
 
 class RecommendationAgent(BaseAgent):
     name = "recommendation_agent"
 
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        app_logger.info(f"[{self.name}] Starting recommendation generation")
+        app_logger.info(f"Starting agent {self.name}")
 
         collected_info = state.get("collected_info", {})
         search_results = state.get("search_results", [])
@@ -23,12 +23,12 @@ class RecommendationAgent(BaseAgent):
                 collected_info, search_results
             )
             state["recommendations"] = recommendations
-            app_logger.info(f"[{self.name}] Generated {len(recommendations)} recommendations")
+            app_logger.info(f"Agent {self.name} completed successfully", rec_count=len(recommendations))
+            return state
         except Exception as e:
-            app_logger.error(f"[{self.name}] Error: {e}")
-            state["error"] = str(e)
-
-        return state
+            error_res = AgentErrorHandler.handle_agent_error(self.name, e, state=state)
+            state.update(error_res)
+            return state
 
     async def _generate_recommendations(
         self,

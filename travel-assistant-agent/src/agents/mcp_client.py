@@ -10,10 +10,10 @@ import json
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
-import logging
-
-logger = logging.getLogger(__name__)
-
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
 
 class MCPSkillCategory(Enum):
     """Skill categories for filtering"""
@@ -74,7 +74,7 @@ class MCPClient:
     async def connect(self) -> bool:
         """Connect to MCP server"""
         self._connected = True
-        logger.info("MCP Client connected (simulated)")
+        app_logger.info("MCP Client connected (simulated)")
         await self._discover_skills()
         return self._connected
     
@@ -82,7 +82,7 @@ class MCPClient:
         """Disconnect from MCP server"""
         self._connected = False
         self._skills_cache = []
-        logger.info("MCP Client disconnected")
+        app_logger.info("MCP Client disconnected")
     
     async def _discover_skills(self):
         """Discover available skills from server"""
@@ -92,7 +92,7 @@ class MCPClient:
         
         definitions = get_skill_definitions()
         self._skills_cache = [MCPSkill.from_definition(d) for d in definitions]
-        logger.info(f"Discovered {len(self._skills_cache)} skills")
+        app_logger.info(f"Discovered {len(self._skills_cache)} skills")
     
     def list_skills(self) -> List[MCPSkill]:
         """List all available skills"""
@@ -140,18 +140,18 @@ class MCPClient:
                 )
             
             # Execute the skill
-            result = await skill.execute(**parameters)
+            result = await skill.execute_with_error_handling(**parameters)
             
-            logger.info(f"Skill '{skill_name}' executed successfully")
+            app_logger.info(f"Skill '{skill_name}' executed")
             
             return MCPSkillResult(
-                success=True,
+                success="error" not in result if isinstance(result, dict) else True,
                 skill_name=skill_name,
                 result=result
             )
             
         except Exception as e:
-            logger.error(f"Error executing skill '{skill_name}': {e}")
+            app_logger.error(f"Error executing skill '{skill_name}': {e}")
             return MCPSkillResult(
                 success=False,
                 skill_name=skill_name,

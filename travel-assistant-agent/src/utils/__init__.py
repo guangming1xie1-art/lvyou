@@ -9,25 +9,28 @@
 - Java API 客户端: java_api_client
 """
 
-from .logger import app_logger
+from .logger import app_logger, log_execution
 from .db import db_manager
 from .api_client import APIClient, BackendAPIClient, backend_client
 from .claude import ClaudeClient, claude_client
 from .java_api_client import (
     java_api_client,
     JavaAPIClient,
-    JavaAPIError,
-    JavaAPITimeoutError,
-    JavaAPINotFoundError,
-    JavaAPIValidationError,
-    JavaAPIServerError,
-    JavaAPIAuthError,
     MockDataGenerator
 )
+from .exceptions import (
+    AgentException, AgentExecutionError, SkillExecutionError,
+    JavaAPIError, JavaAPITimeoutError, JavaAPINotFoundError,
+    JavaAPIValidationError, JavaAPIServerError, JavaAPIAuthError,
+    ValidationError, TimeoutError
+)
+from .metrics import metrics
+from .log_viewer import LogViewer
 
 __all__ = [
     # Logger
     "app_logger",
+    "log_execution",
 
     # Database
     "db_manager",
@@ -44,11 +47,22 @@ __all__ = [
     # Java API Client
     "java_api_client",
     "JavaAPIClient",
+    "MockDataGenerator",
+
+    # Exceptions
+    "AgentException",
+    "AgentExecutionError",
+    "SkillExecutionError",
     "JavaAPIError",
     "JavaAPITimeoutError",
     "JavaAPINotFoundError",
     "JavaAPIValidationError",
     "JavaAPIServerError",
     "JavaAPIAuthError",
-    "MockDataGenerator"
+    "ValidationError",
+    "TimeoutError",
+
+    # Metrics and Logging
+    "metrics",
+    "LogViewer"
 ]

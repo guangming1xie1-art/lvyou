@@ -56,12 +56,22 @@ class PlanningWorkflow:
         return workflow.compile()
 
     async def run(self, user_message: str, metadata: Dict[str, Any] | None = None):
-        app_logger.info("Starting planning workflow")
+        request_id = app_logger.get_request_id()
+        app_logger.info("Starting planning workflow", request_id=request_id)
 
         initial_state: TravelPlanningState = {
             "user_message": user_message,
             "collected_info": metadata or {}
         }
 
-        result = await self.graph.ainvoke(initial_state)
-        return result
+        try:
+            result = await self.graph.ainvoke(initial_state)
+            app_logger.info("Planning workflow completed successfully", request_id=request_id)
+            return result
+        except Exception as e:
+            app_logger.error(f"Planning workflow failed: {str(e)}", exception=e, request_id=request_id)
+            return {
+                **initial_state,
+                "error": str(e),
+                "success": False
+            }
