@@ -1,7 +1,10 @@
 """SearchHotelsSkill - Search for available hotels"""
 
 from typing import Any, Dict, List
+from datetime import datetime
 from ..base_skill import BaseSkill
+from src.utils.java_api_client import java_api_client, JavaAPIError
+from src.utils.logger import app_logger
 
 
 class SearchHotelsSkill(BaseSkill):
@@ -9,12 +12,14 @@ class SearchHotelsSkill(BaseSkill):
     
     This skill queries available hotels for a given destination and date range,
     returning hotel options with pricing, amenities, and ratings.
+    
+    Version 2.0.0: Refactored to call Java API instead of local mock implementation.
     """
     
     name = "search_hotels"
     agent_type = "search"
     description = "Search and return available hotels for given destination and dates"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -110,7 +115,7 @@ class SearchHotelsSkill(BaseSkill):
         max_results: int = 10,
         **kwargs
     ) -> Dict[str, Any]:
-        """Search for hotels
+        """Search for hotels by calling Java API
         
         Args:
             destination: Destination location
@@ -122,7 +127,7 @@ class SearchHotelsSkill(BaseSkill):
             max_results: Maximum results to return
             
         Returns:
-            Hotel search results
+            Hotel search results with hotels list and search_metadata
         """
         if not self.validate_input({
             "destination": destination,
@@ -132,7 +137,6 @@ class SearchHotelsSkill(BaseSkill):
             raise ValueError("Invalid input: destination, check_in_date, and check_out_date are required")
         
         # Calculate nights
-        from datetime import datetime
         try:
             check_in = datetime.strptime(check_in_date, "%Y-%m-%d")
             check_out = datetime.strptime(check_out_date, "%Y-%m-%d")
@@ -140,107 +144,75 @@ class SearchHotelsSkill(BaseSkill):
         except:
             nights = 3  # Default
         
-        # Mock hotel data
-        hotel_templates = [
-            {
-                "name": "Grand Plaza Hotel",
-                "rating": 5,
-                "review_score": 9.2,
-                "review_count": 1250,
-                "distance": "0.5 km",
-                "amenities": ["Pool", "Spa", "Gym", "Restaurant", "WiFi", "Parking"],
-                "base_price": 250,
-                "room": "Deluxe King Room"
-            },
-            {
-                "name": "Cozy Inn Downtown",
-                "rating": 4,
-                "review_score": 8.5,
-                "review_count": 850,
-                "distance": "0.8 km",
-                "amenities": ["WiFi", "Breakfast", "Gym", "Restaurant"],
-                "base_price": 120,
-                "room": "Standard Double Room"
-            },
-            {
-                "name": "Sunset Resort & Spa",
-                "rating": 5,
-                "review_score": 9.5,
-                "review_count": 2100,
-                "distance": "3.2 km",
-                "amenities": ["Beach Access", "Pool", "Spa", "Multiple Restaurants", "WiFi", "Kids Club"],
-                "base_price": 320,
-                "room": "Ocean View Suite"
-            },
-            {
-                "name": "Budget Stay Express",
-                "rating": 3,
-                "review_score": 7.8,
-                "review_count": 450,
-                "distance": "2.1 km",
-                "amenities": ["WiFi", "Parking"],
-                "base_price": 65,
-                "room": "Economy Room"
-            },
-            {
-                "name": "Heritage Boutique Hotel",
-                "rating": 4,
-                "review_score": 9.0,
-                "review_count": 620,
-                "distance": "1.2 km",
-                "amenities": ["WiFi", "Restaurant", "Rooftop Bar", "Concierge"],
-                "base_price": 180,
-                "room": "Classic Room"
-            },
-            {
-                "name": "Modern Tower Suites",
-                "rating": 4,
-                "review_score": 8.8,
-                "review_count": 980,
-                "distance": "1.5 km",
-                "amenities": ["Pool", "Gym", "WiFi", "Kitchen", "Parking"],
-                "base_price": 150,
-                "room": "Studio Suite"
-            }
-        ]
+        app_logger.info(f"SearchHotelsSkill: Searching hotels in {destination} for {nights} nights")
         
-        # Generate hotel results
-        hotels = []
-        for i, template in enumerate(hotel_templates):
-            if template["rating"] < min_rating:
-                continue
-                
-            price_per_night = template["base_price"] * rooms
-            total_price = price_per_night * nights
+        try:
+            # Call Java API to search hotels
+            result = await java_api_client.search_hotels(
+                destination=destination,
+                check_in=check_in_date,
+                check_out=check_out_date,
+                guests=guests,
+                rooms=rooms
+            )
             
-            hotels.append({
-                "hotel_id": f"HTL-{destination[:3].upper()}-{i+1:03d}",
-                "name": template["name"],
-                "rating": template["rating"],
-                "review_count": template["review_count"],
-                "review_score": template["review_score"],
-                "address": f"{i+1}00 Main Street, {destination}",
-                "distance_to_center": template["distance"],
-                "amenities": template["amenities"],
-                "room_type": template["room"],
-                "price_per_night": price_per_night,
-                "total_price": total_price,
-                "currency": "USD",
-                "cancellation_policy": "Free cancellation up to 24 hours before check-in" if template["rating"] >= 4 else "Non-refundable",
-                "breakfast_included": template["rating"] >= 4
-            })
+            # Get hotels from API response
+            hotels = result.get("hotels", [])
             
-            if len(hotels) >= max_results:
-                break
-        
-        return {
-            "hotels": hotels,
-            "search_metadata": {
-                "destination": destination,
-                "check_in": check_in_date,
-                "check_out": check_out_date,
-                "nights": nights,
-                "guests": guests,
-                "results_count": len(hotels)
+            # Apply min_rating filter if specified (client-side filtering)
+            if min_rating > 0:
+                hotels = [h for h in hotels if h.get("rating", 0) >= min_rating]
+            
+            # Apply max_results limit
+            if max_results and len(hotels) > max_results:
+                hotels = hotels[:max_results]
+            
+            app_logger.info(f"SearchHotelsSkill: Found {len(hotels)} hotels")
+            
+            return {
+                "hotels": hotels,
+                "search_metadata": {
+                    "destination": destination,
+                    "check_in": check_in_date,
+                    "check_out": check_out_date,
+                    "nights": nights,
+                    "guests": guests,
+                    "results_count": len(hotels)
+                }
             }
-        }
+            
+        except JavaAPIError as e:
+            app_logger.error(f"SearchHotelsSkill: Java API error - {e}")
+            return {
+                "hotels": [],
+                "search_metadata": {
+                    "destination": destination,
+                    "check_in": check_in_date,
+                    "check_out": check_out_date,
+                    "nights": nights,
+                    "guests": guests,
+                    "results_count": 0
+                },
+                "error": {
+                    "code": "JAVA_API_ERROR",
+                    "message": str(e),
+                    "status_code": getattr(e, "status_code", None)
+                }
+            }
+        except Exception as e:
+            app_logger.error(f"SearchHotelsSkill: Unexpected error - {e}")
+            return {
+                "hotels": [],
+                "search_metadata": {
+                    "destination": destination,
+                    "check_in": check_in_date,
+                    "check_out": check_out_date,
+                    "nights": nights,
+                    "guests": guests,
+                    "results_count": 0
+                },
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": str(e)
+                }
+            }

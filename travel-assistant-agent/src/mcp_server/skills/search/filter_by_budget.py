@@ -2,6 +2,7 @@
 
 from typing import Any, Dict, List
 from ..base_skill import BaseSkill
+from src.utils.logger import app_logger
 
 
 class FilterByBudgetSkill(BaseSkill):
@@ -9,12 +10,18 @@ class FilterByBudgetSkill(BaseSkill):
     
     This skill filters flight, hotel, or combined search results to only
     show options that fit within the user's specified budget.
+    
+    Version 2.0.0: Updated to align with three-tier architecture refactor.
+    Note: This skill performs client-side filtering logic on already-fetched results.
+    It does not need to call Java API as it filters data that's already in memory.
+    Future optimization: Could potentially call Java API's filter endpoint if complex
+    server-side filtering logic is needed.
     """
     
     name = "filter_by_budget"
     agent_type = "search"
     description = "Filter search results to fit within specified budget constraints"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -89,7 +96,10 @@ class FilterByBudgetSkill(BaseSkill):
         sort_by: str = "price_low_to_high",
         **kwargs
     ) -> Dict[str, Any]:
-        """Filter options by budget
+        """Filter options by budget using client-side logic
+        
+        This method performs in-memory filtering of search results by budget.
+        It does not call Java API as it operates on data already fetched.
         
         Args:
             options: List of options to filter
@@ -106,6 +116,11 @@ class FilterByBudgetSkill(BaseSkill):
             "option_type": option_type
         }):
             raise ValueError("Invalid input: options, budget, and option_type are required")
+        
+        app_logger.info(
+            f"FilterByBudgetSkill: Filtering {len(options)} {option_type} options "
+            f"with max budget: {budget.get('max_total', budget.get('max_per_person', 'N/A'))}"
+        )
         
         if not options:
             return {
@@ -167,6 +182,11 @@ class FilterByBudgetSkill(BaseSkill):
             "options_over_budget": len(excluded_options),
             "savings_potential": round(max_budget - min(within_budget_prices), 2) if within_budget_prices else 0
         }
+        
+        app_logger.info(
+            f"FilterByBudgetSkill: Filtered to {len(filtered_options)} options within budget, "
+            f"excluded {len(excluded_options)} options"
+        )
         
         return {
             "filtered_options": filtered_options,
