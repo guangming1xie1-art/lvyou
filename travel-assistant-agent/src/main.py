@@ -91,6 +91,20 @@ class DemoPlanningResponse(BaseModel):
     travel_plan: Dict[str, Any]
 
 
+class ChatRequest(BaseModel):
+    """Request for agent chat endpoint"""
+    message: str
+    conversation_history: List[Dict[str, Any]] = Field(default_factory=list)
+    attachments: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatResponse(BaseModel):
+    """Response for agent chat endpoint"""
+    response: str
+    status: str = "success"
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app_logger.info("Starting Travel Assistant Agent service...")
@@ -317,6 +331,80 @@ async def get_mcp_status():
         "connected": stats["connected"],
         "skills_count": stats["skills_count"],
         "skills": stats["skills"]
+    }
+
+
+@app.post("/agent/chat")
+async def chat(request: ChatRequest):
+    """
+    与Agent进行对话
+    
+    Args:
+        request: 包含用户消息、历史记录和附件的请求对象
+    
+    Returns:
+        Agent的响应
+    """
+    app_logger.info(f"Received chat request: {request.message}")
+    
+    try:
+        # 使用现有的 PlanningWorkflow
+        workflow = PlanningWorkflow()
+        
+        # 将历史记录和附件等信息传递给 workflow
+        metadata = {
+            "conversation_history": request.conversation_history,
+            "attachments": request.attachments
+        }
+        
+        result = await workflow.run(request.message, metadata)
+        
+        # 从结果中构造响应文本
+        if result.get("error"):
+            response_text = f"抱歉，在处理您的请求时遇到了错误：{result['error']}"
+        elif result.get("booking_status"):
+            response_text = "我已经为您完成了旅行规划和预订处理。以下是您的行程单..."
+        elif result.get("recommendations"):
+            response_text = "根据您的需求，我为您推荐了以下方案..."
+        elif result.get("collected_info"):
+            response_text = "我已经收集到了您的基本信息，正在为您搜索相关方案..."
+        else:
+            response_text = "收到您的消息，正在为您处理..."
+
+        if result.get("final_plan"):
+             response_text = str(result.get("final_plan"))
+             
+        data = {
+            "response": response_text,
+            "status": "success",
+            "metadata": {"stage": result.get("metadata", {}).get("stage", "planning")}
+        }
+        
+        return {
+            "code": 200,
+            "message": "success",
+            "data": data
+        }
+        
+    except Exception as e:
+        app_logger.error(f"Chat failed: {e}")
+        return {
+            "code": 500,
+            "message": str(e),
+            "data": {
+                "response": f"与Agent通信时发生错误: {str(e)}",
+                "status": "error"
+            }
+        }
+
+
+@app.get("/agent/status")
+async def get_agent_status():
+    """获取Agent状态"""
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {"status": "online", "version": "1.0.0"}
     }
 
 
