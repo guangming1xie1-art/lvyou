@@ -7,6 +7,9 @@ import { PlanDetail } from './pages/PlanDetail'
 import { Attractions } from './pages/Attractions'
 import { OrderConfirm } from './pages/OrderConfirm'
 import { NotFound } from './pages/NotFound'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import ProtectedRoute from './components/ProtectedRoute'
 
 export const router = createBrowserRouter([
   {
@@ -20,42 +23,60 @@ export const router = createBrowserRouter([
   {
     path: '/info-collection',
     element: (
-      <Layout>
-        <InfoCollection />
-      </Layout>
+      <ProtectedRoute>
+        <Layout>
+          <InfoCollection />
+        </Layout>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/plan-display',
     element: (
-      <Layout>
-        <PlanDisplay />
-      </Layout>
+      <ProtectedRoute>
+        <Layout>
+          <PlanDisplay />
+        </Layout>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/plan-detail',
     element: (
-      <Layout>
-        <PlanDetail />
-      </Layout>
+      <ProtectedRoute>
+        <Layout>
+          <PlanDetail />
+        </Layout>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/attractions',
     element: (
-      <Layout>
-        <Attractions />
-      </Layout>
+      <ProtectedRoute>
+        <Layout>
+          <Attractions />
+        </Layout>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/order-confirm',
     element: (
-      <Layout>
-        <OrderConfirm />
-      </Layout>
+      <ProtectedRoute>
+        <Layout>
+          <OrderConfirm />
+        </Layout>
+      </ProtectedRoute>
     ),
+  },
+  {
+    path: '/login',
+    element: <Login />,
+  },
+  {
+    path: '/register',
+    element: <Register />,
   },
   {
     path: '*',

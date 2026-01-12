@@ -5,8 +5,10 @@ FastAPI 主应用入口
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import FastAPI, HTTPException
+import os
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from config import settings
 from models.schemas import PlanningRequest, PlanningResponse, HealthResponse
@@ -23,6 +25,8 @@ from agents import (
 )
 from src.api import routes as api_routes
 from src.api import websocket as websocket_routes
+from src.auth import routes as auth_routes
+from src.security import rate_limiter
 
 
 # ============== MCP-related Models ==============
@@ -148,8 +152,33 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"]
 )
+
+
+@app.middleware("http")
+async def https_redirect(request: Request, call_next):
+    """HTTPS redirect middleware for production"""
+    if settings.require_https and request.url.scheme != "https":
+        # In production, redirect HTTP to HTTPS
+        return RedirectResponse(url=request.url.replace("http://", "https://"))
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers to all responses"""
+    response = await call_next(request)
+    
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    if settings.is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    return response
 
 # Register REST API routes
 app.include_router(api_routes.router)
@@ -158,6 +187,10 @@ app_logger.info("REST API routes registered")
 # Register WebSocket routes
 app.include_router(websocket_routes.router)
 app_logger.info("WebSocket routes registered")
+
+# Register Authentication routes
+app.include_router(auth_routes.router)
+app_logger.info("Authentication routes registered")
 
 
 @app.get("/health", response_model=HealthResponse)

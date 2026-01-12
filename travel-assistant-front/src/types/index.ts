@@ -174,3 +174,6 @@ export interface ApiError {
 
 // 导出 Agent API 类型
 export * from './api'
+
+// 导出认证类型
+export * from './auth'
