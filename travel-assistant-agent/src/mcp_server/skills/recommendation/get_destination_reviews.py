@@ -2,20 +2,24 @@
 
 from typing import Any, Dict, List
 from ..base_skill import BaseSkill
+from src.utils.java_api_client import java_api_client, JavaAPIError
+from src.utils.logger import app_logger
 
 
 class GetDestinationReviewsSkill(BaseSkill):
     """Get user reviews and ratings for a destination
-    
+
     This skill provides aggregated reviews, ratings, sentiment analysis,
     and pros/cons summary for destinations.
+
+    Version 2.0.0: Refactored to call Java API instead of local mock implementation.
     """
-    
+
     name = "get_destination_reviews"
     agent_type = "recommendation"
     description = "Get user reviews, ratings, and sentiment analysis for travel destinations"
-    version = "1.0.0"
-    
+    version = "2.0.0"
+
     @property
     def input_schema(self) -> Dict[str, Any]:
         return {
@@ -39,7 +43,7 @@ class GetDestinationReviewsSkill(BaseSkill):
             },
             "required": ["destination"]
         }
-    
+
     @property
     def output_schema(self) -> Dict[str, Any]:
         return {
@@ -92,7 +96,7 @@ class GetDestinationReviewsSkill(BaseSkill):
             },
             "required": ["destination", "overall_rating", "total_reviews", "reviews"]
         }
-    
+
     async def execute(
         self,
         destination: str,
@@ -100,235 +104,157 @@ class GetDestinationReviewsSkill(BaseSkill):
         limit: int = 5,
         **kwargs
     ) -> Dict[str, Any]:
-        """Get destination reviews
-        
+        """Get destination reviews by calling Java API
+
         Args:
             destination: Destination name
-            category: Review category
-            limit: Number of reviews
-            
+            category: Review category (general, hotels, attractions, restaurants, transportation)
+            limit: Number of reviews to return
+
         Returns:
             Reviews and ratings data
         """
         if not self.validate_input({"destination": destination}):
             raise ValueError("Invalid input: destination is required")
-        
-        # Mock review database
-        review_data = {
-            "tokyo": {
-                "overall_rating": 4.6,
-                "total_reviews": 12580,
-                "rating_breakdown": {"5_star": 7800, "4_star": 3200, "3_star": 1100, "2_star": 350, "1_star": 130},
-                "sentiment": {"positive": 0.82, "neutral": 0.13, "negative": 0.05},
-                "reviews": [
-                    {
-                        "author": "Sarah M.",
-                        "rating": 5.0,
-                        "date": "2024-01-15",
-                        "title": "Amazing blend of tradition and modernity",
-                        "content": "Tokyo exceeded all expectations! The public transport is incredibly efficient, food is outstanding, and there's so much to see. Loved visiting temples in the morning and exploring vibrant neighborhoods at night.",
-                        "helpful_count": 245,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "James K.",
-                        "rating": 5.0,
-                        "date": "2024-01-10",
-                        "title": "Food paradise!",
-                        "content": "If you love food, Tokyo is heaven. From Michelin-starred restaurants to tiny ramen shops, everything was delicious. The Tsukiji market is a must-visit for breakfast.",
-                        "helpful_count": 198,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "Emma L.",
-                        "rating": 4.0,
-                        "date": "2024-01-05",
-                        "title": "Great but expensive",
-                        "content": "Tokyo is fantastic but can be pricey. The subway system is confusing at first but you get used to it. Definitely recommend getting a Suica card. Cherry blossoms in spring were breathtaking.",
-                        "helpful_count": 167,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "Michael R.",
-                        "rating": 5.0,
-                        "date": "2023-12-28",
-                        "title": "Clean, safe, and fascinating",
-                        "content": "Felt incredibly safe walking around at any time. The city is spotlessly clean and people are respectful. Language barrier was occasionally challenging but people were patient and helpful.",
-                        "helpful_count": 143,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "Lisa W.",
-                        "rating": 4.0,
-                        "date": "2023-12-20",
-                        "title": "Unique experience",
-                        "content": "Very different from Western cities. Takes time to adjust to the pace and customs. Amazing shopping and technology. Would recommend staying in Shibuya or Shinjuku for first-timers.",
-                        "helpful_count": 89,
-                        "verified_traveler": True
-                    }
-                ],
-                "pros": [
-                    "Excellent public transportation",
-                    "Safe and clean",
-                    "Amazing food scene",
-                    "Efficient and organized",
-                    "Rich culture and history"
-                ],
-                "cons": [
-                    "Can be expensive",
-                    "Language barrier",
-                    "Crowded during peak times",
-                    "Subway system initially confusing"
-                ],
-                "recommended_by": 92
-            },
-            "paris": {
-                "overall_rating": 4.4,
-                "total_reviews": 18230,
-                "rating_breakdown": {"5_star": 8900, "4_star": 6200, "3_star": 2100, "2_star": 750, "1_star": 280},
-                "sentiment": {"positive": 0.75, "neutral": 0.18, "negative": 0.07},
-                "reviews": [
-                    {
-                        "author": "Sophie B.",
-                        "rating": 5.0,
-                        "date": "2024-01-12",
-                        "title": "The city of dreams",
-                        "content": "Paris is magical! The architecture, the art, the food - everything is as beautiful as you imagine. Spent hours at the Louvre and still didn't see everything. Seine river at sunset is unforgettable.",
-                        "helpful_count": 312,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "David P.",
-                        "rating": 4.0,
-                        "date": "2024-01-08",
-                        "title": "Romantic but touristy",
-                        "content": "Beautiful city with incredible museums and landmarks. Can be very crowded at major attractions. Metro is convenient but avoid restaurants right near tourist spots - they're overpriced and underwhelming.",
-                        "helpful_count": 234,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "Rachel T.",
-                        "rating": 5.0,
-                        "date": "2023-12-30",
-                        "title": "Art lover's paradise",
-                        "content": "As an art enthusiast, Paris was perfect. Musée d'Orsay and Louvre are world-class. Wandering through Montmartre was a highlight. Learning some basic French helped a lot.",
-                        "helpful_count": 187,
-                        "verified_traveler": True
-                    }
-                ],
-                "pros": [
-                    "Stunning architecture",
-                    "World-class museums and art",
-                    "Excellent cuisine",
-                    "Romantic atmosphere",
-                    "Good public transportation"
-                ],
-                "cons": [
-                    "Very crowded at tourist spots",
-                    "Can be expensive",
-                    "Some service staff unfriendly",
-                    "Pickpockets in tourist areas"
-                ],
-                "recommended_by": 87
-            },
-            "bali": {
-                "overall_rating": 4.7,
-                "total_reviews": 9450,
-                "rating_breakdown": {"5_star": 6200, "4_star": 2400, "3_star": 650, "2_star": 150, "1_star": 50},
-                "sentiment": {"positive": 0.88, "neutral": 0.09, "negative": 0.03},
-                "reviews": [
-                    {
-                        "author": "Amanda G.",
-                        "rating": 5.0,
-                        "date": "2024-01-14",
-                        "title": "Paradise found!",
-                        "content": "Bali is absolutely stunning! Beautiful beaches, incredible temples, friendly locals, and amazing food. Rice terraces in Ubud are breathtaking. Yoga and wellness culture is wonderful.",
-                        "helpful_count": 298,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "Chris H.",
-                        "rating": 5.0,
-                        "date": "2024-01-09",
-                        "title": "Perfect for digital nomads",
-                        "content": "Spent a month in Canggu and loved it. Great wifi, coworking spaces, and social scene. Cost of living is reasonable. Rented a scooter which gave us freedom to explore.",
-                        "helpful_count": 267,
-                        "verified_traveler": True
-                    },
-                    {
-                        "author": "Jennifer L.",
-                        "rating": 4.0,
-                        "date": "2024-01-02",
-                        "title": "Beautiful but touristy in spots",
-                        "content": "Some areas like Seminyak are very developed and touristy. Head to Amed or Sidemen for more authentic experiences. The Mount Batur sunrise trek was a highlight!",
-                        "helpful_count": 154,
-                        "verified_traveler": True
-                    }
-                ],
-                "pros": [
-                    "Beautiful natural scenery",
-                    "Affordable",
-                    "Friendly locals",
-                    "Great yoga and wellness",
-                    "Delicious food"
-                ],
-                "cons": [
-                    "Traffic can be bad",
-                    "Some areas overdeveloped",
-                    "Monsoon season very rainy",
-                    "Scooter riding can be dangerous"
-                ],
-                "recommended_by": 94
+
+        app_logger.info(f"GetDestinationReviewsSkill: Fetching reviews for {destination} (category: {category})")
+
+        try:
+            # Call Java API to get destination reviews
+            result = await java_api_client.get_destination_reviews(
+                destination=destination,
+                page=1,
+                page_size=limit,
+                sort_by="rating_high"
+            )
+
+            reviews = result.get("reviews", [])
+            pagination = result.get("pagination", {})
+
+            app_logger.info(f"GetDestinationReviewsSkill: Found {len(reviews)} reviews for {destination}")
+
+            # Transform Java API response to match skill output schema
+            # JavaAPIClient returns: reviews, pagination, average_rating, rating_distribution
+            # Skill output schema expects: reviews, rating_breakdown, sentiment_breakdown, pros_cons, recommended_by
+
+            # Build rating breakdown from distribution
+            rating_dist = result.get("rating_distribution", {})
+            rating_breakdown = {
+                "5_star": rating_dist.get(5, 0),
+                "4_star": rating_dist.get(4, 0),
+                "3_star": rating_dist.get(3, 0),
+                "2_star": rating_dist.get(2, 0),
+                "1_star": rating_dist.get(1, 0)
             }
-        }
-        
-        # Get reviews for destination
-        dest_lower = destination.lower().strip()
-        data = review_data.get(dest_lower)
-        
-        if not data:
-            # Try partial match
-            for key, value in review_data.items():
-                if dest_lower in key or key in dest_lower:
-                    data = value
-                    break
-        
-        if not data:
-            # Default data
-            data = {
-                "overall_rating": 4.0,
-                "total_reviews": 500,
-                "rating_breakdown": {"5_star": 200, "4_star": 180, "3_star": 80, "2_star": 30, "1_star": 10},
-                "sentiment": {"positive": 0.72, "neutral": 0.20, "negative": 0.08},
-                "reviews": [
-                    {
-                        "author": "Traveler",
-                        "rating": 4.0,
-                        "date": "2024-01-01",
-                        "title": "Great destination",
-                        "content": f"{destination} is a wonderful place to visit with lots to see and do.",
-                        "helpful_count": 50,
-                        "verified_traveler": True
-                    }
-                ],
-                "pros": ["Interesting sights", "Good local food", "Friendly people"],
-                "cons": ["Limited information available"],
-                "recommended_by": 80
+
+            # Build sentiment breakdown from reviews (simple version)
+            positive_count = sum(1 for r in reviews if r.get("rating", 0) >= 4)
+            neutral_count = sum(1 for r in reviews if r.get("rating", 0) == 3)
+            negative_count = sum(1 for r in reviews if r.get("rating", 0) <= 2)
+            total_reviews_count = len(reviews) if reviews else 1
+
+            sentiment_breakdown = {
+                "positive": round(positive_count / total_reviews_count, 2),
+                "neutral": round(neutral_count / total_reviews_count, 2),
+                "negative": round(negative_count / total_reviews_count, 2)
             }
-        
-        # Limit reviews
-        reviews = data["reviews"][:limit]
-        
-        return {
-            "destination": destination,
-            "overall_rating": data["overall_rating"],
-            "total_reviews": data["total_reviews"],
-            "rating_breakdown": data["rating_breakdown"],
-            "sentiment_breakdown": data["sentiment"],
-            "reviews": reviews,
-            "pros_cons": {
-                "pros": data["pros"],
-                "cons": data["cons"]
-            },
-            "recommended_by": data["recommended_by"]
-        }
+
+            # Extract pros and cons from review content (simple version)
+            pros = []
+            cons = []
+            for review in reviews[:limit]:
+                content = review.get("content", "").lower()
+                rating = review.get("rating", 0)
+                if rating >= 4:
+                    # High-rated reviews contribute to pros
+                    if "good" in content:
+                        pros.append("Good experience")
+                    if "great" in content:
+                        pros.append("Great destination")
+                    if "beautiful" in content:
+                        pros.append("Beautiful scenery")
+                elif rating <= 2:
+                    # Low-rated reviews contribute to cons
+                    if "expensive" in content:
+                        cons.append("Can be expensive")
+                    if "crowded" in content:
+                        cons.append("Crowded areas")
+                    if "poor" in content:
+                        cons.append("Poor service")
+
+            # Remove duplicates
+            pros = list(set(pros))
+            cons = list(set(cons))
+
+            # Calculate recommendation percentage from rating breakdown
+            total_reviews = sum(rating_breakdown.values())
+            high_ratings = rating_breakdown["5_star"] + rating_breakdown["4_star"]
+            recommended_by = round((high_ratings / total_reviews * 100), 0) if total_reviews > 0 else 0
+
+            # Transform reviews to match skill output schema
+            transformed_reviews = []
+            for review in reviews[:limit]:
+                transformed = {
+                    "author": review.get("author", "Anonymous"),
+                    "rating": review.get("rating", 0.0),
+                    "date": review.get("date", ""),
+                    "title": review.get("title", ""),
+                    "content": review.get("content", ""),
+                    "helpful_count": review.get("helpful_count", 0),
+                    "verified_traveler": review.get("verified_traveler", True)
+                }
+                transformed_reviews.append(transformed)
+
+            return {
+                "destination": destination,
+                "overall_rating": result.get("average_rating", 0.0),
+                "total_reviews": pagination.get("total_count", total_reviews),
+                "rating_breakdown": rating_breakdown,
+                "sentiment_breakdown": sentiment_breakdown,
+                "reviews": transformed_reviews,
+                "pros_cons": {
+                    "pros": pros if pros else ["Good location", "Interesting attractions"],
+                    "cons": cons if cons else ["No major issues reported"]
+                },
+                "recommended_by": recommended_by
+            }
+
+        except JavaAPIError as e:
+            app_logger.error(f"GetDestinationReviewsSkill: Java API error - {e}")
+            return {
+                "destination": destination,
+                "overall_rating": 0.0,
+                "total_reviews": 0,
+                "rating_breakdown": {"5_star": 0, "4_star": 0, "3_star": 0, "2_star": 0, "1_star": 0},
+                "sentiment_breakdown": {"positive": 0, "neutral": 0, "negative": 0},
+                "reviews": [],
+                "pros_cons": {
+                    "pros": [],
+                    "cons": []
+                },
+                "recommended_by": 0,
+                "error": {
+                    "code": "JAVA_API_ERROR",
+                    "message": str(e),
+                    "status_code": getattr(e, "status_code", None)
+                }
+            }
+        except Exception as e:
+            app_logger.error(f"GetDestinationReviewsSkill: Unexpected error - {e}")
+            return {
+                "destination": destination,
+                "overall_rating": 0.0,
+                "total_reviews": 0,
+                "rating_breakdown": {"5_star": 0, "4_star": 0, "3_star": 0, "2_star": 0, "1_star": 0},
+                "sentiment_breakdown": {"positive": 0, "neutral": 0, "negative": 0},
+                "reviews": [],
+                "pros_cons": {
+                    "pros": [],
+                    "cons": []
+                },
+                "recommended_by": 0,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": str(e)
+                }
+            }
