@@ -5,6 +5,16 @@ from datetime import datetime
 import random
 from ..base_skill import BaseSkill
 
+try:
+    from utils.java_api_client import java_api_client, JavaAPIError
+except ModuleNotFoundError:
+    from src.utils.java_api_client import java_api_client, JavaAPIError
+
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
+
 
 class ProcessPaymentSkill(BaseSkill):
     """Process payment for a booking
@@ -16,7 +26,7 @@ class ProcessPaymentSkill(BaseSkill):
     name = "process_payment"
     agent_type = "booking"
     description = "Handle payment processing for bookings including validation and authorization"
-    version = "1.0.0"
+    version = "2.0.0"
     
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -110,102 +120,104 @@ class ProcessPaymentSkill(BaseSkill):
             "payment_method": payment_method,
             "amount": amount
         }):
-            raise ValueError("Invalid input: booking_id, payment_method, and amount are required")
-        
-        # Mock payment processing
-        # In production, this would integrate with payment gateway (Stripe, PayPal, etc.)
-        
-        processed_at = datetime.now()
-        
-        # Simulate payment validation
-        is_valid = self._validate_payment(payment_method, payment_details, amount)
-        
-        if not is_valid:
+            app_logger.error(f"ProcessPaymentSkill: Invalid input for booking {booking_id}")
             return {
                 "payment_status": "failed",
-                "transaction_id": f"TXN-FAILED-{random.randint(10000, 99999)}",
+                "transaction_id": None,
                 "booking_id": booking_id,
                 "amount_charged": 0,
                 "currency": currency,
                 "payment_method": payment_method,
-                "processed_at": processed_at.isoformat(),
-                "receipt": None,
-                "message": "Payment validation failed. Please check your payment details and try again.",
-                "next_steps": [
-                    "Verify payment information is correct",
-                    "Ensure sufficient funds are available",
-                    "Contact your bank if issue persists",
-                    "Try alternative payment method"
-                ]
+                "processed_at": datetime.now().isoformat(),
+                "message": "Invalid input: booking_id, payment_method, and amount are required",
+                "next_steps": ["Check your input and try again"]
             }
         
-        # Simulate successful payment (95% success rate in demo)
-        success = random.random() < 0.95
-        
-        if success:
-            transaction_id = f"TXN-{datetime.now().strftime('%Y%m%d')}-{random.randint(100000, 999999)}"
-            receipt_number = f"RCP-{transaction_id[4:]}"
-            
+        # Validation
+        if amount <= 0:
             return {
-                "payment_status": "success",
-                "transaction_id": transaction_id,
+                "payment_status": "failed",
+                "transaction_id": None,
                 "booking_id": booking_id,
-                "amount_charged": amount,
+                "amount_charged": 0,
                 "currency": currency,
                 "payment_method": payment_method,
-                "processed_at": processed_at.isoformat(),
+                "processed_at": datetime.now().isoformat(),
+                "message": "Amount must be greater than zero",
+                "next_steps": ["Enter a valid amount"]
+            }
+
+        app_logger.info(f"Processing payment for booking {booking_id}, amount: {amount} {currency}")
+        
+        try:
+            # Prepare payment details for API
+            # The API expects payment_method and payment_data (which is the details)
+            api_payment_data = payment_details or {}
+            api_payment_data["amount"] = amount
+            api_payment_data["currency"] = currency
+            
+            # Call Java API
+            result = await java_api_client.process_payment(
+                booking_id=booking_id,
+                payment_method=payment_method,
+                payment_data=api_payment_data
+            )
+            
+            transaction_id = result.get("payment_id")
+            app_logger.info(f"Payment processed successfully for booking {booking_id}: {transaction_id}")
+            
+            processed_at = result.get("transaction_time") or datetime.now().isoformat()
+            
+            # Match output_schema
+            return {
+                "payment_status": result.get("status", "success"),
+                "transaction_id": transaction_id,
+                "booking_id": booking_id,
+                "amount_charged": result.get("amount", amount),
+                "currency": currency,
+                "payment_method": payment_method,
+                "processed_at": processed_at,
                 "receipt": {
-                    "receipt_number": receipt_number,
-                    "receipt_url": f"https://bookings.example.com/receipts/{receipt_number}"
+                    "receipt_number": f"RCP-{transaction_id}",
+                    "receipt_url": f"https://bookings.example.com/receipts/{transaction_id}"
                 },
                 "message": "Payment processed successfully!",
                 "next_steps": [
                     "Booking is now confirmed",
                     "Confirmation email sent to registered email",
-                    "Download receipt from link above",
                     "Check booking status anytime with booking ID"
                 ]
             }
-        else:
+
+        except JavaAPIError as e:
+            app_logger.error(f"ProcessPaymentSkill: Java API error for booking {booking_id} - {e}")
+            # If it's a 5xx error or timeout, the payment status is unknown
+            status = "pending" if e.status_code and (e.status_code >= 500 or e.status_code == 408) else "failed"
+            
             return {
-                "payment_status": "failed",
-                "transaction_id": f"TXN-FAILED-{random.randint(10000, 99999)}",
+                "payment_status": status,
+                "transaction_id": None,
                 "booking_id": booking_id,
                 "amount_charged": 0,
                 "currency": currency,
                 "payment_method": payment_method,
-                "processed_at": processed_at.isoformat(),
-                "receipt": None,
-                "message": "Payment processing failed. Please try again.",
+                "processed_at": datetime.now().isoformat(),
+                "message": f"Payment processing error: {str(e)}",
                 "next_steps": [
-                    "Try processing payment again",
-                    "Check with your payment provider",
-                    "Use alternative payment method if available"
+                    "Check your booking status before trying again" if status == "pending" else "Try again with correct details",
+                    "Contact support if the issue persists"
                 ]
             }
-    
-    def _validate_payment(
-        self, payment_method: str, payment_details: Dict[str, Any], amount: float
-    ) -> bool:
-        """Validate payment details (mock validation)"""
-        
-        # Basic validation
-        if amount <= 0:
-            return False
-        
-        if payment_method in ["credit_card", "debit_card"]:
-            if not payment_details:
-                return False
-            
-            # Check required fields
-            required_fields = ["card_number", "expiry_date", "cvv"]
-            for field in required_fields:
-                if not payment_details.get(field):
-                    return False
-            
-            # Basic card number check (simplified)
-            card_number = payment_details.get("card_number", "").replace(" ", "").replace("-", "")
-            if len(card_number) < 13 or len(card_number) > 19:
-                return False
-        
-        return True
+        except Exception as e:
+            app_logger.error(f"ProcessPaymentSkill: Unexpected error for booking {booking_id} - {e}", exc_info=True)
+            return {
+                "payment_status": "pending", # Assume pending on unexpected error to be safe
+                "transaction_id": None,
+                "booking_id": booking_id,
+                "amount_charged": 0,
+                "currency": currency,
+                "payment_method": payment_method,
+                "processed_at": datetime.now().isoformat(),
+                "message": "支付处理时发生未知错误，请检查预订状态",
+                "next_steps": ["Check booking status to verify if payment was successful"]
+            }
