@@ -3,7 +3,7 @@
 负责将推荐方案转化为可执行的预订请求（酒店、机票、门票等）。
 MVP 阶段先保留骨架接口。
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Callable, Awaitable
 from src.utils.logger import app_logger
 from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
@@ -11,18 +11,32 @@ from .base import BaseAgent
 class BookingAgent(BaseAgent):
     name = "booking_agent"
 
-    async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(
+        self, 
+        state: Dict[str, Any], 
+        on_progress: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
+    ) -> Dict[str, Any]:
         app_logger.info(f"Starting agent {self.name}")
+
+        if on_progress:
+            await on_progress({"status": "starting", "progress": 0.1, "message": "正在启动预订代理..."})
 
         recommendations = state.get("recommendations", [])
 
         try:
+            if on_progress:
+                await on_progress({"status": "booking", "progress": 0.5, "message": "正在处理您的预订请求..."})
+                
             booking_status = await self._book(recommendations)
             state["booking_status"] = booking_status
             state["final_plan"] = {
                 "recommendations": recommendations,
                 "booking": booking_status
             }
+            
+            if on_progress:
+                await on_progress({"status": "completed", "progress": 1.0, "message": "预订处理完成"})
+
             app_logger.info(f"Agent {self.name} completed successfully", status=booking_status.get("status"))
             return state
         except Exception as e:

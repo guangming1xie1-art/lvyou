@@ -16,7 +16,7 @@ export const InfoCollection = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // In a real app, we would validate and save data
-    navigate('/plan-display')
+    navigate('/plan-display', { state: { formData } })
   }
 
   return (

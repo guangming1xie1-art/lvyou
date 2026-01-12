@@ -3,7 +3,7 @@
 负责查询目的地信息、景点、酒店、交通等。
 MVP 阶段仅提供骨架，后续接入 MCP 工具/后端服务。
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Callable, Awaitable
 
 from src.utils.logger import app_logger
 from src.agents.error_handler import AgentErrorHandler
@@ -12,15 +12,38 @@ from .base import BaseAgent
 class SearchAgent(BaseAgent):
     name = "search_agent"
 
-    async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(
+        self, 
+        state: Dict[str, Any], 
+        on_progress: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None
+    ) -> Dict[str, Any]:
         app_logger.info(f"Starting agent {self.name}")
+
+        if on_progress:
+            await on_progress({"status": "starting", "progress": 0.1, "message": "正在启动搜索代理..."})
 
         collected_info = state.get("collected_info", {})
         destination = collected_info.get("destination")
 
         try:
+            if on_progress:
+                await on_progress({"status": "searching", "progress": 0.3, "message": f"正在搜索 {destination} 的相关信息..."})
+            
             search_results = await self._search(destination)
+            
+            if on_progress:
+                await on_progress({
+                    "status": "partial_results", 
+                    "progress": 0.7, 
+                    "message": "已获取部分搜索结果",
+                    "data": {"flights": search_results} # 模拟中间数据
+                })
+
             state["search_results"] = search_results
+            
+            if on_progress:
+                await on_progress({"status": "completed", "progress": 1.0, "message": "搜索完成"})
+
             app_logger.info(f"Agent {self.name} completed successfully", results_count=len(search_results))
             return state
         except Exception as e:
