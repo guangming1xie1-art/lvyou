@@ -21,6 +21,7 @@ from agents import (
     SkillBasedAgent,
     MCPSkillsPlanner
 )
+from src.api import routes as api_routes
 
 
 # ============== MCP-related Models ==============
@@ -148,6 +149,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Register REST API routes
+app.include_router(api_routes.router)
+app_logger.info("REST API routes registered")
 
 
 @app.get("/health", response_model=HealthResponse)
