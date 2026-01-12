@@ -60,30 +60,20 @@ class GetDestinationInfoSkill(BaseSkill):
         }
     
     async def execute(self, destination: str, language: str = "en", **kwargs) -> Dict[str, Any]:
-        """Get destination information by calling Java API
-
-        Args:
-            destination: Destination name
-            language: Preferred language (passed to Java API for localization)
-
-        Returns:
-            Comprehensive destination information
-        """
-        if not self.validate_input({"destination": destination}):
-            raise ValueError("Invalid input: destination is required")
-
-        app_logger.info(f"GetDestinationInfoSkill: Fetching destination info for {destination}")
-
+        """Get destination information by calling Java API"""
         try:
+            if not self.validate_input({"destination": destination}):
+                raise ValueError("Invalid input: destination is required")
+
+            app_logger.info(f"Executing {self.name}", destination=destination)
+
             # Call Java API to get destination info
             result = await java_api_client.get_destination_info(destination=destination)
 
-            app_logger.info(f"GetDestinationInfoSkill: Successfully fetched info for {destination}")
-
             # Transform Java API response to match skill output schema
-            # JavaAPIClient returns: {"destination": ..., "info": {...}}
-            # We need to flatten the structure
             api_info = result.get("info", {})
+
+            app_logger.info(f"Success: {self.name}", destination=destination)
 
             # If Java API returns data in expected format, return it
             if "country" in api_info or "description" in api_info:
@@ -106,7 +96,7 @@ class GetDestinationInfoSkill(BaseSkill):
             return api_info
 
         except JavaAPIError as e:
-            app_logger.error(f"GetDestinationInfoSkill: Java API error - {e}")
+            app_logger.error(f"API Error in {self.name}", exception=e)
             return {
                 "destination": destination,
                 "country": "Unknown",
@@ -120,14 +110,10 @@ class GetDestinationInfoSkill(BaseSkill):
                 "local_tips": [],
                 "timezone": "",
                 "emergency_number": "",
-                "error": {
-                    "code": "JAVA_API_ERROR",
-                    "message": str(e),
-                    "status_code": getattr(e, "status_code", None)
-                }
+                "error": e.to_dict()
             }
         except Exception as e:
-            app_logger.error(f"GetDestinationInfoSkill: Unexpected error - {e}")
+            app_logger.error(f"Unexpected error in {self.name}", exception=e)
             return {
                 "destination": destination,
                 "country": "Unknown",
@@ -141,8 +127,5 @@ class GetDestinationInfoSkill(BaseSkill):
                 "local_tips": [],
                 "timezone": "",
                 "emergency_number": "",
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "message": str(e)
-                }
+                "error": {"code": "INTERNAL_ERROR", "message": str(e)}
             }

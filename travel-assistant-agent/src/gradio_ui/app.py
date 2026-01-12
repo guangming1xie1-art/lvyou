@@ -2,10 +2,15 @@
 
 import gradio as gr
 import asyncio
+import uuid
 from typing import List, Tuple, Dict, Any
 from .agent_bridge import agent_bridge
 from .utils import MediaHandler, format_agent_response
-from loguru import logger
+
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
 
 async def process_user_message(user_input: str, image: str, audio: str, video: str, history: List[Tuple[str, str]]):
     """处理用户消息并调用Agent"""
@@ -13,25 +18,36 @@ async def process_user_message(user_input: str, image: str, audio: str, video: s
     if not user_input and not image and not audio and not video:
         return history, ""
     
-    # 1. 准备附件
-    attachments = MediaHandler.prepare_attachments(image, audio, video)
+    request_id = str(uuid.uuid4())
     
-    # 2. 发送给Agent
-    # Gradio history 是 (user, assistant) 元组列表
-    # 在发送前，我们将当前用户输入显示在聊天框中（Gradio会自动处理一部分，但我们需要调用bridge）
-    
-    logger.info(f"Processing message: {user_input}, attachments: {list(attachments.keys())}")
-    
-    agent_response = await agent_bridge.chat(user_input, history, attachments)
-    
-    # 3. 格式化响应
-    formatted_response = format_agent_response(agent_response)
-    
-    # 4. 更新聊天历史
-    history.append((user_input, formatted_response))
-    
-    # 返回更新后的历史，并清空输入框和上传组件
-    return history, "", None, None, None
+    with app_logger.with_request_id(request_id):
+        app_logger.info(f"New user message received", user_input=user_input[:100] if user_input else "")
+        
+        try:
+            # 1. 准备附件
+            attachments = MediaHandler.prepare_attachments(image, audio, video)
+            
+            # 2. 发送给Agent
+            app_logger.info(f"Calling agent bridge", attachments=list(attachments.keys()))
+            
+            agent_response = await agent_bridge.chat(user_input, history, attachments)
+            
+            # 3. 格式化响应
+            formatted_response = format_agent_response(agent_response)
+            
+            # 4. 更新聊天历史
+            history.append((user_input, formatted_response))
+            
+            app_logger.info("Message processed successfully")
+            
+            # 返回更新后的历史，并清空输入框和上传组件
+            return history, "", None, None, None
+            
+        except Exception as e:
+            app_logger.error(f"Failed to process message: {str(e)}", exception=e)
+            error_msg = f"抱歉，处理您的请求时出错了：{str(e)}"
+            history.append((user_input, error_msg))
+            return history, "", None, None, None
 
 def create_chat_interface():
     """创建Gradio聊天界面"""

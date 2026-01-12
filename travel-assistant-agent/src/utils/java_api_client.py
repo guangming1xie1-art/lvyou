@@ -28,46 +28,22 @@ except ModuleNotFoundError:
 
 try:
     from utils.logger import app_logger
+    from utils.exceptions import (
+        AgentException, JavaAPIError, JavaAPITimeoutError, 
+        JavaAPINotFoundError, JavaAPIValidationError, 
+        JavaAPIServerError, JavaAPIAuthError
+    )
+    from utils.metrics import metrics
 except ModuleNotFoundError:
     from src.utils.logger import app_logger
+    from src.utils.exceptions import (
+        AgentException, JavaAPIError, JavaAPITimeoutError, 
+        JavaAPINotFoundError, JavaAPIValidationError, 
+        JavaAPIServerError, JavaAPIAuthError
+    )
+    from src.utils.metrics import metrics
 
-
-# =============================================================================
-# 自定义异常类
-# =============================================================================
-
-class JavaAPIError(Exception):
-    """Java API 通用异常"""
-    def __init__(self, message: str, status_code: int = None, response: Dict = None):
-        self.message = message
-        self.status_code = status_code
-        self.response = response
-        super().__init__(self.message)
-
-
-class JavaAPITimeoutError(JavaAPIError):
-    """超时异常"""
-    pass
-
-
-class JavaAPINotFoundError(JavaAPIError):
-    """资源不存在异常 (404)"""
-    pass
-
-
-class JavaAPIValidationError(JavaAPIError):
-    """验证错误异常 (400)"""
-    pass
-
-
-class JavaAPIServerError(JavaAPIError):
-    """服务器错误异常 (5xx)"""
-    pass
-
-
-class JavaAPIAuthError(JavaAPIError):
-    """认证错误异常 (401/403)"""
-    pass
+import time
 
 
 # =============================================================================
@@ -339,8 +315,10 @@ class JavaAPIClient:
         """
         url = endpoint
         request_headers = self._update_headers(headers)
+        start_time = time.time()
+        api_name = endpoint.strip("/").replace("/", ".")
 
-        app_logger.debug(f"API Request: {method} {url} params={params}")
+        app_logger.debug(f"API Request: {method} {url} params={params}", api=api_name)
 
         try:
             response = await self._client.request(
@@ -351,22 +329,39 @@ class JavaAPIClient:
                 headers=request_headers
             )
 
-            return await self._handle_response(response)
+            result = await self._handle_response(response, url)
+            duration_ms = (time.time() - start_time) * 1000
+            metrics.record_api_call(api_name, duration_ms, True, response.status_code)
+            return result
 
         except httpx.TimeoutException:
-            app_logger.error(f"API Timeout: {method} {url}")
+            duration_ms = (time.time() - start_time) * 1000
+            app_logger.error(f"API Timeout: {method} {url}", api=api_name)
+            metrics.record_api_call(api_name, duration_ms, False, 408)
             raise JavaAPITimeoutError(
-                f"Request timeout after {self.timeout}s",
+                endpoint=url,
+                message=f"Request timeout after {self.timeout}s",
                 status_code=408
             )
         except httpx.ConnectError as e:
-            app_logger.warning(f"API Connection Error: {e}")
+            duration_ms = (time.time() - start_time) * 1000
+            app_logger.warning(f"API Connection Error: {e}", api=api_name)
             if self.use_mock_on_failure:
-                app_logger.info("Falling back to mock data")
+                app_logger.info("Falling back to mock data", api=api_name)
+                metrics.record_api_call(api_name, duration_ms, True, 200) # Mock is considered success
                 return self._get_mock_response(endpoint, json)
-            raise JavaAPIError(f"Failed to connect to Java API: {e}")
+            metrics.record_api_call(api_name, duration_ms, False, 503)
+            raise JavaAPIError(endpoint=url, message=f"Failed to connect to Java API: {e}", status_code=503)
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            status_code = getattr(e, "status_code", 500)
+            metrics.record_api_call(api_name, duration_ms, False, status_code)
+            if not isinstance(e, AgentException):
+                app_logger.error(f"Unexpected API Error: {e}", api=api_name)
+                raise JavaAPIError(endpoint=url, message=str(e), status_code=status_code)
+            raise
 
-    async def _handle_response(self, response: httpx.Response) -> Dict[str, Any]:
+    async def _handle_response(self, response: httpx.Response, endpoint: str) -> Dict[str, Any]:
         """
         处理 API 响应
 
@@ -374,6 +369,7 @@ class JavaAPIClient:
 
         Args:
             response: HTTP 响应对象
+            endpoint: API 端点路径
 
         Returns:
             解析后的响应数据
@@ -387,8 +383,8 @@ class JavaAPIClient:
         try:
             data = response.json()
         except Exception as e:
-            app_logger.error(f"Failed to parse response: {e}")
-            raise JavaAPIError(f"Invalid response format: {e}")
+            app_logger.error(f"Failed to parse response from {endpoint}: {e}")
+            raise JavaAPIError(endpoint=endpoint, message=f"Invalid response format: {e}", status_code=status_code)
 
         # 检查 HTTP 状态码
         if status_code == 200:
@@ -399,48 +395,51 @@ class JavaAPIClient:
                 else:
                     error_info = data.get("error", {})
                     raise JavaAPIError(
+                        endpoint=endpoint,
                         message=error_info.get("message", "API error"),
                         status_code=status_code,
-                        response=data
+                        response_data=data
                     )
             return data
 
         # 处理 HTTP 错误状态码
         if status_code == 400:
             raise JavaAPIValidationError(
+                endpoint=endpoint,
                 message=data.get("error", {}).get("message", "Validation error"),
-                status_code=status_code,
-                response=data
+                response_data=data
             )
         elif status_code == 401:
             raise JavaAPIAuthError(
+                endpoint=endpoint,
                 message="Unauthorized - Invalid or missing authentication",
-                status_code=status_code,
-                response=data
+                response_data=data
             )
         elif status_code == 403:
             raise JavaAPIAuthError(
+                endpoint=endpoint,
                 message="Forbidden - Insufficient permissions",
-                status_code=status_code,
-                response=data
+                status_code=403,
+                response_data=data
             )
         elif status_code == 404:
             raise JavaAPINotFoundError(
+                endpoint=endpoint,
                 message=data.get("error", {}).get("message", "Resource not found"),
-                status_code=status_code,
-                response=data
+                response_data=data
             )
         elif status_code >= 500:
             raise JavaAPIServerError(
+                endpoint=endpoint,
                 message=data.get("error", {}).get("message", "Internal server error"),
-                status_code=status_code,
-                response=data
+                response_data=data
             )
         else:
             raise JavaAPIError(
+                endpoint=endpoint,
                 message=f"Unexpected status code: {status_code}",
                 status_code=status_code,
-                response=data
+                response_data=data
             )
 
     def _get_mock_response(self, endpoint: str, json: Dict = None) -> Dict[str, Any]:

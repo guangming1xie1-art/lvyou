@@ -1,8 +1,10 @@
-"""Base Skill class for all MCP Skills"""
+"""Base Skill class for all MCP Skills with enhanced error handling and logging"""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 import json
+from src.utils.logger import app_logger, log_execution
+from src.agents.error_handler import AgentErrorHandler
 
 
 class BaseSkill(ABC):
@@ -35,9 +37,38 @@ class BaseSkill(ABC):
             "required": []
         }
     
+    @log_execution
+    async def execute_with_error_handling(self, **kwargs) -> Dict[str, Any]:
+        """Execute the skill with unified error handling and logging"""
+        try:
+            app_logger.info(
+                f"Executing skill {self.name}",
+                skill=self.name,
+                agent_type=self.agent_type,
+                input_params=kwargs
+            )
+            
+            result = await self.execute(**kwargs)
+            
+            app_logger.info(
+                f"Skill {self.name} completed successfully",
+                skill=self.name,
+                has_error="error" in result if isinstance(result, dict) else False
+            )
+            
+            return result
+            
+        except Exception as e:
+            return AgentErrorHandler.handle_skill_error(
+                skill_name=self.name,
+                error=e,
+                agent_type=self.agent_type,
+                input_params=kwargs
+            )
+    
     @abstractmethod
     async def execute(self, **kwargs) -> Dict[str, Any]:
-        """Execute the skill with given parameters"""
+        """Execute the skill main logic"""
         raise NotImplementedError
     
     def validate_input(self, data: Dict[str, Any]) -> bool:
@@ -49,10 +80,14 @@ class BaseSkill(ABC):
         Returns:
             True if valid, False otherwise
         """
-        # Basic validation - check required fields
         required = self.input_schema.get("required", [])
         for field in required:
             if field not in data:
+                app_logger.warning(
+                    f"Missing required field {field}",
+                    skill=self.name,
+                    field=field
+                )
                 return False
         return True
     

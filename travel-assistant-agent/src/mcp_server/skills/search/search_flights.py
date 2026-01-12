@@ -119,31 +119,18 @@ class SearchFlightsSkill(BaseSkill):
         max_results: int = 10,
         **kwargs
     ) -> Dict[str, Any]:
-        """Search for flights by calling Java API
-        
-        Args:
-            origin: Departure location
-            destination: Arrival location
-            departure_date: Departure date
-            passengers: Number of passengers
-            return_date: Return date for round trip
-            cabin_class: Cabin class preference
-            max_results: Maximum results to return
-            
-        Returns:
-            Flight search results with outbound_flights, return_flights, and search_metadata
-        """
-        if not self.validate_input({
-            "origin": origin,
-            "destination": destination,
-            "departure_date": departure_date,
-            "passengers": passengers
-        }):
-            raise ValueError("Invalid input: origin, destination, departure_date, and passengers are required")
-        
-        app_logger.info(f"SearchFlightsSkill: Searching flights from {origin} to {destination} on {departure_date}")
-        
+        """Search for flights by calling Java API"""
         try:
+            if not self.validate_input({
+                "origin": origin,
+                "destination": destination,
+                "departure_date": departure_date,
+                "passengers": passengers
+            }):
+                raise ValueError("Invalid input: origin, destination, departure_date, and passengers are required")
+            
+            app_logger.info(f"Executing {self.name}", origin=origin, destination=destination)
+            
             # Call Java API to search flights
             trip_type = "roundtrip" if return_date else "oneway"
             result = await java_api_client.search_flights(
@@ -160,10 +147,7 @@ class SearchFlightsSkill(BaseSkill):
             outbound_flights = result.get("outbound_flights", [])
             return_flights = result.get("return_flights", [])
             
-            app_logger.info(
-                f"SearchFlightsSkill: Found {len(outbound_flights)} outbound flights "
-                f"and {len(return_flights)} return flights"
-            )
+            app_logger.info(f"Success: {self.name}", count=len(outbound_flights))
             
             return {
                 "outbound_flights": outbound_flights,
@@ -179,7 +163,7 @@ class SearchFlightsSkill(BaseSkill):
             }
             
         except JavaAPIError as e:
-            app_logger.error(f"SearchFlightsSkill: Java API error - {e}")
+            app_logger.error(f"API Error in {self.name}", exception=e)
             return {
                 "outbound_flights": [],
                 "return_flights": [],
@@ -191,14 +175,10 @@ class SearchFlightsSkill(BaseSkill):
                     "passengers": passengers,
                     "results_count": 0
                 },
-                "error": {
-                    "code": "JAVA_API_ERROR",
-                    "message": str(e),
-                    "status_code": getattr(e, "status_code", None)
-                }
+                "error": e.to_dict()
             }
         except Exception as e:
-            app_logger.error(f"SearchFlightsSkill: Unexpected error - {e}")
+            app_logger.error(f"Unexpected error in {self.name}", exception=e)
             return {
                 "outbound_flights": [],
                 "return_flights": [],
@@ -210,8 +190,5 @@ class SearchFlightsSkill(BaseSkill):
                     "passengers": passengers,
                     "results_count": 0
                 },
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "message": str(e)
-                }
+                "error": {"code": "INTERNAL_ERROR", "message": str(e)}
             }

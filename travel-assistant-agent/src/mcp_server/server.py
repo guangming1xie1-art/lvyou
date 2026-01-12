@@ -14,8 +14,10 @@ import logging
 from .config import MCPServerConfig, SkillDefinition
 from .skills import get_skill, get_skill_definitions, get_skill_names, get_skills_by_category
 
-logger = logging.getLogger(__name__)
-
+try:
+    from utils.logger import app_logger
+except ModuleNotFoundError:
+    from src.utils.logger import app_logger
 
 class MCPServer:
     """
@@ -33,12 +35,12 @@ class MCPServer:
     async def start(self):
         """Start the MCP server"""
         self.running = True
-        logger.info(f"MCP Server started on {self.config.host}:{self.config.port}")
+        app_logger.info(f"MCP Server started on {self.config.host}:{self.config.port}")
     
     async def stop(self):
         """Stop the MCP server"""
         self.running = False
-        logger.info("MCP Server stopped")
+        app_logger.info("MCP Server stopped")
     
     def list_skills(self, agent_type: Optional[str] = None) -> List[Dict]:
         """List all available skills with their definitions
@@ -52,10 +54,10 @@ class MCPServer:
         if agent_type:
             skills = get_skills_by_category(agent_type)
             definitions = [skill.to_definition() for skill in skills]
-            logger.info(f"Listing {len(definitions)} skills for agent_type '{agent_type}'")
+            app_logger.info(f"Listing {len(definitions)} skills for agent_type '{agent_type}'")
         else:
             definitions = get_skill_definitions()
-            logger.info(f"Listing {len(definitions)} skills")
+            app_logger.info(f"Listing {len(definitions)} skills")
         return definitions
     
     def get_skill_info(self, skill_name: str) -> Optional[Dict]:
@@ -105,14 +107,14 @@ class MCPServer:
                 }
             
             # Execute skill
-            result = await skill.execute(**parameters)
+            result = await skill.execute_with_error_handling(**parameters)
             
             # Record call
             call_record = {
                 "timestamp": start_time.isoformat(),
                 "skill_name": skill_name,
                 "parameters": parameters,
-                "success": True,
+                "success": "error" not in result if isinstance(result, dict) else True,
                 "execution_time_ms": (datetime.now() - start_time).total_seconds() * 1000
             }
             self.call_history.append(call_record)
@@ -124,7 +126,7 @@ class MCPServer:
             }
             
         except Exception as e:
-            logger.error(f"Error executing skill {skill_name}: {e}")
+            app_logger.error(f"Error executing skill {skill_name}: {e}")
             call_record = {
                 "timestamp": start_time.isoformat(),
                 "skill_name": skill_name,
