@@ -1,0 +1,99 @@
+{
+  "invalid_search_request": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Invalid search request parameters",
+      "details": {
+        "origin": "Origin is required and cannot be empty",
+        "destination": "Destination is required and cannot be empty",
+        "departure_date": "Invalid date format. Expected YYYY-MM-DD"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T14:30:00Z"
+  },
+  "invalid_recommend_request": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Invalid recommend request parameters",
+      "details": {
+        "destination": "Destination is required and cannot be empty",
+        "start_date": "Invalid date format. Expected YYYY-MM-DD",
+        "end_date": "End date must be after start date"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T14:35:00Z"
+  },
+  "invalid_booking_request": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Invalid booking request parameters",
+      "details": {
+        "customer_info.email": "Invalid email format",
+        "trip_details.travelers": "Number of travelers must be at least 1",
+        "passengers": "At least one passenger is required"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T14:40:00Z"
+  },
+  "task_not_found": {
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "Task not found",
+      "details": {
+        "task_id": "The specified task ID does not exist"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T14:45:00Z"
+  },
+  "internal_server_error": {
+    "error": {
+      "code": "INTERNAL_ERROR",
+      "message": "Internal server error",
+      "details": {
+        "error": "An unexpected error occurred while processing your request"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T14:50:00Z"
+  },
+  "service_unavailable": {
+    "error": {
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "Service temporarily unavailable",
+      "details": {
+        "service": "The requested service is currently unavailable",
+        "retry_after": "Please try again in 5 minutes"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T14:55:00Z"
+  },
+  "authentication_required": {
+    "error": {
+      "code": "AUTHENTICATION_REQUIRED",
+      "message": "Authentication required",
+      "details": {
+        "authentication": "This endpoint requires authentication",
+        "login_url": "/api/auth/login"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T15:00:00Z"
+  },
+  "rate_limit_exceeded": {
+    "error": {
+      "code": "RATE_LIMIT_EXCEEDED",
+      "message": "Rate limit exceeded",
+      "details": {
+        "limit": "Maximum 100 requests per minute",
+        "retry_after": "Please try again in 60 seconds"
+      }
+    },
+    "status": "error",
+    "timestamp": "2024-01-15T15:05:00Z"
+  }
+}

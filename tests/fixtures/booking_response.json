@@ -1,0 +1,144 @@
+{
+  "success": true,
+  "task_id": "test-booking-task-789",
+  "booking_id": "BOOK-123456789",
+  "confirmation_number": "CONF-987654321",
+  "status": "confirmed",
+  "price_breakdown": {
+    "flights_total": 2400.0,
+    "hotels_total": 1750.0,
+    "services_total": 100.0,
+    "subtotal": 4250.0,
+    "taxes_and_fees": 250.0,
+    "discounts": 150.0,
+    "total": 4350.0,
+    "currency": "USD"
+  },
+  "trip_summary": {
+    "destination": "Tokyo",
+    "departure_date": "2025-02-01",
+    "return_date": "2025-02-14",
+    "travelers": 2,
+    "total_nights": 13,
+    "flight_class": "economy",
+    "hotel_name": "Luxury Hotel Tokyo",
+    "hotel_rating": 4.8
+  },
+  "flight_details": {
+    "outbound": {
+      "flight_id": "FL123456",
+      "airline": "Sample Airline",
+      "flight_number": "SA123",
+      "departure_time": "2025-02-01T08:00:00",
+      "arrival_time": "2025-02-01T12:00:00",
+      "departure_airport": "PEK",
+      "arrival_airport": "HND",
+      "duration": 240,
+      "stops": 0
+    },
+    "return": {
+      "flight_id": "FL345678",
+      "airline": "Sample Airline",
+      "flight_number": "SA456",
+      "departure_time": "2025-02-14T14:00:00",
+      "arrival_time": "2025-02-14T18:00:00",
+      "departure_airport": "HND",
+      "arrival_airport": "PEK",
+      "duration": 240,
+      "stops": 0
+    }
+  },
+  "hotel_details": {
+    "hotel_id": "HT789012",
+    "name": "Luxury Hotel Tokyo",
+    "check_in_date": "2025-02-01",
+    "check_out_date": "2025-02-14",
+    "room_type": "Deluxe",
+    "price_per_night": 250.0,
+    "total_nights": 13,
+    "total_price": 1750.0,
+    "amenities": ["WiFi", "Pool", "Gym", "Restaurant", "Spa"],
+    "address": "1-1-1 Shinjuku, Tokyo",
+    "phone": "+81-3-1234-5678"
+  },
+  "customer_info": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "+1-555-0123",
+    "address": "123 Main St, Anytown, USA",
+    "preferences": ["window seat", "vegetarian meals"]
+  },
+  "passenger_details": [
+    {
+      "passenger_id": "pass123",
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@example.com",
+      "passport_number": "AB123456",
+      "nationality": "USA",
+      "date_of_birth": "1985-05-15",
+      "special_requests": ["vegetarian meals"]
+    },
+    {
+      "passenger_id": "pass456",
+      "first_name": "Jane",
+      "last_name": "Doe",
+      "email": "jane.doe@example.com",
+      "passport_number": "AB789012",
+      "nationality": "USA",
+      "date_of_birth": "1987-08-22",
+      "special_requests": ["window seat"]
+    }
+  ],
+  "additional_services": [
+    {
+      "service": "travel_insurance",
+      "price": 50.0,
+      "description": "Comprehensive travel insurance coverage",
+      "provider": "Global Insurance Co.",
+      "coverage_details": "Medical, trip cancellation, baggage loss"
+    },
+    {
+      "service": "airport_transfer",
+      "price": 50.0,
+      "description": "Round-trip airport transfer service",
+      "provider": "Tokyo Airport Services",
+      "vehicle_type": "Sedan"
+    }
+  ],
+  "payment_info": {
+    "payment_method": "credit_card",
+    "card_type": "Visa",
+    "last_four_digits": "1234",
+    "transaction_id": "txn-987654321",
+    "payment_status": "completed",
+    "payment_date": "2024-01-15T14:30:00Z",
+    "billing_address": "123 Main St, Anytown, USA"
+  },
+  "next_steps": [
+    "Check your email for the booking confirmation and itinerary",
+    "Download and save your e-tickets and hotel voucher",
+    "Contact our customer support if you need to make any changes",
+    "Check visa requirements and apply if necessary",
+    "Prepare for your trip and enjoy your stay in Tokyo!"
+  ],
+  "cancellation_policy": {
+    "refundable": true,
+    "cancellation_fee": 150.0,
+    "free_cancellation_until": "2024-01-31",
+    "cancellation_instructions": "Contact customer support to cancel your booking"
+  },
+  "contact_information": {
+    "customer_support_email": "support@travelassistant.com",
+    "customer_support_phone": "+1-800-123-4567",
+    "emergency_contact": "+1-800-987-6543",
+    "local_contact": "+81-3-1234-5678"
+  },
+  "booking_metadata": {
+    "booking_date": "2024-01-15T14:30:00Z",
+    "booking_source": "web",
+    "user_agent": "Mozilla/5.0",
+    "ip_address": "192.168.1.1",
+    "referral_source": "direct"
+  }
+}

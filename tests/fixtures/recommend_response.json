@@ -1,0 +1,221 @@
+{
+  "success": true,
+  "task_id": "test-recommend-task-456",
+  "destination_info": {
+    "destination": "Tokyo",
+    "country": "Japan",
+    "region": "Kanto",
+    "best_time_to_visit": "Spring (March-May) and Autumn (September-November)",
+    "currency": "JPY",
+    "language": "Japanese",
+    "timezone": "JST (UTC+9)",
+    "population": 13960000,
+    "description": "Tokyo is the capital of Japan and one of the world's most populous cities. It offers a mix of traditional culture and modern technology.",
+    "safety_rating": 4.8,
+    "cost_of_living": "High",
+    "tourist_friendly": true
+  },
+  "attractions": [
+    {
+      "name": "Shibuya Crossing",
+      "category": "Landmark",
+      "rating": 4.8,
+      "description": "The world's busiest pedestrian crossing, famous for its neon lights and crowds.",
+      "location": "Shibuya, Tokyo",
+      "coordinates": {
+        "latitude": 35.6594,
+        "longitude": 139.7006
+      },
+      "opening_hours": "24/7",
+      "price_range": "Free",
+      "estimated_visit_time": "30 minutes",
+      "accessibility": "Wheelchair accessible",
+      "images": [
+        "https://example.com/shibuya1.jpg",
+        "https://example.com/shibuya2.jpg"
+      ]
+    },
+    {
+      "name": "Senso-ji Temple",
+      "category": "Temple",
+      "rating": 4.7,
+      "description": "Tokyo's oldest Buddhist temple, dedicated to the bodhisattva Kannon.",
+      "location": "Asakusa, Tokyo",
+      "coordinates": {
+        "latitude": 35.7148,
+        "longitude": 139.7967
+      },
+      "opening_hours": "6:00 AM - 5:00 PM",
+      "price_range": "Free (donations welcome)",
+      "estimated_visit_time": "1-2 hours",
+      "accessibility": "Partially accessible",
+      "images": [
+        "https://example.com/senso-ji1.jpg",
+        "https://example.com/senso-ji2.jpg"
+      ]
+    },
+    {
+      "name": "Tokyo Skytree",
+      "category": "Observation Deck",
+      "rating": 4.6,
+      "description": "The tallest tower in Japan with panoramic views of Tokyo.",
+      "location": "Sumida, Tokyo",
+      "coordinates": {
+        "latitude": 35.7101,
+        "longitude": 139.8107
+      },
+      "opening_hours": "10:00 AM - 9:00 PM",
+      "price_range": "¥2,100 - ¥3,100",
+      "estimated_visit_time": "2-3 hours",
+      "accessibility": "Fully accessible",
+      "images": [
+        "https://example.com/skytree1.jpg",
+        "https://example.com/skytree2.jpg"
+      ]
+    },
+    {
+      "name": "Meiji Shrine",
+      "category": "Shrine",
+      "rating": 4.5,
+      "description": "A Shinto shrine dedicated to the deified spirits of Emperor Meiji and his wife.",
+      "location": "Shibuya, Tokyo",
+      "coordinates": {
+        "latitude": 35.6764,
+        "longitude": 139.6993
+      },
+      "opening_hours": "Sunrise to Sunset",
+      "price_range": "Free",
+      "estimated_visit_time": "1 hour",
+      "accessibility": "Partially accessible",
+      "images": [
+        "https://example.com/meiji1.jpg",
+        "https://example.com/meiji2.jpg"
+      ]
+    },
+    {
+      "name": "Tsukiji Outer Market",
+      "category": "Market",
+      "rating": 4.4,
+      "description": "A large market specializing in fresh seafood and Japanese cuisine.",
+      "location": "Chuo, Tokyo",
+      "coordinates": {
+        "latitude": 35.6655,
+        "longitude": 139.7694
+      },
+      "opening_hours": "5:00 AM - 2:00 PM",
+      "price_range": "¥500 - ¥5,000",
+      "estimated_visit_time": "2-3 hours",
+      "accessibility": "Partially accessible",
+      "images": [
+        "https://example.com/tsukiji1.jpg",
+        "https://example.com/tsukiji2.jpg"
+      ]
+    }
+  ],
+  "weather_forecast": [
+    {
+      "date": "2025-02-01",
+      "condition": "Sunny",
+      "temperature_high": 12,
+      "temperature_low": 5,
+      "humidity": 65,
+      "precipitation_probability": 10,
+      "wind_speed": 15,
+      "wind_direction": "NW",
+      "sunrise": "06:45",
+      "sunset": "17:15",
+      "uv_index": 3
+    },
+    {
+      "date": "2025-02-02",
+      "condition": "Partly Cloudy",
+      "temperature_high": 11,
+      "temperature_low": 4,
+      "humidity": 70,
+      "precipitation_probability": 20,
+      "wind_speed": 12,
+      "wind_direction": "N",
+      "sunrise": "06:44",
+      "sunset": "17:16",
+      "uv_index": 2
+    },
+    {
+      "date": "2025-02-03",
+      "condition": "Cloudy",
+      "temperature_high": 10,
+      "temperature_low": 6,
+      "humidity": 75,
+      "precipitation_probability": 30,
+      "wind_speed": 10,
+      "wind_direction": "NE",
+      "sunrise": "06:43",
+      "sunset": "17:17",
+      "uv_index": 1
+    },
+    {
+      "date": "2025-02-04",
+      "condition": "Rain",
+      "temperature_high": 9,
+      "temperature_low": 7,
+      "humidity": 85,
+      "precipitation_probability": 80,
+      "wind_speed": 18,
+      "wind_direction": "E",
+      "sunrise": "06:42",
+      "sunset": "17:18",
+      "uv_index": 1
+    },
+    {
+      "date": "2025-02-05",
+      "condition": "Snow",
+      "temperature_high": 3,
+      "temperature_low": -1,
+      "humidity": 80,
+      "precipitation_probability": 60,
+      "wind_speed": 20,
+      "wind_direction": "NW",
+      "sunrise": "06:41",
+      "sunset": "17:19",
+      "uv_index": 1
+    }
+  ],
+  "reviews": {
+    "overall_rating": 4.6,
+    "total_reviews": 1250,
+    "recommended_by": 92,
+    "rating_breakdown": {
+      "excellent": 750,
+      "very_good": 350,
+      "average": 100,
+      "poor": 30,
+      "terrible": 20
+    },
+    "recent_reviews": [
+      {
+        "review_id": "rev123",
+        "user": "Traveler1",
+        "rating": 5,
+        "title": "Amazing trip!",
+        "comment": "Tokyo was incredible. The mix of tradition and modernity is fascinating.",
+        "date": "2024-01-10",
+        "helpful_votes": 45
+      },
+      {
+        "review_id": "rev456",
+        "user": "Traveler2",
+        "rating": 4,
+        "title": "Great experience",
+        "comment": "Loved the food and the people were very friendly.",
+        "date": "2024-01-05",
+        "helpful_votes": 32
+      }
+    ]
+  },
+  "travel_tips": [
+    "Get a Suica card for convenient public transportation",
+    "Learn basic Japanese phrases to enhance your experience",
+    "Visit convenience stores (konbini) for delicious and affordable meals",
+    "Try the local specialties like sushi, ramen, and tempura",
+    "Respect local customs and etiquette, especially in temples and shrines"
+  ]
+}
