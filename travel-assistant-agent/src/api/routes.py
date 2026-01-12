@@ -1,0 +1,608 @@
+"""
+REST API Routes for Travel Assistant Agent
+Provides HTTP endpoints for search, recommendation, and booking operations
+"""
+import uuid
+import asyncio
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException
+from .schemas import (
+    SearchRequest, SearchResponse,
+    RecommendRequest, RecommendResponse,
+    BookRequest, BookResponse,
+    StatusResponse, ErrorDetail
+)
+from ..agents import get_mcp_client
+from ..utils.logger import app_logger
+
+
+# Create API router
+router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+# ============== Task Status Management ==============
+# In-memory task store for async task tracking
+# In production, this should be replaced with Redis or database
+_task_store: Dict[str, Dict[str, Any]] = {}
+
+
+async def _create_task(
+    task_type: str,
+    task_data: Dict[str, Any]
+) -> str:
+    """Create a new task and return its ID"""
+    task_id = str(uuid.uuid4())
+    _task_store[task_id] = {
+        "task_id": task_id,
+        "task_type": task_type,
+        "status": "pending",
+        "result": None,
+        "error": None,
+        "created_at": asyncio.get_event_loop().time(),
+        "updated_at": asyncio.get_event_loop().time(),
+        "progress": 0.0
+    }
+    return task_id
+
+
+async def _update_task(
+    task_id: str,
+    status: Optional[str] = None,
+    result: Optional[Dict[str, Any]] = None,
+    error: Optional[Dict[str, Any]] = None,
+    progress: Optional[float] = None
+) -> None:
+    """Update task status"""
+    if task_id in _task_store:
+        if status is not None:
+            _task_store[task_id]["status"] = status
+        if result is not None:
+            _task_store[task_id]["result"] = result
+        if error is not None:
+            _task_store[task_id]["error"] = error
+        if progress is not None:
+            _task_store[task_id]["progress"] = progress
+        _task_store[task_id]["updated_at"] = asyncio.get_event_loop().time()
+
+
+def _format_task_status(task_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Format task data for response"""
+    return {
+        "task_id": task_data["task_id"],
+        "status": task_data["status"],
+        "result": task_data["result"],
+        "error": task_data["error"],
+        "created_at": task_data["created_at"],
+        "updated_at": task_data["updated_at"],
+        "progress": task_data.get("progress")
+    }
+
+
+# ============== Search Endpoint ==============
+
+@router.post("/search", response_model=SearchResponse)
+async def search_travel(request: SearchRequest):
+    """
+    Search for flights and hotels
+    
+    This endpoint searches for travel options based on the provided criteria.
+    It can search for flights, hotels, or both depending on the request parameters.
+    
+    - **origin**: Departure city or airport code
+    - **destination**: Arrival city or airport code
+    - **departure_date**: Departure date (YYYY-MM-DD)
+    - **return_date**: Optional return date for round trip
+    - **passengers**: Number of passengers
+    - **cabin_class**: Cabin class (economy, premium_economy, business, first)
+    - **include_hotels**: Whether to search for hotels
+    """
+    task_id = await _create_task("search", request.dict())
+    app_logger.info(f"[{task_id}] Search request received", request=request.dict())
+    
+    try:
+        await _update_task(task_id, status="processing", progress=0.1)
+        
+        mcp_client = get_mcp_client()
+        
+        # Prepare search results
+        outbound_flights = []
+        return_flights = []
+        hotels = []
+        search_metadata = None
+        error = None
+        
+        # Search for flights
+        try:
+            await _update_task(task_id, progress=0.2)
+            app_logger.info(f"[{task_id}] Searching flights from {request.origin} to {request.destination}")
+            
+            flight_result = await mcp_client.call_skill(
+                "search_flights",
+                {
+                    "origin": request.origin,
+                    "destination": request.destination,
+                    "departure_date": request.departure_date,
+                    "return_date": request.return_date,
+                    "passengers": request.passengers,
+                    "cabin_class": request.cabin_class
+                }
+            )
+            
+            if flight_result.success:
+                outbound_flights = flight_result.result.get("outbound_flights", [])
+                return_flights = flight_result.result.get("return_flights", [])
+                search_metadata = flight_result.result.get("search_metadata")
+                app_logger.info(f"[{task_id}] Found {len(outbound_flights)} outbound flights")
+            else:
+                error = flight_result.error
+                app_logger.warning(f"[{task_id}] Flight search failed: {error}")
+            
+            await _update_task(task_id, progress=0.5)
+            
+        except Exception as e:
+            app_logger.error(f"[{task_id}] Flight search error: {e}")
+            if not error:
+                error = {"code": "FLIGHT_SEARCH_ERROR", "message": str(e)}
+        
+        # Search for hotels (if requested)
+        if request.include_hotels and request.check_in_date and request.check_out_date:
+            try:
+                app_logger.info(f"[{task_id}] Searching hotels in {request.destination}")
+                
+                hotel_result = await mcp_client.call_skill(
+                    "search_hotels",
+                    {
+                        "destination": request.destination,
+                        "check_in_date": request.check_in_date,
+                        "check_out_date": request.check_out_date,
+                        "guests": request.passengers,
+                        "rooms": request.rooms,
+                        "min_rating": request.min_rating
+                    }
+                )
+                
+                if hotel_result.success:
+                    hotels = hotel_result.result.get("hotels", [])
+                    app_logger.info(f"[{task_id}] Found {len(hotels)} hotels")
+                    
+                    # Update search metadata with hotel info
+                    if search_metadata is None:
+                        search_metadata = hotel_result.result.get("search_metadata")
+                    elif hotel_result.result.get("search_metadata"):
+                        search_metadata.update(hotel_result.result["search_metadata"])
+                else:
+                    if not error:
+                        error = hotel_result.error
+                    app_logger.warning(f"[{task_id}] Hotel search failed: {error}")
+                
+                await _update_task(task_id, progress=0.8)
+                
+            except Exception as e:
+                app_logger.error(f"[{task_id}] Hotel search error: {e}")
+                if not error:
+                    error = {"code": "HOTEL_SEARCH_ERROR", "message": str(e)}
+        
+        # Build search metadata if not set
+        if not search_metadata:
+            search_metadata = {
+                "origin": request.origin,
+                "destination": request.destination,
+                "departure_date": request.departure_date,
+                "return_date": request.return_date,
+                "passengers": request.passengers,
+                "rooms": request.rooms,
+                "results_count": len(outbound_flights) + len(hotels)
+            }
+        
+        # Mark task as completed
+        await _update_task(
+            task_id,
+            status="completed",
+            result={
+                "outbound_flights": outbound_flights,
+                "return_flights": return_flights,
+                "hotels": hotels,
+                "search_metadata": search_metadata
+            },
+            progress=1.0
+        )
+        
+        app_logger.info(f"[{task_id}] Search completed successfully")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "outbound_flights": outbound_flights,
+            "return_flights": return_flights,
+            "hotels": hotels,
+            "search_metadata": search_metadata,
+            "error": error
+        }
+        
+    except Exception as e:
+        app_logger.error(f"[{task_id}] Search failed with error: {e}")
+        
+        error_detail = {
+            "code": "INTERNAL_ERROR",
+            "message": str(e)
+        }
+        
+        await _update_task(
+            task_id,
+            status="failed",
+            error=error_detail
+        )
+        
+        return {
+            "success": False,
+            "task_id": task_id,
+            "outbound_flights": [],
+            "return_flights": [],
+            "hotels": [],
+            "error": error_detail
+        }
+
+
+# ============== Recommendation Endpoint ==============
+
+@router.post("/recommend", response_model=RecommendResponse)
+async def recommend_travel(request: RecommendRequest):
+    """
+    Get travel recommendations
+    
+    This endpoint provides comprehensive travel recommendations including:
+    - Destination information
+    - Top attractions
+    - Weather forecast
+    - Destination reviews
+    
+    - **destination**: Travel destination
+    - **start_date**: Start date (YYYY-MM-DD)
+    - **end_date**: End date (YYYY-MM-DD)
+    - **preferences**: Travel preferences (nature, culture, food, etc.)
+    """
+    task_id = await _create_task("recommend", request.dict())
+    app_logger.info(f"[{task_id}] Recommend request received for {request.destination}")
+    
+    try:
+        await _update_task(task_id, status="processing", progress=0.1)
+        
+        mcp_client = get_mcp_client()
+        
+        # Prepare recommendation results
+        destination_info = None
+        attractions = []
+        weather_forecast = []
+        reviews = None
+        error = None
+        
+        # Get destination information
+        try:
+            await _update_task(task_id, progress=0.2)
+            app_logger.info(f"[{task_id}] Getting destination info for {request.destination}")
+            
+            dest_result = await mcp_client.call_skill(
+                "get_destination_info",
+                {
+                    "destination": request.destination,
+                    "language": "en"
+                }
+            )
+            
+            if dest_result.success:
+                destination_info = dest_result.result
+                app_logger.info(f"[{task_id}] Got destination info")
+            else:
+                error = dest_result.error
+                app_logger.warning(f"[{task_id}] Destination info failed: {error}")
+            
+            await _update_task(task_id, progress=0.4)
+            
+        except Exception as e:
+            app_logger.error(f"[{task_id}] Destination info error: {e}")
+            if not error:
+                error = {"code": "DESTINATION_INFO_ERROR", "message": str(e)}
+        
+        # Get attractions (if requested)
+        if request.include_attractions:
+            try:
+                app_logger.info(f"[{task_id}] Getting attractions for {request.destination}")
+                
+                attractions_result = await mcp_client.call_skill(
+                    "get_attractions",
+                    {
+                        "destination": request.destination,
+                        "category": request.attraction_category,
+                        "max_results": request.max_attractions
+                    }
+                )
+                
+                if attractions_result.success:
+                    attractions = attractions_result.result.get("attractions", [])
+                    app_logger.info(f"[{task_id}] Found {len(attractions)} attractions")
+                else:
+                    if not error:
+                        error = attractions_result.error
+                    app_logger.warning(f"[{task_id}] Attractions failed: {error}")
+                
+                await _update_task(task_id, progress=0.6)
+                
+            except Exception as e:
+                app_logger.error(f"[{task_id}] Attractions error: {e}")
+                if not error:
+                    error = {"code": "ATTRACTIONS_ERROR", "message": str(e)}
+        
+        # Get weather forecast (if requested)
+        if request.include_weather:
+            try:
+                app_logger.info(f"[{task_id}] Getting weather forecast for {request.destination}")
+                
+                weather_result = await mcp_client.call_skill(
+                    "get_weather_forecast",
+                    {
+                        "destination": request.destination,
+                        "start_date": request.start_date,
+                        "end_date": request.end_date
+                    }
+                )
+                
+                if weather_result.success:
+                    weather_forecast = weather_result.result.get("forecast", [])
+                    app_logger.info(f"[{task_id}] Got {len(weather_forecast)} days of weather forecast")
+                else:
+                    if not error:
+                        error = weather_result.error
+                    app_logger.warning(f"[{task_id}] Weather forecast failed: {error}")
+                
+                await _update_task(task_id, progress=0.8)
+                
+            except Exception as e:
+                app_logger.error(f"[{task_id}] Weather forecast error: {e}")
+                if not error:
+                    error = {"code": "WEATHER_ERROR", "message": str(e)}
+        
+        # Get destination reviews (if requested)
+        if request.include_reviews:
+            try:
+                app_logger.info(f"[{task_id}] Getting reviews for {request.destination}")
+                
+                reviews_result = await mcp_client.call_skill(
+                    "get_destination_reviews",
+                    {
+                        "destination": request.destination,
+                        "limit": 5,
+                        "sort_by": "rating_high"
+                    }
+                )
+                
+                if reviews_result.success:
+                    reviews = reviews_result.result
+                    app_logger.info(f"[{task_id}] Got destination reviews")
+                else:
+                    if not error:
+                        error = reviews_result.error
+                    app_logger.warning(f"[{task_id}] Reviews failed: {error}")
+                
+                await _update_task(task_id, progress=0.9)
+                
+            except Exception as e:
+                app_logger.error(f"[{task_id}] Reviews error: {e}")
+                if not error:
+                    error = {"code": "REVIEWS_ERROR", "message": str(e)}
+        
+        # Mark task as completed
+        await _update_task(
+            task_id,
+            status="completed",
+            result={
+                "destination_info": destination_info,
+                "attractions": attractions,
+                "weather_forecast": weather_forecast,
+                "reviews": reviews
+            },
+            progress=1.0
+        )
+        
+        app_logger.info(f"[{task_id}] Recommendation completed successfully")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "destination_info": destination_info,
+            "attractions": attractions,
+            "weather_forecast": weather_forecast,
+            "reviews": reviews,
+            "error": error
+        }
+        
+    except Exception as e:
+        app_logger.error(f"[{task_id}] Recommendation failed with error: {e}")
+        
+        error_detail = {
+            "code": "INTERNAL_ERROR",
+            "message": str(e)
+        }
+        
+        await _update_task(
+            task_id,
+            status="failed",
+            error=error_detail
+        )
+        
+        return {
+            "success": False,
+            "task_id": task_id,
+            "destination_info": None,
+            "attractions": [],
+            "weather_forecast": [],
+            "reviews": None,
+            "error": error_detail
+        }
+
+
+# ============== Booking Endpoint ==============
+
+@router.post("/book", response_model=BookResponse)
+async def create_booking(request: BookRequest):
+    """
+    Create a travel booking
+    
+    This endpoint creates a booking for flights, hotels, and other services.
+    Returns a booking ID that can be used to track the booking status.
+    
+    - **customer_info**: Customer details (name, email, phone)
+    - **trip_details**: Trip details (destination, dates, travelers)
+    - **selected_flight**: Optional selected flight
+    - **selected_hotel**: Optional selected hotel
+    - **passengers**: List of passenger details
+    - **additional_services**: Additional services to include
+    """
+    task_id = await _create_task("booking", request.dict())
+    app_logger.info(f"[{task_id}] Booking request received for {request.trip_details.get('destination')}")
+    
+    try:
+        await _update_task(task_id, status="processing", progress=0.2)
+        
+        mcp_client = get_mcp_client()
+        
+        # Prepare booking data for MCP skill
+        booking_data = {
+            "customer_info": request.customer_info,
+            "trip_details": request.trip_details,
+            "selected_flight": request.selected_flight,
+            "selected_hotel": request.selected_hotel,
+            "additional_services": request.additional_services
+        }
+        
+        app_logger.info(f"[{task_id}] Creating booking...")
+        
+        # Call create_booking skill
+        booking_result = await mcp_client.call_skill(
+            "create_booking",
+            booking_data
+        )
+        
+        await _update_task(task_id, progress=0.8)
+        
+        if booking_result.success:
+            app_logger.info(f"[{task_id}] Booking created successfully: {booking_result.result.get('booking_id')}")
+            
+            # Mark task as completed
+            await _update_task(
+                task_id,
+                status="completed",
+                result=booking_result.result,
+                progress=1.0
+            )
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "booking_id": booking_result.result.get("booking_id"),
+                "status": booking_result.result.get("status"),
+                "created_at": booking_result.result.get("created_at"),
+                "expires_at": booking_result.result.get("expires_at"),
+                "customer_info": booking_result.result.get("customer_info"),
+                "trip_summary": booking_result.result.get("trip_summary"),
+                "price_breakdown": booking_result.result.get("price_breakdown"),
+                "payment_required": booking_result.result.get("payment_required", True),
+                "next_steps": booking_result.result.get("next_steps", []),
+                "error": None
+            }
+        else:
+            app_logger.warning(f"[{task_id}] Booking failed: {booking_result.error}")
+            
+            error_detail = booking_result.error or {
+                "code": "BOOKING_FAILED",
+                "message": "Booking could not be created"
+            }
+            
+            await _update_task(
+                task_id,
+                status="failed",
+                error=error_detail
+            )
+            
+            return {
+                "success": False,
+                "task_id": task_id,
+                "booking_id": None,
+                "status": None,
+                "error": error_detail,
+                "next_steps": ["Please try again or contact support"]
+            }
+        
+    except Exception as e:
+        app_logger.error(f"[{task_id}] Booking failed with error: {e}")
+        
+        error_detail = {
+            "code": "INTERNAL_ERROR",
+            "message": str(e)
+        }
+        
+        await _update_task(
+            task_id,
+            status="failed",
+            error=error_detail
+        )
+        
+        return {
+            "success": False,
+            "task_id": task_id,
+            "booking_id": None,
+            "status": None,
+            "error": error_detail,
+            "next_steps": ["Please try again later"]
+        }
+
+
+# ============== Status Endpoint ==============
+
+@router.get("/status/{task_id}", response_model=StatusResponse)
+async def get_task_status(task_id: str):
+    """
+    Get task status
+    
+    Query the status of a previously submitted task.
+    
+    - **task_id**: The ID returned when the task was created
+    
+    Returns the current status and result (if completed) of the task.
+    """
+    if task_id not in _task_store:
+        app_logger.warning(f"Status request for unknown task: {task_id}")
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    
+    task_data = _task_store[task_id]
+    app_logger.info(f"Status request for task {task_id}: {task_data['status']}")
+    
+    return _format_task_status(task_data)
+
+
+@router.get("/tasks")
+async def list_tasks(
+    status: Optional[str] = None,
+    limit: int = 20
+):
+    """
+    List all tasks
+    
+    Returns a list of all tasks, optionally filtered by status.
+    Useful for debugging and monitoring.
+    """
+    tasks = list(_task_store.values())
+    
+    if status:
+        tasks = [t for t in tasks if t["status"] == status]
+    
+    # Sort by updated_at (newest first)
+    tasks.sort(key=lambda x: x["updated_at"], reverse=True)
+    
+    # Apply limit
+    tasks = tasks[:limit]
+    
+    return {
+        "total": len(_task_store),
+        "filtered": len(tasks),
+        "tasks": [_format_task_status(t) for t in tasks]
+    }
