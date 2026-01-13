@@ -20,8 +20,8 @@ class DatabaseManager:
             self.engine = create_engine(
                 settings.get_database_url(),
                 pool_pre_ping=True,
-                pool_size=5,
-                max_overflow=10
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow
             )
             app_logger.info("Database engine initialized")
             self._create_tables()
@@ -65,7 +65,17 @@ class DatabaseManager:
                     )
                 """))
                 
-                # Create indexes
+                # Create indexes for users table
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_users_email 
+                    ON users(email)
+                """))
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_users_username 
+                    ON users(username)
+                """))
+                
+                # Create indexes for audit_logs table
                 conn.execute(text("""
                     CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id 
                     ON audit_logs(user_id)
@@ -74,9 +84,13 @@ class DatabaseManager:
                     CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at 
                     ON audit_logs(created_at)
                 """))
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_audit_logs_action 
+                    ON audit_logs(action)
+                """))
                 
                 conn.commit()
-                app_logger.info("Database tables created or verified")
+                app_logger.info("Database tables and indexes created or verified")
         except Exception as e:
             app_logger.error(f"Failed to create tables: {e}")
             # Don't raise - tables might already exist with different schema

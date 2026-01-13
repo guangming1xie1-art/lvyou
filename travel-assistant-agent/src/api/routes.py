@@ -5,7 +5,7 @@ Provides HTTP endpoints for search, recommendation, and booking operations
 import uuid
 import asyncio
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from .schemas import (
     SearchRequest, SearchResponse,
     RecommendRequest, RecommendResponse,
@@ -14,13 +14,38 @@ from .schemas import (
 )
 from ..agents import get_mcp_client
 from ..utils.logger import app_logger
+from ..utils.pagination import paginate_results, sort_flights, sort_hotels
 from ..auth.dependencies import get_current_active_user, get_current_user
 from ..security import rate_limiter, audit_logger
 from ..auth.models import User
+from ..cache import RedisCache, CacheManager
+from ..config import settings
 
 
 # Create API router
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+# Initialize cache
+redis_cache = None
+cache_manager = None
+
+if settings.redis_enabled:
+    try:
+        redis_cache = RedisCache(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            db=settings.redis_db,
+            password=settings.redis_password if settings.redis_password else None,
+            max_connections=settings.redis_max_connections
+        )
+        cache_manager = CacheManager(redis_cache)
+        app_logger.info("Redis cache initialized successfully")
+    except Exception as e:
+        app_logger.warning(f"Redis cache initialization failed: {e}. Running without cache.")
+        redis_cache = None
+        cache_manager = None
+else:
+    app_logger.info("Redis cache disabled")
 
 
 # ============== Task Status Management ==============
@@ -87,7 +112,11 @@ def _format_task_status(task_data: Dict[str, Any]) -> Dict[str, Any]:
 async def search_travel(
     request: SearchRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    sort_by: str = Query("price", description="排序字段 (price, duration, rating)"),
+    use_cache: bool = Query(True, description="是否使用缓存")
 ):
     """
     Search for flights and hotels
@@ -102,7 +131,50 @@ async def search_travel(
     - **passengers**: Number of passengers
     - **cabin_class**: Cabin class (economy, premium_economy, business, first)
     - **include_hotels**: Whether to search for hotels
+    - **page**: 页码（从 1 开始）
+    - **page_size**: 每页数量（1-100）
+    - **sort_by**: 排序字段 (price, duration, rating)
+    - **use_cache**: 是否使用缓存
     """
+    # Check cache first
+    if use_cache and cache_manager:
+        cached_result = cache_manager.get_search_cache(
+            origin=request.origin,
+            destination=request.destination,
+            departure_date=request.departure_date,
+            return_date=request.return_date,
+            passengers=request.passengers,
+            cabin_class=request.cabin_class,
+            include_hotels=request.include_hotels,
+            check_in_date=request.check_in_date,
+            check_out_date=request.check_out_date,
+            rooms=request.rooms
+        )
+        
+        if cached_result:
+            app_logger.info(f"Cache hit for search: {request.origin} -> {request.destination}")
+            
+            # Apply sorting and pagination to cached results
+            outbound_flights = sort_flights(cached_result.get("outbound_flights", []), sort_by)
+            return_flights = sort_flights(cached_result.get("return_flights", []), sort_by)
+            hotels = sort_hotels(cached_result.get("hotels", []), sort_by)
+            
+            # Paginate results
+            paginated_outbound = paginate_results(outbound_flights, page, page_size)
+            paginated_return = paginate_results(return_flights, page, page_size)
+            paginated_hotels = paginate_results(hotels, page, page_size)
+            
+            return {
+                "success": True,
+                "task_id": cached_result.get("task_id", "cached"),
+                "outbound_flights": paginated_outbound["items"],
+                "return_flights": paginated_return["items"],
+                "hotels": paginated_hotels["items"],
+                "search_metadata": cached_result.get("search_metadata"),
+                "pagination": paginated_outbound["pagination"],
+                "cache_hit": True
+            }
+    
     # Check rate limit
     await rate_limiter.check_limit(http_request)
     
@@ -215,14 +287,46 @@ async def search_travel(
                 "results_count": len(outbound_flights) + len(hotels)
             }
         
+        # Cache the results (before pagination)
+        if cache_manager and not error:
+            cache_manager.set_search_cache(
+                data={
+                    "task_id": task_id,
+                    "outbound_flights": outbound_flights,
+                    "return_flights": return_flights,
+                    "hotels": hotels,
+                    "search_metadata": search_metadata
+                },
+                origin=request.origin,
+                destination=request.destination,
+                departure_date=request.departure_date,
+                return_date=request.return_date,
+                passengers=request.passengers,
+                cabin_class=request.cabin_class,
+                include_hotels=request.include_hotels,
+                check_in_date=request.check_in_date,
+                check_out_date=request.check_out_date,
+                rooms=request.rooms
+            )
+        
+        # Apply sorting
+        sorted_outbound = sort_flights(outbound_flights, sort_by)
+        sorted_return = sort_flights(return_flights, sort_by)
+        sorted_hotels = sort_hotels(hotels, sort_by)
+        
+        # Apply pagination
+        paginated_outbound = paginate_results(sorted_outbound, page, page_size)
+        paginated_return = paginate_results(sorted_return, page, page_size)
+        paginated_hotels = paginate_results(sorted_hotels, page, page_size)
+        
         # Mark task as completed
         await _update_task(
             task_id,
             status="completed",
             result={
-                "outbound_flights": outbound_flights,
-                "return_flights": return_flights,
-                "hotels": hotels,
+                "outbound_flights": sorted_outbound,
+                "return_flights": sorted_return,
+                "hotels": sorted_hotels,
                 "search_metadata": search_metadata
             },
             progress=1.0
@@ -233,10 +337,12 @@ async def search_travel(
         return {
             "success": True,
             "task_id": task_id,
-            "outbound_flights": outbound_flights,
-            "return_flights": return_flights,
-            "hotels": hotels,
+            "outbound_flights": paginated_outbound["items"],
+            "return_flights": paginated_return["items"],
+            "hotels": paginated_hotels["items"],
             "search_metadata": search_metadata,
+            "pagination": paginated_outbound["pagination"],
+            "cache_hit": False,
             "error": error
         }
         
@@ -270,7 +376,8 @@ async def search_travel(
 async def recommend_travel(
     request: RecommendRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    use_cache: bool = Query(True, description="是否使用缓存")
 ):
     """
     Get travel recommendations
@@ -285,7 +392,23 @@ async def recommend_travel(
     - **start_date**: Start date (YYYY-MM-DD)
     - **end_date**: End date (YYYY-MM-DD)
     - **preferences**: Travel preferences (nature, culture, food, etc.)
+    - **use_cache**: 是否使用缓存
     """
+    # Check cache first
+    if use_cache and cache_manager:
+        cached_result = cache_manager.get_recommend_cache(
+            destination=request.destination,
+            interests=request.preferences,
+            budget=request.budget
+        )
+        
+        if cached_result:
+            app_logger.info(f"Cache hit for recommendations: {request.destination}")
+            return {
+                **cached_result,
+                "cache_hit": True
+            }
+    
     # Check rate limit
     await rate_limiter.check_limit(http_request)
     
@@ -429,6 +552,25 @@ async def recommend_travel(
                 if not error:
                     error = {"code": "REVIEWS_ERROR", "message": str(e)}
         
+        # Cache the results
+        result_data = {
+            "success": True,
+            "task_id": task_id,
+            "destination_info": destination_info,
+            "attractions": attractions,
+            "weather_forecast": weather_forecast,
+            "reviews": reviews,
+            "error": error
+        }
+        
+        if cache_manager and not error:
+            cache_manager.set_recommend_cache(
+                data=result_data,
+                destination=request.destination,
+                interests=request.preferences,
+                budget=request.budget
+            )
+        
         # Mark task as completed
         await _update_task(
             task_id,
@@ -445,13 +587,8 @@ async def recommend_travel(
         app_logger.info(f"[{task_id}] Recommendation completed successfully")
         
         return {
-            "success": True,
-            "task_id": task_id,
-            "destination_info": destination_info,
-            "attractions": attractions,
-            "weather_forecast": weather_forecast,
-            "reviews": reviews,
-            "error": error
+            **result_data,
+            "cache_hit": False
         }
         
     except Exception as e:

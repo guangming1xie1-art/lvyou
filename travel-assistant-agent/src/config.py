@@ -86,6 +86,21 @@ class Settings(BaseSettings):
     min_password_length: int = Field(default=8, alias="MIN_PASSWORD_LENGTH")
     require_special_chars: bool = Field(default=True, alias="REQUIRE_SPECIAL_CHARS")
 
+    # Redis Cache
+    redis_enabled: bool = Field(default=True, alias="REDIS_ENABLED")
+    redis_host: str = Field(default="localhost", alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
+    redis_db: int = Field(default=0, alias="REDIS_DB")
+    redis_password: str = Field(default="", alias="REDIS_PASSWORD")
+    redis_max_connections: int = Field(default=50, alias="REDIS_MAX_CONNECTIONS")
+
+    # Performance
+    enable_gzip: bool = Field(default=True, alias="ENABLE_GZIP")
+    gzip_min_size: int = Field(default=1000, alias="GZIP_MIN_SIZE")
+    slow_request_threshold: float = Field(default=1.0, alias="SLOW_REQUEST_THRESHOLD")
+    db_pool_size: int = Field(default=20, alias="DB_POOL_SIZE")
+    db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW")
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
