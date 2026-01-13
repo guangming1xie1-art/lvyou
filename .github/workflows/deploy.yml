@@ -1,0 +1,174 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.inputs.environment == 'staging'
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.STAGING_SERVER_HOST }}
+          username: ${{ secrets.STAGING_SERVER_USER }}
+          key: ${{ secrets.STAGING_SERVER_SSH_KEY }}
+          port: ${{ secrets.STAGING_SERVER_PORT || '22' }}
+          script: |
+            set -e
+            echo "🚀 Starting deployment to staging..."
+            
+            # Create app directory if not exists
+            mkdir -p /opt/travel-assistant
+            cd /opt/travel-assistant
+            
+            # Backup current deployment
+            if [ -d ".git" ]; then
+              echo "📦 Creating backup of current deployment..."
+              BACKUP_DIR="backups/$(date +%Y%m%d_%H%M%S)"
+              mkdir -p $BACKUP_DIR
+              cp -r docker-compose.prod.yml .env $BACKUP_DIR/ 2>/dev/null || true
+            fi
+            
+            # Clone or update repository
+            if [ ! -d ".git" ]; then
+              git clone ${{ github.server_url }}/${{ github.repository }}.git .
+            else
+              git fetch origin
+              git checkout ${{ github.sha }}
+            fi
+            
+            # Copy environment file
+            echo "${{ secrets.STAGING_ENV_FILE }}" > .env
+            
+            # Deploy using script
+            ./scripts/start-prod.sh
+            
+            # Run health check
+            echo "🏥 Running health check..."
+            ./scripts/health-check.sh
+            
+            echo "✅ Deployment to staging completed successfully!"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    environment: production
+    needs: deploy-staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tests
+        run: |
+          echo "Running integration tests..."
+          # Add your test commands here
+          # docker-compose -f docker-compose.test.yml run --rm tests
+
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.PRODUCTION_SERVER_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_SERVER_PORT || '22' }}
+          script_stop: true
+          script: |
+            set -e
+            echo "🚀 Starting deployment to production..."
+            
+            cd /opt/travel-assistant
+            
+            # Create maintenance mode flag
+            touch maintenance_mode
+            
+            # Update repository
+            git fetch origin
+            git checkout ${{ github.sha }}
+            
+            # Copy production environment
+            echo "${{ secrets.PRODUCTION_ENV_FILE }}" > .env
+            
+            # Run update script (includes backup)
+            ./scripts/update-prod.sh
+            
+            # Remove maintenance mode
+            rm -f maintenance_mode
+            
+            echo "✅ Deployment to production completed successfully!"
+
+      - name: Notify deployment success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: '🎉 Successfully deployed Travel Assistant to production!'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: '❌ Deployment to production failed!'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  health-check:
+    name: Post-deployment Health Check
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    
+    steps:
+      - name: Health check staging
+        if: needs.deploy-staging.result == 'success'
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.STAGING_SERVER_HOST }}
+          username: ${{ secrets.STAGING_SERVER_USER }}
+          key: ${{ secrets.STAGING_SERVER_SSH_KEY }}
+          port: ${{ secrets.STAGING_SERVER_PORT || '22' }}
+          script: |
+            cd /opt/travel-assistant
+            ./scripts/health-check.sh
+
+      - name: Health check production
+        if: needs.deploy-production.result == 'success'
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.PRODUCTION_SERVER_SSH_KEY }}
+          port: ${{ secrets.PRODUCTION_SERVER_PORT || '22' }}
+          script: |
+            cd /opt/travel-assistant
+            ./scripts/health-check.sh
