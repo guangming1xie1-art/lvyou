@@ -13,7 +13,9 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from config import settings
 from models.schemas import PlanningRequest, PlanningResponse, HealthResponse
+from models.schemas import HybridWorkflowRequest, HybridWorkflowResponse, AgentStatsResponse
 from workflows import PlanningWorkflow
+from workflows.hybrid_workflow import HybridTravelWorkflow, get_hybrid_workflow
 from utils.logger import app_logger
 from utils.db import db_manager
 from utils.claude import claude_client
@@ -127,6 +129,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         app_logger.warning(f"MCP Client initialization failed: {e}")
     
+    # Initialize Hybrid Workflow
+    try:
+        global hybrid_workflow
+        hybrid_workflow = await get_hybrid_workflow()
+        app_logger.info("Hybrid Travel Workflow initialized")
+    except Exception as e:
+        app_logger.warning(f"Hybrid Workflow initialization failed: {e}")
+        hybrid_workflow = None
+    
     app_logger.info("Service started successfully")
     yield
     
@@ -139,7 +150,15 @@ async def lifespan(app: FastAPI):
     if mcp_client.is_connected():
         await mcp_client.disconnect()
     
+    # Cleanup Hybrid Workflow
+    if hybrid_workflow:
+        await hybrid_workflow.cleanup()
+    
     app_logger.info("Service stopped")
+
+
+# 全局混合工作流实例
+hybrid_workflow: Optional[HybridTravelWorkflow] = None
 
 
 app = FastAPI(
@@ -564,6 +583,168 @@ async def demo_planning_with_skills(request: DemoPlanningRequest):
         
     except Exception as e:
         app_logger.error(f"[{request_id}] Demo planning failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== 混合工作流端点 ==============
+
+@app.post("/api/v1/planning", response_model=HybridWorkflowResponse)
+async def hybrid_planning(request: HybridWorkflowRequest):
+    """混合工作流规划端点"""
+    if not request.user_message:
+        raise HTTPException(status_code=400, detail="user_message is required")
+    
+    request_id = f"hybrid_{int(time.time())}"
+    app_logger.info(f"[{request_id}] Received hybrid planning request: {request.user_message}")
+    
+    try:
+        # 检查混合工作流是否已初始化
+        if hybrid_workflow is None:
+            global _hybrid_workflow
+            _hybrid_workflow = await get_hybrid_workflow()
+        
+        # 运行混合工作流
+        result = await hybrid_workflow.run(request.user_message, request.metadata)
+        
+        return HybridWorkflowResponse(
+            request_id=request_id,
+            status=result.get("status", "unknown"),
+            stage=result.get("stage", "unknown"),
+            workflow_path=result.get("workflow_path", []),
+            collected_info=result.get("collected_info", {}),
+            search_results=result.get("search_results", {}),
+            search_quality=result.get("search_quality", 0.0),
+            validate_results=result.get("validate_results", {}),
+            recommendations=result.get("recommendations", {}),
+            booking_confirmation=result.get("booking_confirmation", {}),
+            final_plan=result.get("final_plan", {}),
+            error=result.get("error"),
+            token_report=result.get("token_report"),
+            efficiency_score=result.get("efficiency_score", 0.0)
+        )
+    except Exception as e:
+        app_logger.error(f"[{request_id}] Hybrid planning failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/agents/stats", response_model=AgentStatsResponse)
+async def get_agent_stats():
+    """获取 Agent 统计信息"""
+    try:
+        # 这里应该从实际的工作流实例获取统计信息
+        # 目前返回模拟数据
+        import time
+        from datetime import datetime
+        
+        current_time = datetime.now().isoformat()
+        
+        # 模拟节点统计数据
+        workflow_stats = {
+            "collect_info": {
+                "node_name": "collect_info",
+                "execution_count": 156,
+                "success_rate": 0.98,
+                "average_tokens": 245.6,
+                "average_time_ms": 1200.0,
+                "most_common_error": None
+            },
+            "search": {
+                "node_name": "search",
+                "execution_count": 142,
+                "success_rate": 0.95,
+                "average_tokens": 1850.3,
+                "average_time_ms": 3500.0,
+                "most_common_error": "API timeout"
+            },
+            "recommend": {
+                "node_name": "recommend",
+                "execution_count": 135,
+                "success_rate": 0.97,
+                "average_tokens": 1650.8,
+                "average_time_ms": 2800.0,
+                "most_common_error": None
+            },
+            "book": {
+                "node_name": "book",
+                "execution_count": 120,
+                "success_rate": 0.92,
+                "average_tokens": 892.4,
+                "average_time_ms": 1800.0,
+                "most_common_error": "Booking API unavailable"
+            }
+        }
+        
+        return AgentStatsResponse(
+            timestamp=current_time,
+            workflow_stats=workflow_stats,
+            total_requests=156,
+            success_rate=0.95,
+            average_tokens_per_request=4639.1,
+            average_execution_time_ms=9300.0,
+            system_health={
+                "database": "healthy",
+                "redis": "healthy",
+                "mcp": "healthy",
+                "deep_agent": "healthy"
+            }
+        )
+    except Exception as e:
+        app_logger.error(f"Failed to get agent stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/workflow/health")
+async def workflow_health_check():
+    """工作流健康检查"""
+    try:
+        health_status = {
+            "hybrid_workflow": hybrid_workflow is not None,
+            "deep_agents": False,
+            "mcp_client": False,
+            "token_tracker": True  # 本地组件，始终可用
+        }
+        
+        # 检查 DeepAgent 状态
+        if hybrid_workflow and hybrid_workflow.deep_agents_manager:
+            health_status["deep_agents"] = True
+            
+        # 检查 MCP 客户端状态
+        mcp_client = get_mcp_client()
+        if mcp_client and mcp_client.is_connected():
+            health_status["mcp_client"] = True
+            
+        overall_healthy = all(health_status.values())
+        
+        return {
+            "status": "healthy" if overall_healthy else "degraded",
+            "components": health_status,
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        app_logger.error(f"Workflow health check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/workflow/reset")
+async def reset_workflow():
+    """重置工作流状态"""
+    try:
+        global hybrid_workflow
+        
+        if hybrid_workflow:
+            await hybrid_workflow.cleanup()
+            hybrid_workflow = None
+            
+        # 重新初始化
+        hybrid_workflow = await get_hybrid_workflow()
+        
+        return {
+            "status": "success",
+            "message": "Workflow reset successfully",
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        app_logger.error(f"Workflow reset failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

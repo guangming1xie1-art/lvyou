@@ -72,6 +72,24 @@ class Settings(BaseSettings):
     java_api_max_retries: int = Field(default=3, alias="JAVA_API_MAX_RETRIES")
     java_api_auth_token: str = Field(default="", alias="JAVA_API_AUTH_TOKEN")
 
+    # DeepAgent Configuration
+    deepagent_enabled: bool = Field(default=True, alias="DEEPAGENT_ENABLED")
+    deepagent_search_model: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        alias="DEEPAGENT_SEARCH_MODEL"
+    )
+    deepagent_recommend_model: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        alias="DEEPAGENT_RECOMMEND_MODEL"
+    )
+    deepagent_temperature: float = Field(default=0.3, alias="DEEPAGENT_TEMPERATURE")
+    deepagent_max_tokens: int = Field(default=4096, alias="DEEPAGENT_MAX_TOKENS")
+
+    # Workflow Configuration
+    workflow_max_retries: int = Field(default=2, alias="WORKFLOW_MAX_RETRIES")
+    workflow_retry_delay: float = Field(default=1.0, alias="WORKFLOW_RETRY_DELAY")
+    workflow_quality_threshold: float = Field(default=0.6, alias="WORKFLOW_QUALITY_THRESHOLD")
+
     # JWT Authentication
     jwt_secret_key: str = Field(
         default="your-super-secret-key-change-in-production",
