@@ -4,13 +4,13 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: travel-assistant-postgres
+    container_name: travel-assistant-postgres-prod
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_DB=${DB_NAME:-travel_assistant}
-      - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -18,21 +18,34 @@ services:
       - travel-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       timeout: 3s
       retries: 3
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: travel-assistant-redis
+    container_name: travel-assistant-redis-prod
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     networks:
       - travel-network
     restart: unless-stopped
@@ -42,6 +55,19 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Backend API Service
   agent_backend:
@@ -49,28 +75,28 @@ services:
       context: ./travel-assistant-agent
       dockerfile: Dockerfile
       target: production
-    container_name: travel-assistant-agent
+    container_name: travel-assistant-agent-prod
     ports:
       - "8000:8000"
     environment:
-      - APP_ENV=${APP_ENV:-production}
+      - APP_ENV=production
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - JWT_ALGORITHM=HS256
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_ENABLED=${REDIS_ENABLED:-true}
+      - REDIS_ENABLED=true
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-travel_assistant}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_POOL_SIZE=${DB_POOL_SIZE:-20}
-      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-10}
-      - ENABLE_GZIP=${ENABLE_GZIP:-true}
-      - ENABLE_HTTPS_REDIRECT=${ENABLE_HTTPS_REDIRECT:-false}
-      - SLOW_REQUEST_THRESHOLD=${SLOW_REQUEST_THRESHOLD:-0.5}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_POOL_SIZE=20
+      - DB_MAX_OVERFLOW=10
+      - ENABLE_GZIP=true
+      - ENABLE_HTTPS_REDIRECT=true
+      - SLOW_REQUEST_THRESHOLD=0.5
+      - CORS_ORIGINS=${CORS_ORIGINS}
     volumes:
       - ./travel-assistant-agent/logs:/app/logs
     depends_on:
@@ -87,18 +113,32 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
 
   # Frontend Service
   frontend:
     build:
       context: ./travel-assistant-front
       dockerfile: Dockerfile
-    container_name: travel-assistant-frontend
+    container_name: travel-assistant-frontend-prod
     ports:
       - "3000:80"
+      - "3001:80"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - VITE_AGENT_API_BASE_URL=http://localhost:8000
+      - NODE_ENV=production
+      - VITE_AGENT_API_BASE_URL=${VITE_AGENT_API_BASE_URL}
       - VITE_APP_NAME=${VITE_APP_NAME:-Travel Assistant}
     depends_on:
       agent_backend:
@@ -112,6 +152,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   postgres-data:
@@ -122,4 +175,4 @@ volumes:
 networks:
   travel-network:
     driver: bridge
-    name: travel-network
+    name: travel-network-prod
