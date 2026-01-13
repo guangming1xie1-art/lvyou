@@ -8,6 +8,7 @@ import uuid
 import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from config import settings
@@ -27,6 +28,7 @@ from src.api import routes as api_routes
 from src.api import websocket as websocket_routes
 from src.auth import routes as auth_routes
 from src.security import rate_limiter
+from src.middleware import PerformanceMiddleware
 
 
 # ============== MCP-related Models ==============
@@ -147,13 +149,35 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add Performance Monitoring Middleware
+app.add_middleware(
+    PerformanceMiddleware,
+    slow_request_threshold=settings.slow_request_threshold,
+    log_all_requests=True
+)
+
+# Add Gzip Compression Middleware
+if settings.enable_gzip:
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=settings.gzip_min_size
+    )
+    app_logger.info(f"Gzip compression enabled (min size: {settings.gzip_min_size} bytes)")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Total-Count", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"]
+    expose_headers=[
+        "X-Total-Count",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+        "X-Process-Time",
+        "X-Performance"
+    ]
 )
 
 
