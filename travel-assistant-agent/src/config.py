@@ -23,8 +23,39 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, alias="APP_PORT")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
-    # Claude API
+    # ============ LLM Provider API Keys ============
+    # DeepSeek (便宜层主力)
+    deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
+    # 阿里云通义千问 (标准层)
+    dashscope_api_key: str = Field(default="", alias="DASHSCOPE_API_KEY")
+    # 智谱 AI GLM
+    zhipu_api_key: str = Field(default="", alias="ZHIPU_API_KEY")
+    # OpenAI 兼容
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    # Anthropic Claude (强力层)
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
+
+    # ============ LLM Tier Strategy ============
+    # 便宜层默认提供商
+    llm_cheap_provider: str = Field(
+        default="deepseek",
+        alias="LLM_CHEAP_PROVIDER"
+    )
+    # 标准层默认提供商
+    llm_standard_provider: str = Field(
+        default="qwen-turbo",
+        alias="LLM_STANDARD_PROVIDER"
+    )
+    # 强力层默认提供商
+    llm_power_provider: str = Field(
+        default="claude",
+        alias="LLM_POWER_PROVIDER"
+    )
+    # LLM 通用参数
+    llm_temperature: float = Field(default=0.7, alias="LLM_TEMPERATURE")
+    llm_max_tokens: int = Field(default=4096, alias="LLM_MAX_TOKENS")
+
+    # ============ Legacy Claude API (保留兼容性) ============
     claude_model: str = Field(
         default="claude-3-5-sonnet-20241022",
         alias="CLAUDE_MODEL"
@@ -74,13 +105,23 @@ class Settings(BaseSettings):
 
     # DeepAgent Configuration
     deepagent_enabled: bool = Field(default=True, alias="DEEPAGENT_ENABLED")
+    # DeepAgent 使用的模型（可配置为 provider:model 格式，如 "claude:claude-3-5-sonnet"）
     deepagent_search_model: str = Field(
-        default="claude-3-5-sonnet-20241022",
+        default="claude",
         alias="DEEPAGENT_SEARCH_MODEL"
     )
     deepagent_recommend_model: str = Field(
-        default="claude-3-5-sonnet-20241022",
+        default="claude",
         alias="DEEPAGENT_RECOMMEND_MODEL"
+    )
+    # DeepAgent tier（搜索和推荐通常需要标准或强力层）
+    deepagent_search_tier: str = Field(
+        default="standard",
+        alias="DEEPAGENT_SEARCH_TIER"
+    )
+    deepagent_recommend_tier: str = Field(
+        default="standard",
+        alias="DEEPAGENT_RECOMMEND_TIER"
     )
     deepagent_temperature: float = Field(default=0.3, alias="DEEPAGENT_TEMPERATURE")
     deepagent_max_tokens: int = Field(default=4096, alias="DEEPAGENT_MAX_TOKENS")

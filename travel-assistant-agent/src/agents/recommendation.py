@@ -2,15 +2,24 @@
 
 基于搜索结果和用户偏好，生成定制化的旅行方案推荐。
 使用 LLM 进行推理和方案生成。
+支持多模型分层调用
 """
 from typing import Any, Dict, List, Optional, Callable, Awaitable
 from src.utils.logger import app_logger
-from src.utils.claude import claude_client
 from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
 
+
 class RecommendationAgent(BaseAgent):
     name = "recommendation_agent"
+    
+    def __init__(self, llm: Optional[Any] = None):
+        """初始化 Agent
+        
+        Args:
+            llm: 可选的 LLM 实例，如果不提供则使用默认配置
+        """
+        self.llm = llm
 
     async def run(
         self, 
@@ -58,8 +67,9 @@ class RecommendationAgent(BaseAgent):
         collected_info: Dict[str, Any],
         search_results: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        if not claude_client.is_ready():
-            app_logger.warning("Claude client not ready, using mock recommendations")
+        # 如果没有 LLM，使用 mock 数据
+        if self.llm is None:
+            app_logger.warning("No LLM provided, using mock recommendations")
             return [
                 {
                     "itinerary_id": "mock_001",
@@ -88,7 +98,7 @@ class RecommendationAgent(BaseAgent):
 """
 
         try:
-            response = await claude_client.llm.ainvoke(prompt)
+            response = await self.llm.ainvoke(prompt)
             # TODO: 解析 LLM 响应为结构化推荐
             return [
                 {
