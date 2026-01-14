@@ -1,10 +1,12 @@
 """
 DeepAgent 子代理管理
 创建搜索和推荐专用的简化版 DeepAgent 实例
+支持多模型分层调用
 """
 import asyncio
 from typing import Any, Dict, List, Optional
 from langchain_experimental import create_agent
+from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain.tools import BaseTool
 from loguru import logger
@@ -12,13 +14,34 @@ from config import settings
 
 
 class SimplifiedDeepAgent:
-    """简化版 DeepAgent 实现"""
+    """简化版 DeepAgent 实现
     
-    def __init__(self, llm: ChatAnthropic, system_prompt: str, tools: List[BaseTool] = None):
+    支持任意 OpenAI 兼容的 LLM 实例
+    """
+    
+    def __init__(self, llm: Any, system_prompt: str, tools: List[BaseTool] = None):
+        """
+        初始化 DeepAgent
+        
+        Args:
+            llm: LLM 实例（ChatOpenAI, ChatAnthropic 或其他兼容实例）
+            system_prompt: 系统提示词
+            tools: 工具列表
+        """
         self.llm = llm
         self.system_prompt = system_prompt
         self.tools = tools or []
         self.agent = None
+        
+        # 记录 LLM 类型信息
+        if hasattr(llm, 'model_name'):
+            self.llm_model = llm.model_name
+        elif hasattr(llm, 'model'):
+            self.llm_model = llm.model
+        else:
+            self.llm_model = str(type(llm).__name__)
+        
+        logger.info(f"SimplifiedDeepAgent initialized with model: {self.llm_model}")
         
     async def initialize(self):
         """初始化代理"""
@@ -52,14 +75,33 @@ class SimplifiedDeepAgent:
 
 
 class DeepSubAgentsManager:
-    """DeepAgent 子代理管理器"""
+    """DeepAgent 子代理管理器
     
-    def __init__(self, llm: ChatAnthropic):
+    支持任意 OpenAI 兼容的 LLM 实例
+    """
+    
+    def __init__(self, llm: Any):
+        """
+        初始化管理器
+        
+        Args:
+            llm: LLM 实例（ChatOpenAI, ChatAnthropic 或其他兼容实例）
+        """
         self.llm = llm
         self.search_deep_agent = None
         self.recommend_deep_agent = None
         self.mcp_client = None
         self._initialized = False
+        
+        # 记录 LLM 类型信息
+        if hasattr(llm, 'model_name'):
+            self.llm_model = llm.model_name
+        elif hasattr(llm, 'model'):
+            self.llm_model = llm.model
+        else:
+            self.llm_model = str(type(llm).__name__)
+        
+        logger.info(f"DeepSubAgentsManager initialized with model: {self.llm_model}")
         
     async def initialize(self):
         """初始化 DeepAgent 实例"""
@@ -325,8 +367,12 @@ class DeepSubAgentsManager:
 _deep_agents_manager: Optional[DeepSubAgentsManager] = None
 
 
-async def get_deep_agents_manager(llm: ChatAnthropic) -> DeepSubAgentsManager:
-    """获取 DeepAgents 管理器实例"""
+async def get_deep_agents_manager(llm: Any) -> DeepSubAgentsManager:
+    """获取 DeepAgents 管理器实例
+    
+    Args:
+        llm: LLM 实例（ChatOpenAI, ChatAnthropic 或其他兼容实例）
+    """
     global _deep_agents_manager
     
     if _deep_agents_manager is None:
