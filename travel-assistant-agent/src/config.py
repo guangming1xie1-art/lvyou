@@ -75,8 +75,25 @@ class Settings(BaseSettings):
     vector_dimension: int = Field(default=1536, alias="VECTOR_DIMENSION")
     embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
     embedding_api_key: str = Field(default="", alias="EMBEDDING_API_KEY")
+    embedding_base_url: str = Field(default="", alias="EMBEDDING_BASE_URL")
     hybrid_search_enabled: bool = Field(default=True, alias="HYBRID_SEARCH_ENABLED")
     top_k_rerank: int = Field(default=5, alias="TOP_K_RERANK")
+    hybrid_search_vector_weight: float = Field(default=0.6, alias="HYBRID_SEARCH_VECTOR_WEIGHT")
+    hybrid_search_bm25_weight: float = Field(default=0.4, alias="HYBRID_SEARCH_BM25_WEIGHT")
+
+    # ============ Prompt Cache Configuration ============
+    prompt_cache_enabled: bool = Field(default=True, alias="PROMPT_CACHE_ENABLED")
+    prompt_cache_dir: str = Field(default=".prompt_cache", alias="PROMPT_CACHE_DIR")
+    system_prompt_cache_ttl: int = Field(default=86400, alias="SYSTEM_PROMPT_CACHE_TTL")
+    tool_definitions_cache_ttl: int = Field(default=86400, alias="TOOL_DEFINITIONS_CACHE_TTL")
+    rag_context_cache_ttl: int = Field(default=3600, alias="RAG_CONTEXT_CACHE_TTL")
+
+    # ============ Cache TTL Configuration ============
+    cache_ttl_search: int = Field(default=3600, alias="CACHE_TTL_SEARCH")
+    cache_ttl_recommend: int = Field(default=21600, alias="CACHE_TTL_RECOMMEND")
+    cache_ttl_rag: int = Field(default=3600, alias="CACHE_TTL_RAG")
+    cache_ttl_booking: int = Field(default=1800, alias="CACHE_TTL_BOOKING")
+    cache_ttl_user_prefs: int = Field(default=86400, alias="CACHE_TTL_USER_PREFS")
 
     # ============ Legacy Claude API (保留兼容性) ============
     claude_model: str = Field(
