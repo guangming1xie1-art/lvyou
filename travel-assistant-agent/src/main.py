@@ -32,6 +32,14 @@ from src.auth import routes as auth_routes
 from src.security import rate_limiter
 from src.middleware import PerformanceMiddleware
 
+# ============ Phase 3 Integration ============
+# MCP V2
+from src.mcp import MCPServerV2
+# Agent Skills
+from src.skills import SkillRegistry, SkillLoader, get_skill_registry
+# Concurrency
+from src.concurrency import ConnectionPool, APIConnectionPool, RateLimiter
+
 
 # ============== MCP-related Models ==============
 
@@ -122,14 +130,64 @@ async def lifespan(app: FastAPI):
     db_manager.init()
     claude_client.init()
     
-    # Initialize MCP Client
+    # ============ Phase 3.1: MCP V2 Initialization ============
+    if settings.mcp_v2_enabled:
+        try:
+            global mcp_server_v2
+            mcp_server_v2 = MCPServerV2()
+            app.include_router(mcp_server_v2.create_router())
+            app_logger.info("MCP V2 Server initialized and routes registered")
+        except Exception as e:
+            app_logger.error(f"MCP V2 initialization failed: {e}")
+            mcp_server_v2 = None
+    
+    # ============ Phase 3.2: Agent Skills Framework Initialization ============
+    if settings.skills_enabled:
+        try:
+            global skill_registry, skill_loader
+            skill_registry = get_skill_registry()
+            skill_loader = SkillLoader(skill_registry)
+            
+            if settings.skills_auto_load and settings.skills_builtin_enabled:
+                loaded = skill_loader.load_all_builtin_skills()
+                app_logger.info(f"Loaded {len(loaded)} built-in skills")
+            
+            app_logger.info("Agent Skills Framework initialized")
+        except Exception as e:
+            app_logger.error(f"Agent Skills Framework initialization failed: {e}")
+            skill_registry = None
+            skill_loader = None
+    
+    # ============ Phase 3.3: Concurrency Optimization Initialization ============
+    # Initialize API connection pool
+    if settings.rate_limiting_enabled:
+        try:
+            global api_connection_pool, rate_limiter_global
+            api_connection_pool = APIConnectionPool(
+                max_connections=settings.api_connection_pool_max,
+                timeout=settings.api_connection_pool_timeout,
+                max_retries=settings.api_connection_pool_max_retries
+            )
+            app_logger.info("API Connection Pool initialized")
+            
+            rate_limiter_global = RateLimiter(
+                rate=settings.rate_limit_default_rate,
+                burst=settings.rate_limit_default_burst
+            )
+            app_logger.info("Global Rate Limiter initialized")
+        except Exception as e:
+            app_logger.error(f"Concurrency optimization initialization failed: {e}")
+            api_connection_pool = None
+            rate_limiter_global = None
+    
+    # Initialize MCP Client (existing)
     try:
         await init_mcp_client()
         app_logger.info("MCP Client initialized")
     except Exception as e:
         app_logger.warning(f"MCP Client initialization failed: {e}")
     
-    # Initialize Hybrid Workflow
+    # Initialize Hybrid Workflow (existing)
     try:
         global hybrid_workflow
         hybrid_workflow = await get_hybrid_workflow()
@@ -145,6 +203,11 @@ async def lifespan(app: FastAPI):
     db_manager.close()
     await backend_client.close()
     
+    # ============ Phase 3 Cleanup ============
+    # Cleanup API connection pool
+    if api_connection_pool:
+        await api_connection_pool.close_all()
+    
     # Disconnect MCP client
     mcp_client = get_mcp_client()
     if mcp_client.is_connected():
@@ -159,6 +222,13 @@ async def lifespan(app: FastAPI):
 
 # 全局混合工作流实例
 hybrid_workflow: Optional[HybridTravelWorkflow] = None
+
+# ============ Phase 3 Global Instances ============
+mcp_server_v2: Optional[MCPServerV2] = None
+skill_registry: Optional[SkillRegistry] = None
+skill_loader: Optional[SkillLoader] = None
+api_connection_pool: Optional[APIConnectionPool] = None
+rate_limiter_global: Optional[RateLimiter] = None
 
 
 app = FastAPI(
