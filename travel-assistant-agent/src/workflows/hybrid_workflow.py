@@ -1,6 +1,7 @@
 """
 LangGraph + DeepAgent 混合工作流
 结合 LangGraph 的流程控制优势和 DeepAgent 的深度推理能力
+支持多模型分层调用（便宜/标准/强力）
 """
 import asyncio
 import json
@@ -16,12 +17,12 @@ except ImportError:
     LANGGRAPH_AVAILABLE = False
     print("⚠️ LangGraph not available, using simplified workflow")
 
-from langchain_anthropic import ChatAnthropic
 from langchain_experimental import create_agent
 
 from utils.token_tracker import TokenTracker
 from utils.logger import app_logger
 from config import settings
+from config.llm_config import LLMFactory, ModelTier
 from agents.deep_subagents import get_deep_agents_manager
 from agents.mcp_tools_helper import get_mcp_tools_manager
 
@@ -134,18 +135,66 @@ class HybridTravelWorkflow:
     """LangGraph + DeepAgent 混合工作流"""
     
     def __init__(self):
-        # 初始化 LLM
-        self.llm = ChatAnthropic(
-            model=settings.claude_model,
-            anthropic_api_key=settings.anthropic_api_key,
-            temperature=settings.claude_temperature,
-            max_tokens=settings.claude_max_tokens
+        """
+        初始化混合工作流
+        
+        使用 LLMFactory 创建三层 LLM 实例：
+        - cheap_llm: 便宜层 - 用于简单任务（信息收集、预订）
+        - standard_llm: 标准层 - 用于中等复杂任务（搜索、推荐）
+        - power_llm: 强力层 - 用于复杂推理任务
+        """
+        # 获取配置
+        cheap_provider = getattr(settings, 'llm_cheap_provider', 'deepseek')
+        standard_provider = getattr(settings, 'llm_standard_provider', 'qwen-turbo')
+        power_provider = getattr(settings, 'llm_power_provider', 'claude')
+        
+        # 温度参数
+        temperature = getattr(settings, 'llm_temperature', 0.7)
+        max_tokens = getattr(settings, 'llm_max_tokens', 4096)
+        
+        # 创建三层 LLM 实例
+        self.cheap_llm = LLMFactory.create_llm(
+            cheap_provider, 
+            ModelTier.CHEAP,
+            temperature=temperature,
+            max_tokens=max_tokens
         )
+        self.standard_llm = LLMFactory.create_llm(
+            standard_provider, 
+            ModelTier.STANDARD,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        self.power_llm = LLMFactory.create_llm(
+            power_provider, 
+            ModelTier.POWER,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        
+        # 记录使用的模型信息
+        self.llm_info = {
+            "cheap": {
+                "provider": cheap_provider,
+                "tier": "cheap"
+            },
+            "standard": {
+                "provider": standard_provider,
+                "tier": "standard"
+            },
+            "power": {
+                "provider": power_provider,
+                "tier": "power"
+            }
+        }
+        
+        app_logger.info(f"LLM instances created: {self.llm_info}")
         
         # 初始化组件
         self.token_tracker = TokenTracker()
         self.deep_agents_manager = None
         self.mcp_tools_manager = None
+        self._llm_initialized = False
         
         # 构建工作流图
         if LANGGRAPH_AVAILABLE:
@@ -153,16 +202,33 @@ class HybridTravelWorkflow:
         else:
             self.graph = SimpleWorkflowManager()
         
-        app_logger.info("HybridTravelWorkflow initialized")
+        app_logger.info("HybridTravelWorkflow initialized with multi-tier LLMs")
         
     async def initialize(self):
         """异步初始化"""
+        # 初始化 DeepAgents 管理器，使用标准层 LLM
         if self.deep_agents_manager is None:
-            self.deep_agents_manager = await get_deep_agents_manager(self.llm)
+            # DeepAgent 使用标准层或强力层 LLM
+            deepagent_tier_str = getattr(settings, 'deepagent_search_tier', 'standard')
+            try:
+                deepagent_tier = ModelTier(deepagent_tier_str)
+            except ValueError:
+                deepagent_tier = ModelTier.STANDARD
+            
+            # 根据 tier 选择 LLM
+            if deepagent_tier == ModelTier.POWER:
+                deepagent_llm = self.power_llm
+            elif deepagent_tier == ModelTier.CHEAP:
+                deepagent_llm = self.cheap_llm
+            else:
+                deepagent_llm = self.standard_llm
+            
+            self.deep_agents_manager = await get_deep_agents_manager(deepagent_llm)
             
         if self.mcp_tools_manager is None:
             self.mcp_tools_manager = await get_mcp_tools_manager()
             
+        self._llm_initialized = True
         app_logger.info("HybridTravelWorkflow async components initialized")
     
     def _build_graph(self):
@@ -230,12 +296,12 @@ class HybridTravelWorkflow:
         return workflow.compile()
     
     async def _collect_info(self, state: HybridWorkflowState) -> HybridWorkflowState:
-        """节点：信息收集"""
+        """节点：信息收集（使用便宜层 LLM）"""
         node_name = "collect_info"
         start_time = self.token_tracker.start_node(node_name)
         
         try:
-            app_logger.info(f"[{state.get('request_id')}] Starting collect_info node")
+            app_logger.info(f"[{state.get('request_id')}] Starting collect_info node (using cheap LLM)")
             
             # 信息收集系统提示词（静态，便于 Prompt Cache）
             INFO_COLLECTION_PROMPT = """你是一个专业的信息收集专家。
@@ -261,9 +327,9 @@ class HybridTravelWorkflow:
 3. 保持信息的原始性和准确性
 4. 使用中文输出"""
 
-            # 创建信息收集代理
+            # 创建信息收集代理（使用 cheap_llm）
             info_agent = create_agent(
-                model=self.llm,
+                model=self.cheap_llm,
                 tools=[],
                 system_prompt=INFO_COLLECTION_PROMPT
             )
@@ -507,13 +573,13 @@ class HybridTravelWorkflow:
             }
     
     async def _book(self, state: HybridWorkflowState) -> HybridWorkflowState:
-        """节点：预订处理"""
+        """节点：预订处理（使用便宜层 LLM）"""
         node_name = "book"
         start_time = self.token_tracker.start_node(node_name)
         
         try:
             request_id = state.get('request_id')
-            app_logger.info(f"[{request_id}] Starting booking")
+            app_logger.info(f"[{request_id}] Starting booking (using cheap LLM)")
             
             # 预订系统提示词（静态）
             BOOKING_PROMPT = """你是一个专业的旅游预订专家。
@@ -548,9 +614,9 @@ class HybridTravelWorkflow:
 
 注意：这是演示版本，实际预订需要连接真实的预订系统。"""
 
-            # 创建预订代理
+            # 创建预订代理（使用 cheap_llm）
             booking_agent = create_agent(
-                model=self.llm,
+                model=self.cheap_llm,
                 tools=[],
                 system_prompt=BOOKING_PROMPT
             )
@@ -791,9 +857,10 @@ class HybridTravelWorkflow:
                 # 使用简化的工作流管理器
                 result = await self.graph.ainvoke(initial_state)
             
-            # 添加性能报告
+            # 添加性能报告和 LLM 配置信息
             result["token_report"] = self.token_tracker.generate_report()
             result["efficiency_score"] = self.token_tracker.get_efficiency_score()
+            result["llm_config"] = self.llm_info  # 添加使用的 LLM 配置信息
             
             app_logger.info(f"[{request_id}] Hybrid workflow completed: {result['status']}")
             return result

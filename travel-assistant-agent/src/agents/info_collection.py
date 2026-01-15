@@ -5,16 +5,25 @@
 - 出发时间和旅行天数
 - 预算
 - 偏好类型（美食、自然、文化等）
+支持多模型分层调用
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from src.utils.logger import app_logger
-from src.utils.claude import claude_client
 from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
 
+
 class InfoCollectionAgent(BaseAgent):
     name = "info_collection_agent"
-
+    
+    def __init__(self, llm: Optional[Any] = None):
+        """初始化 Agent
+        
+        Args:
+            llm: 可选的 LLM 实例，如果不提供则使用默认配置
+        """
+        self.llm = llm
+    
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         app_logger.info(f"Starting agent {self.name}")
 
@@ -37,8 +46,9 @@ class InfoCollectionAgent(BaseAgent):
             return state
 
     async def _extract_info(self, user_message: str) -> Dict[str, Any]:
-        if not claude_client.is_ready():
-            app_logger.warning("Claude client not ready, using mock data")
+        # 如果没有 LLM，使用 mock 数据
+        if self.llm is None:
+            app_logger.warning("No LLM provided, using mock data")
             return {
                 "destination": "未指定",
                 "dates": "未指定",
@@ -61,7 +71,7 @@ class InfoCollectionAgent(BaseAgent):
 """
 
         try:
-            response = await claude_client.llm.ainvoke(prompt)
+            response = await self.llm.ainvoke(prompt)
             # TODO: 解析 LLM 响应为结构化数据
             return {
                 "destination": "北京",
