@@ -1,0 +1,136 @@
+Collecting langchain
+  Downloading langchain-1.2.4-py3-none-any.whl.metadata (4.9 kB)
+Collecting langgraph
+  Downloading langgraph-1.0.6-py3-none-any.whl.metadata (7.4 kB)
+Collecting faiss-cpu
+  Downloading faiss_cpu-1.13.2-cp310-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (7.6 kB)
+Collecting rank-bm25
+  Downloading rank_bm25-0.2.2-py3-none-any.whl.metadata (3.2 kB)
+Collecting langchain-core<2.0.0,>=1.2.1 (from langchain)
+  Downloading langchain_core-1.2.7-py3-none-any.whl.metadata (3.7 kB)
+Collecting pydantic<3.0.0,>=2.7.4 (from langchain)
+  Downloading pydantic-2.12.5-py3-none-any.whl.metadata (90 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 2.6 MB/s eta 0:00:00
+Collecting langgraph-checkpoint<5.0.0,>=2.1.0 (from langgraph)
+  Downloading langgraph_checkpoint-4.0.0-py3-none-any.whl.metadata (4.9 kB)
+Collecting langgraph-prebuilt<1.1.0,>=1.0.2 (from langgraph)
+  Downloading langgraph_prebuilt-1.0.6-py3-none-any.whl.metadata (5.2 kB)
+Collecting langgraph-sdk<0.4.0,>=0.3.0 (from langgraph)
+  Downloading langgraph_sdk-0.3.3-py3-none-any.whl.metadata (1.6 kB)
+Collecting xxhash>=3.5.0 (from langgraph)
+  Downloading xxhash-3.6.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)
+Collecting numpy<3.0,>=1.25.0 (from faiss-cpu)
+  Downloading numpy-2.4.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting packaging (from faiss-cpu)
+  Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting jsonpatch<2.0.0,>=1.33.0 (from langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading jsonpatch-1.33-py2.py3-none-any.whl.metadata (3.0 kB)
+Collecting langsmith<1.0.0,>=0.3.45 (from langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading langsmith-0.6.3-py3-none-any.whl.metadata (15 kB)
+Collecting pyyaml<7.0.0,>=5.3.0 (from langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting tenacity!=8.4.0,<10.0.0,>=8.1.0 (from langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading tenacity-9.1.2-py3-none-any.whl.metadata (1.2 kB)
+Collecting typing-extensions<5.0.0,>=4.7.0 (from langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting uuid-utils<1.0,>=0.12.0 (from langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading uuid_utils-0.13.0-cp39-abi3-manylinux_2_24_x86_64.whl.metadata (5.4 kB)
+Collecting ormsgpack>=1.12.0 (from langgraph-checkpoint<5.0.0,>=2.1.0->langgraph)
+  Downloading ormsgpack-1.12.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.2 kB)
+Collecting httpx>=0.25.2 (from langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting orjson>=3.10.1 (from langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading orjson-3.11.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (41 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.6/41.6 kB 3.3 MB/s eta 0:00:00
+Collecting annotated-types>=0.6.0 (from pydantic<3.0.0,>=2.7.4->langchain)
+  Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.41.5 (from pydantic<3.0.0,>=2.7.4->langchain)
+  Downloading pydantic_core-2.41.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+Collecting typing-inspection>=0.4.2 (from pydantic<3.0.0,>=2.7.4->langchain)
+  Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+Collecting anyio (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading anyio-4.12.1-py3-none-any.whl.metadata (4.3 kB)
+Collecting certifi (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading certifi-2026.1.4-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore==1.* (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting idna (from httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.25.2->langgraph-sdk<0.4.0,>=0.3.0->langgraph)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting jsonpointer>=1.9 (from jsonpatch<2.0.0,>=1.33.0->langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading jsonpointer-3.0.0-py2.py3-none-any.whl.metadata (2.3 kB)
+Collecting requests-toolbelt>=1.0.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl.metadata (14 kB)
+Collecting requests>=2.0.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+Collecting zstandard>=0.23.0 (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.3 kB)
+Collecting charset_normalizer<4,>=2 (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading charset_normalizer-3.4.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (37 kB)
+Collecting urllib3<3,>=1.21.1 (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.1->langchain)
+  Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+Downloading langchain-1.2.4-py3-none-any.whl (107 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 107.9/107.9 kB 10.0 MB/s eta 0:00:00
+Downloading langgraph-1.0.6-py3-none-any.whl (157 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 157.4/157.4 kB 16.7 MB/s eta 0:00:00
+Downloading faiss_cpu-1.13.2-cp310-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (23.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.8/23.8 MB 52.5 MB/s eta 0:00:00
+Downloading rank_bm25-0.2.2-py3-none-any.whl (8.6 kB)
+Downloading langchain_core-1.2.7-py3-none-any.whl (490 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 490.2/490.2 kB 22.1 MB/s eta 0:00:00
+Downloading langgraph_checkpoint-4.0.0-py3-none-any.whl (46 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.3/46.3 kB 4.7 MB/s eta 0:00:00
+Downloading langgraph_prebuilt-1.0.6-py3-none-any.whl (35 kB)
+Downloading langgraph_sdk-0.3.3-py3-none-any.whl (67 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.0/67.0 kB 6.7 MB/s eta 0:00:00
+Downloading numpy-2.4.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.4/16.4 MB 55.9 MB/s eta 0:00:00
+Downloading packaging-25.0-py3-none-any.whl (66 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 66.5/66.5 kB 6.5 MB/s eta 0:00:00
+Downloading pydantic-2.12.5-py3-none-any.whl (463 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 463.6/463.6 kB 26.0 MB/s eta 0:00:00
+Downloading pydantic_core-2.41.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 45.5 MB/s eta 0:00:00
+Downloading xxhash-3.6.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.9/193.9 kB 21.3 MB/s eta 0:00:00
+Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 7.5 MB/s eta 0:00:00
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 9.3 MB/s eta 0:00:00
+Downloading jsonpatch-1.33-py2.py3-none-any.whl (12 kB)
+Downloading langsmith-0.6.3-py3-none-any.whl (282 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 283.0/283.0 kB 28.3 MB/s eta 0:00:00
+Downloading orjson-3.11.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (139 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 139.0/139.0 kB 16.5 MB/s eta 0:00:00
+Downloading ormsgpack-1.12.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (211 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 211.5/211.5 kB 23.4 MB/s eta 0:00:00
+Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 55.0 MB/s eta 0:00:00
+Downloading tenacity-9.1.2-py3-none-any.whl (28 kB)
+Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 5.2 MB/s eta 0:00:00
+Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+Downloading uuid_utils-0.13.0-cp39-abi3-manylinux_2_24_x86_64.whl (342 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 342.1/342.1 kB 36.7 MB/s eta 0:00:00
+Downloading jsonpointer-3.0.0-py2.py3-none-any.whl (7.6 kB)
+Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.7/64.7 kB 7.5 MB/s eta 0:00:00
+Downloading certifi-2026.1.4-py3-none-any.whl (152 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 152.9/152.9 kB 17.1 MB/s eta 0:00:00
+Downloading idna-3.11-py3-none-any.whl (71 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.0/71.0 kB 8.2 MB/s eta 0:00:00
+Downloading requests_toolbelt-1.0.0-py2.py3-none-any.whl (54 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 54.5/54.5 kB 5.9 MB/s eta 0:00:00
+Downloading zstandard-0.25.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 80.0 MB/s eta 0:00:00
+Downloading anyio-4.12.1-py3-none-any.whl (113 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 113.6/113.6 kB 11.5 MB/s eta 0:00:00
+Downloading charset_normalizer-3.4.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (153 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 153.5/153.5 kB 13.6 MB/s eta 0:00:00
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 13.5 MB/s eta 0:00:00
+Installing collected packages: zstandard, xxhash, uuid-utils, urllib3, typing-extensions, tenacity, pyyaml, packaging, ormsgpack, orjson, numpy, jsonpointer, idna, h11, charset_normalizer, certifi, annotated-types, typing-inspection, requests, rank-bm25, pydantic-core, jsonpatch, httpcore, faiss-cpu, anyio, requests-toolbelt, pydantic, httpx, langsmith, langgraph-sdk, langchain-core, langgraph-checkpoint, langgraph-prebuilt, langgraph, langchain
+Successfully installed annotated-types-0.7.0 anyio-4.12.1 certifi-2026.1.4 charset_normalizer-3.4.4 faiss-cpu-1.13.2 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.11 jsonpatch-1.33 jsonpointer-3.0.0 langchain-1.2.4 langchain-core-1.2.7 langgraph-1.0.6 langgraph-checkpoint-4.0.0 langgraph-prebuilt-1.0.6 langgraph-sdk-0.3.3 langsmith-0.6.3 numpy-2.4.1 orjson-3.11.5 ormsgpack-1.12.1 packaging-25.0 pydantic-2.12.5 pydantic-core-2.41.5 pyyaml-6.0.3 rank-bm25-0.2.2 requests-2.32.5 requests-toolbelt-1.0.0 tenacity-9.1.2 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 uuid-utils-0.13.0 xxhash-3.6.0 zstandard-0.25.0

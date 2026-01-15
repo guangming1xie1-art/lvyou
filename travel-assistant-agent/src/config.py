@@ -2,9 +2,20 @@
 配置管理模块
 使用 Pydantic Settings 管理环境变量配置
 """
-from typing import List
+from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Version(BaseSettings):
+    """版本信息配置"""
+    langchain_version: str = "1.0.0"
+    langgraph_version: str = "1.0.0"
+    deepagent_version: str = "0.2.7"
+    pydantic_version: str = "2.5.0"
+    python_jose_version: str = "3.3.0"
+    redis_version: str = "5.0.0"
+    httpx_version: str = "0.26.0"
 
 
 class Settings(BaseSettings):
@@ -15,6 +26,9 @@ class Settings(BaseSettings):
         extra="ignore",
         env_delimiter=",",
     )
+
+    # Version
+    version: Version = Version()
 
     # Application
     app_name: str = Field(default="travel-assistant-agent", alias="APP_NAME")
@@ -54,6 +68,15 @@ class Settings(BaseSettings):
     # LLM 通用参数
     llm_temperature: float = Field(default=0.7, alias="LLM_TEMPERATURE")
     llm_max_tokens: int = Field(default=4096, alias="LLM_MAX_TOKENS")
+
+    # ============ Vector Store Configuration ============
+    vector_store_type: str = Field(default="faiss", alias="VECTOR_STORE_TYPE")
+    vector_store_path: str = Field(default="./data/vector_store", alias="VECTOR_STORE_PATH")
+    vector_dimension: int = Field(default=1536, alias="VECTOR_DIMENSION")
+    embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
+    embedding_api_key: str = Field(default="", alias="EMBEDDING_API_KEY")
+    hybrid_search_enabled: bool = Field(default=True, alias="HYBRID_SEARCH_ENABLED")
+    top_k_rerank: int = Field(default=5, alias="TOP_K_RERANK")
 
     # ============ Legacy Claude API (保留兼容性) ============
     claude_model: str = Field(
