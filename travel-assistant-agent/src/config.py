@@ -200,6 +200,54 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=20, alias="DB_POOL_SIZE")
     db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW")
 
+    # ============ MCP (Model Context Protocol) V2 ============
+    mcp_v2_enabled: bool = Field(default=True, alias="MCP_V2_ENABLED")
+    mcp_v2_tools_enabled: bool = Field(default=True, alias="MCP_V2_TOOLS_ENABLED")
+    mcp_v2_resources_enabled: bool = Field(default=True, alias="MCP_V2_RESOURCES_ENABLED")
+    mcp_v2_max_websockets: int = Field(default=100, alias="MCP_V2_MAX_WEBSOCKETS")
+    mcp_v2_request_timeout: float = Field(default=30.0, alias="MCP_V2_REQUEST_TIMEOUT")
+
+    # ============ Agent Skills Framework ============
+    skills_enabled: bool = Field(default=True, alias="SKILLS_ENABLED")
+    skills_auto_load: bool = Field(default=True, alias="SKILLS_AUTO_LOAD")
+    skills_builtin_enabled: bool = Field(default=True, alias="SKILLS_BUILTIN_ENABLED")
+    skills_max_execution_time: float = Field(default=30.0, alias="SKILLS_MAX_EXECUTION_TIME")
+    skills_parallel_enabled: bool = Field(default=True, alias="SKILLS_PARALLEL_ENABLED")
+    skills_cost_tracking: bool = Field(default=True, alias="SKILLS_COST_TRACKING")
+
+    # ============ Concurrency & Rate Limiting ============
+    # Connection Pool
+    connection_pool_max_connections: int = Field(default=100, alias="CONNECTION_POOL_MAX_CONNECTIONS")
+    connection_pool_timeout: float = Field(default=30.0, alias="CONNECTION_POOL_TIMEOUT")
+    connection_pool_idle_timeout: float = Field(default=300.0, alias="CONNECTION_POOL_IDLE_TIMEOUT")
+
+    # Database Connection Pool
+    db_connection_pool_enabled: bool = Field(default=True, alias="DB_CONNECTION_POOL_ENABLED")
+    db_connection_pool_max: int = Field(default=20, alias="DB_CONNECTION_POOL_MAX")
+
+    # API Connection Pool
+    api_connection_pool_max: int = Field(default=100, alias="API_CONNECTION_POOL_MAX")
+    api_connection_pool_timeout: float = Field(default=10.0, alias="API_CONNECTION_POOL_TIMEOUT")
+    api_connection_pool_max_retries: int = Field(default=3, alias="API_CONNECTION_POOL_MAX_RETRIES")
+
+    # Memory Pool
+    memory_pool_enabled: bool = Field(default=True, alias="MEMORY_POOL_ENABLED")
+    memory_pool_max_size: int = Field(default=100, alias="MEMORY_POOL_MAX_SIZE")
+    memory_pool_item_size_limit: int = Field(default=10*1024*1024, alias="MEMORY_POOL_ITEM_SIZE_LIMIT")
+
+    # Rate Limiting
+    rate_limiting_enabled: bool = Field(default=True, alias="RATE_LIMITING_ENABLED")
+    rate_limit_default_rate: float = Field(default=1000.0, alias="RATE_LIMIT_DEFAULT_RATE")
+    rate_limit_default_burst: float = Field(default=2000.0, alias="RATE_LIMIT_DEFAULT_BURST")
+    rate_limit_per_user_rate: float = Field(default=10.0, alias="RATE_LIMIT_PER_USER_RATE")
+    rate_limit_per_user_burst: float = Field(default=20.0, alias="RATE_LIMIT_PER_USER_BURST")
+
+    # Streaming
+    streaming_enabled: bool = Field(default=True, alias="STREAMING_ENABLED")
+    streaming_buffer_size: int = Field(default=1000, alias="STREAMING_BUFFER_SIZE")
+    streaming_flush_interval: float = Field(default=1.0, alias="STREAMING_FLUSH_INTERVAL")
+    streaming_heartbeat_interval: float = Field(default=30.0, alias="STREAMING_HEARTBEAT_INTERVAL")
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
