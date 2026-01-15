@@ -11,6 +11,9 @@ from .base import BaseAgent
 class BookingAgent(BaseAgent):
     name = "booking_agent"
 
+    async def ainvoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        return await self.run(state)
+
     async def run(
         self, 
         state: Dict[str, Any], 

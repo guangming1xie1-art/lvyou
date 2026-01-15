@@ -12,6 +12,9 @@ from .base import BaseAgent
 class SearchAgent(BaseAgent):
     name = "search_agent"
 
+    async def ainvoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        return await self.run(state)
+
     async def run(
         self, 
         state: Dict[str, Any], 
@@ -22,8 +25,20 @@ class SearchAgent(BaseAgent):
         if on_progress:
             await on_progress({"status": "starting", "progress": 0.1, "message": "正在启动搜索代理..."})
 
-        collected_info = state.get("collected_info", {})
-        destination = collected_info.get("destination")
+        intent = state.get("intent") or {}
+        collected_info = state.get("collected_info") or {}
+
+        # ConversationAgent may pass intent directly; keep backward compatibility
+        destination = (
+            (intent.get("destination") if isinstance(intent, dict) else None)
+            or collected_info.get("destination")
+            or state.get("destination")
+        )
+
+        # Normalize collected_info so downstream agents can rely on it
+        if destination and (not collected_info.get("destination")):
+            collected_info["destination"] = destination
+            state["collected_info"] = collected_info
 
         try:
             if on_progress:
