@@ -22,19 +22,7 @@ export const Header = () => {
 
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-700 hover:text-primary-600 transition-colors">
-              首页
-            </Link>
-            <Link
-              to="/info-collection"
-              className="text-gray-700 hover:text-primary-600 transition-colors"
-            >
-              定制行程
-            </Link>
-            <Link
-              to="/attractions"
-              className="text-gray-700 hover:text-primary-600 transition-colors"
-            >
-              景点美食
+              对话
             </Link>
           </nav>
 

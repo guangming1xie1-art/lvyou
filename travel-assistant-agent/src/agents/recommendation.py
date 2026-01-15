@@ -12,6 +12,9 @@ from .base import BaseAgent
 
 class RecommendationAgent(BaseAgent):
     name = "recommendation_agent"
+
+    async def ainvoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        return await self.run(state)
     
     def __init__(self, llm: Optional[Any] = None):
         """初始化 Agent
@@ -31,8 +34,13 @@ class RecommendationAgent(BaseAgent):
         if on_progress:
             await on_progress({"status": "starting", "progress": 0.1, "message": "正在启动推荐代理..."})
 
-        collected_info = state.get("collected_info", {})
-        search_results = state.get("search_results", [])
+        intent = state.get("intent") or {}
+        collected_info = state.get("collected_info") or {}
+        if isinstance(intent, dict):
+            # Prefer explicit collected_info, but fall back to intent
+            collected_info = {**intent, **collected_info}
+
+        search_results = state.get("search_results") or []
 
         try:
             if on_progress:

@@ -13,6 +13,8 @@ from .schemas import (
     StatusResponse, ErrorDetail
 )
 from ..agents import get_mcp_client
+from ..agents.conversation_agent import ConversationAgent
+from ..models.schemas import ChatRequest, ChatResponse
 from ..utils.logger import app_logger
 from ..utils.pagination import paginate_results, sort_flights, sort_hotels
 from ..auth.dependencies import get_current_active_user, get_current_user
@@ -22,8 +24,20 @@ from ..cache import RedisCache, CacheManager
 from ..config import settings
 
 
-# Create API router
+# Create API routers
+# - router: legacy REST endpoints (search/recommend/book)
+# - chat_router: unified conversation entry
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+chat_router = APIRouter(tags=["chat"])
+
+_conversation_agent: Optional[ConversationAgent] = None
+
+
+def get_conversation_agent() -> ConversationAgent:
+    global _conversation_agent
+    if _conversation_agent is None:
+        _conversation_agent = ConversationAgent()
+    return _conversation_agent
 
 # Initialize cache
 redis_cache = None
@@ -815,3 +829,31 @@ async def list_tasks(
         "filtered": len(tasks),
         "tasks": [_format_task_status(t) for t in tasks]
     }
+
+
+# ============== Unified Chat Endpoint ==============
+
+@chat_router.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(
+    request: ChatRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_active_user),
+):
+    """唯一的对话入口。
+
+    请求：{"message": "我想去北京旅游 5 天..."}
+    响应：{"search_results": [...], "recommendations": [...], "booking_info": {...}, "response": "...", "status": "success"}
+    """
+    await rate_limiter.check_limit(http_request)
+
+    agent = get_conversation_agent()
+
+    result = await agent.ainvoke({"message": request.message})
+
+    return ChatResponse(
+        search_results=result.get("search_results", []),
+        recommendations=result.get("recommendations", []),
+        booking_info=result.get("booking_info", {}),
+        response=result.get("response", ""),
+        status=result.get("status", "error"),
+    )

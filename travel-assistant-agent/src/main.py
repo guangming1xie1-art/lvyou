@@ -225,6 +225,7 @@ async def add_security_headers(request: Request, call_next):
 
 # Register REST API routes
 app.include_router(api_routes.router)
+app.include_router(api_routes.chat_router)
 app_logger.info("REST API routes registered")
 
 # Register WebSocket routes

@@ -20,6 +20,22 @@ class PlanningResponse(BaseModel):
     result: Dict[str, Any]
 
 
+class ChatRequest(BaseModel):
+    """统一对话入口请求"""
+
+    message: str
+
+
+class ChatResponse(BaseModel):
+    """统一对话入口响应"""
+
+    search_results: List[Dict[str, Any]] = Field(default_factory=list)
+    recommendations: List[Dict[str, Any]] = Field(default_factory=list)
+    booking_info: Dict[str, Any] = Field(default_factory=dict)
+    response: str = ""
+    status: str = "error"
+
+
 class HealthResponse(BaseModel):
     status: str
     app_env: str
