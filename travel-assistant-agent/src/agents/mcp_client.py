@@ -180,6 +180,18 @@ class MCPClient:
             for tool in self._tools
         ]
     
+    def get_tool_summaries_text(self) -> str:
+        """
+        获取工具摘要（文本格式，用于 LLM prompt）
+        
+        Returns:
+            格式化的文本字符串
+        """
+        summaries = []
+        for tool in self._tools:
+            summaries.append(f"- {tool.name}: {tool.description}")
+        return "\n".join(summaries)
+    
     async def call_tool(
         self,
         tool_name: str,
