@@ -194,6 +194,20 @@ class SkillRegistry:
         return summaries
     
     @classmethod
+    def get_all_summaries_text(cls) -> str:
+        """
+        返回所有 skills 的摘要（文本格式，用于 LLM prompt）
+        
+        Returns:
+            格式化的文本字符串
+        """
+        skills = cls.list_skills()
+        summaries = []
+        for skill in skills:
+            summaries.append(f"- {skill['name']}: {skill['description']}")
+        return "\n".join(summaries)
+    
+    @classmethod
     def unload_skill(cls, name: str):
         """
         卸载 Skill（释放内存）
