@@ -1,345 +1,220 @@
 """
-Agent Skill Registry
+Skill Registry - 按需加载 Skills
 
-This module provides a centralized registry for managing agent skills,
-including registration, discovery, and execution.
+提供统一的 Skill 注册、发现、加载接口
+平时只加载 SKILLS.md 元数据，按需加载完整实现
 """
-
-from typing import Dict, List, Optional, Set
+import os
 import logging
-import asyncio
-from .base import Skill
+from typing import Dict, List, Any, Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
 class SkillRegistry:
-    """Agent Skill Registry
-    
-    Manages skill registration, discovery, and execution.
-    Provides a central interface for working with all registered skills.
+    """
+    Skill 注册表
+    负责 Skill 的发现、加载、管理
     """
     
-    def __init__(self):
-        """Initialize skill registry"""
-        self.skills: Dict[str, Skill] = {}
-        self._categories: Dict[str, Set[str]] = {}
-        self._execution_lock = asyncio.Lock()
+    _skills_dir = Path(__file__).parent
+    _loaded_skills: Dict[str, Any] = {}
     
-    def register(self, skill: Skill):
-        """Register a skill
-        
-        Args:
-            skill: Skill instance to register
-            
-        Raises:
-            ValueError: If a skill with the same name is already registered
+    @classmethod
+    def list_skills(cls) -> List[Dict[str, str]]:
         """
-        if skill.name in self.skills:
-            logger.warning(f"Skill {skill.name} is already registered, overwriting")
-        
-        self.skills[skill.name] = skill
-        
-        # Update category index
-        if skill.category not in self._categories:
-            self._categories[skill.category] = set()
-        self._categories[skill.category].add(skill.name)
-        
-        logger.info(
-            f"Registered skill: {skill.name} "
-            f"(category: {skill.category}, enabled: {skill.enabled})"
-        )
-    
-    def get(self, name: str) -> Optional[Skill]:
-        """Get a skill by name
-        
-        Args:
-            name: Skill name
-            
-        Returns:
-            Skill instance or None if not found
-        """
-        return self.skills.get(name)
-    
-    def has(self, name: str) -> bool:
-        """Check if a skill exists
-        
-        Args:
-            name: Skill name
-            
-        Returns:
-            True if skill exists, False otherwise
-        """
-        return name in self.skills
-    
-    def list_all(self) -> List[Dict]:
-        """List all skills
+        列出所有可用的 skills（名称 + 描述）
+        不加载完整实现，只读取 SKILLS.md
         
         Returns:
-            List of skill metadata dictionaries
+            [{"name": "search", "description": "..."}, ...]
         """
-        return [skill.get_metadata() for skill in self.skills.values()]
-    
-    def list_enabled(self) -> List[Dict]:
-        """List all enabled skills
+        skills = []
         
-        Returns:
-            List of enabled skill metadata dictionaries
-        """
-        return [
-            skill.get_metadata()
-            for skill in self.skills.values()
-            if skill.enabled
-        ]
+        # 扫描 skills 目录
+        for item in cls._skills_dir.iterdir():
+            if item.is_dir() and not item.name.startswith("_"):
+                skill_md = item / "SKILL.md"
+                if skill_md.exists():
+                    # 从 SKILL.md 提取名称和描述
+                    name = item.name
+                    description = cls._extract_description(skill_md)
+                    skills.append({
+                        "name": name,
+                        "description": description
+                    })
+        
+        return skills
     
-    def list_by_category(self, category: str) -> List[Dict]:
-        """List skills by category
+    @classmethod
+    def _extract_description(cls, skill_md_path: Path) -> str:
+        """从 SKILL.md 提取描述"""
+        try:
+            content = skill_md_path.read_text(encoding="utf-8")
+            # 查找 "## 概述" 部分
+            lines = content.split("\n")
+            for i, line in enumerate(lines):
+                if line.strip().startswith("## 概述"):
+                    # 返回下一行
+                    if i + 1 < len(lines):
+                        return lines[i + 1].strip()
+            return "No description available"
+        except Exception as e:
+            logger.warning(f"Failed to extract description from {skill_md_path}: {e}")
+            return "No description available"
+    
+    @classmethod
+    async def load_skill(cls, name: str):
+        """
+        按需加载 Skill 完整实现
         
         Args:
-            category: Skill category
-            
-        Returns:
-            List of skill metadata in the category
-        """
-        if category not in self._categories:
-            return []
-        
-        return [
-            self.skills[name].get_metadata()
-            for name in self._categories[category]
-            if self.skills[name].enabled
-        ]
-    
-    def get_categories(self) -> List[str]:
-        """Get all categories
+            name: skill 名称（如 "search"）
         
         Returns:
-            List of category names
+            Skill 实例
         """
-        return list(self._categories.keys())
+        # 检查缓存
+        if name in cls._loaded_skills:
+            logger.info(f"Skill '{name}' already loaded (from cache)")
+            return cls._loaded_skills[name]
+        
+        # 动态导入
+        try:
+            # 导入 skill 模块
+            module_path = f"src.skills.{name}.skill"
+            module = __import__(module_path, fromlist=[""])
+            
+            # 获取 Skill 类（约定类名为 {Name}Skill）
+            skill_class_name = f"{name.capitalize()}Skill"
+            if hasattr(module, skill_class_name):
+                skill_class = getattr(module, skill_class_name)
+                skill_instance = skill_class()
+                
+                # 缓存
+                cls._loaded_skills[name] = skill_instance
+                logger.info(f"Skill '{name}' loaded successfully")
+                
+                return skill_instance
+            else:
+                raise ImportError(f"Skill class '{skill_class_name}' not found in {module_path}")
+        
+        except Exception as e:
+            logger.error(f"Failed to load skill '{name}': {e}")
+            raise
     
-    def enable(self, name: str):
-        """Enable a skill
+    @classmethod
+    def get_skill_summary(cls, name: str) -> Dict[str, Any]:
+        """
+        获取 Skill 摘要（参数、返回值格式等）
+        从 SKILL.md 解析，不加载实现
         
         Args:
-            name: Skill name
-            
-        Raises:
-            ValueError: If skill not found
-        """
-        if name not in self.skills:
-            raise ValueError(f"Unknown skill: {name}")
+            name: skill 名称
         
-        self.skills[name].enable()
-    
-    def disable(self, name: str):
-        """Disable a skill
-        
-        Args:
-            name: Skill name
-            
-        Raises:
-            ValueError: If skill not found
-        """
-        if name not in self.skills:
-            raise ValueError(f"Unknown skill: {name}")
-        
-        self.skills[name].disable()
-    
-    async def execute(
-        self,
-        name: str,
-        input_data: Dict,
-        timeout: Optional[float] = None
-    ) -> Dict:
-        """Execute a skill
-        
-        Args:
-            name: Skill name
-            input_data: Skill input parameters
-            timeout: Optional timeout in seconds
-            
         Returns:
-            Skill execution result
-            
-        Raises:
-            ValueError: If skill not found
-            RuntimeError: If skill cannot be executed
-            asyncio.TimeoutError: If execution times out
+            {
+                "name": "search",
+                "description": "...",
+                "input_schema": {...},
+                "output_schema": {...},
+                "cost_estimate": 0.05,
+                "execution_time": "500ms"
+            }
         """
-        skill = self.get(name)
-        if skill is None:
-            raise ValueError(f"Unknown skill: {name}")
+        skill_dir = cls._skills_dir / name
+        skill_md = skill_dir / "SKILL.md"
         
-        if not skill.can_execute(input_data):
-            raise RuntimeError(f"Skill {name} cannot be executed with given input")
-        
-        if timeout:
-            try:
-                result = await asyncio.wait_for(
-                    skill(input_data),
-                    timeout=timeout
-                )
-                return result
-            except asyncio.TimeoutError:
-                logger.error(f"Skill {name} execution timed out after {timeout}s")
-                await skill.on_failure("Execution timeout", timeout)
-                raise
-        else:
-            result = await skill(input_data)
-            return result
-    
-    async def execute_parallel(
-        self,
-        calls: List[Dict],
-        timeout: Optional[float] = None
-    ) -> List[Dict]:
-        """Execute multiple skills in parallel
-        
-        Args:
-            calls: List of {"name": skill_name, "input": input_data} dictionaries
-            timeout: Optional timeout in seconds
-            
-        Returns:
-            List of results in the same order as calls
-        """
-        async def execute_call(call: Dict) -> Dict:
-            skill_name = call.get("name")
-            input_data = call.get("input", {})
+        if not skill_md.exists():
             return {
-                "name": skill_name,
-                "result": await self.execute(skill_name, input_data, timeout)
+                "name": name,
+                "error": f"SKILL.md not found for '{name}'"
             }
         
-        tasks = [execute_call(call) for call in calls]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            content = skill_md.read_text(encoding="utf-8")
+            
+            # 提取关键信息
+            summary = {
+                "name": name,
+                "description": cls._extract_description(skill_md),
+                "input_schema": cls._extract_section(content, "## 参数"),
+                "output_schema": cls._extract_section(content, "## 返回值"),
+                "usage_examples": cls._extract_section(content, "## 使用示例"),
+                "cost_and_performance": cls._extract_section(content, "## 成本与性能"),
+            }
+            
+            return summary
         
-        # Convert exceptions to error results
-        final_results = []
-        for call, result in zip(calls, results):
-            if isinstance(result, Exception):
-                final_results.append({
-                    "name": call["name"],
-                    "error": str(result),
-                    "success": False
-                })
-            else:
-                final_results.append(result)
-        
-        return final_results
+        except Exception as e:
+            logger.error(f"Failed to get summary for skill '{name}': {e}")
+            return {
+                "name": name,
+                "error": str(e)
+            }
     
-    async def execute_sequence(
-        self,
-        calls: List[Dict],
-        stop_on_error: bool = True,
-        timeout: Optional[float] = None
-    ) -> List[Dict]:
-        """Execute multiple skills in sequence
+    @classmethod
+    def _extract_section(cls, content: str, section_title: str) -> str:
+        """从 markdown 提取指定章节内容"""
+        lines = content.split("\n")
+        in_section = False
+        section_lines = []
+        
+        for line in lines:
+            if line.strip().startswith(section_title):
+                in_section = True
+                continue
+            
+            if in_section:
+                # 遇到下一个 ## 章节，结束
+                if line.strip().startswith("##"):
+                    break
+                section_lines.append(line)
+        
+        return "\n".join(section_lines).strip()
+    
+    @classmethod
+    def get_all_summaries(cls) -> List[Dict[str, Any]]:
+        """
+        批量获取所有 skill 摘要
+        用于生成 LLM Prompt
+        
+        Returns:
+            [{"name": "search", "description": "...", ...}, ...]
+        """
+        skills = cls.list_skills()
+        summaries = []
+        
+        for skill_info in skills:
+            name = skill_info["name"]
+            summary = cls.get_skill_summary(name)
+            summaries.append(summary)
+        
+        return summaries
+    
+    @classmethod
+    def unload_skill(cls, name: str):
+        """
+        卸载 Skill（释放内存）
         
         Args:
-            calls: List of {"name": skill_name, "input": input_data} dictionaries
-            stop_on_error: Whether to stop on first error
-            timeout: Optional timeout in seconds
-            
-        Returns:
-            List of results in the same order as calls
+            name: skill 名称
         """
-        results = []
-        
-        for call in calls:
-            skill_name = call.get("name")
-            input_data = call.get("input", {})
-            
-            try:
-                result = await self.execute(skill_name, input_data, timeout)
-                results.append({
-                    "name": skill_name,
-                    "result": result,
-                    "success": True
-                })
-            except Exception as e:
-                results.append({
-                    "name": skill_name,
-                    "error": str(e),
-                    "success": False
-                })
-                
-                if stop_on_error:
-                    break
-        
-        return results
+        if name in cls._loaded_skills:
+            del cls._loaded_skills[name]
+            logger.info(f"Skill '{name}' unloaded")
     
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get registry statistics
-        
-        Returns:
-            Dictionary with statistics
-        """
-        total_invocations = sum(
-            skill.invocation_count
-            for skill in self.skills.values()
-        )
-        total_cost = sum(
-            skill.total_cost
-            for skill in self.skills.values()
-        )
-        total_success = sum(
-            skill.success_count
-            for skill in self.skills.values()
-        )
-        
-        return {
-            "total_skills": len(self.skills),
-            "enabled_skills": len([s for s in self.skills.values() if s.enabled]),
-            "categories": len(self._categories),
-            "total_invocations": total_invocations,
-            "total_cost": total_cost,
-            "total_success": total_success,
-            "overall_success_rate": (
-                total_success / total_invocations
-                if total_invocations > 0 else 0.0
-            )
-        }
+    @classmethod
+    def unload_all(cls):
+        """卸载所有 skills"""
+        cls._loaded_skills.clear()
+        logger.info("All skills unloaded")
     
-    def reset_all_statistics(self):
-        """Reset statistics for all skills"""
-        for skill in self.skills.values():
-            skill.reset_statistics()
-        logger.info("Reset statistics for all skills")
+    @classmethod
+    def get_loaded_skills(cls) -> List[str]:
+        """获取已加载的 skill 名称列表"""
+        return list(cls._loaded_skills.keys())
 
 
-# Global registry instance
-_global_registry: Optional[SkillRegistry] = None
-
-
-def get_skill_registry() -> SkillRegistry:
-    """Get the global skill registry instance
-    
-    Returns:
-        Global SkillRegistry instance
-    """
-    global _global_registry
-    if _global_registry is None:
-        _global_registry = SkillRegistry()
-    return _global_registry
-
-
-def init_skill_registry(registry: SkillRegistry) -> SkillRegistry:
-    """Initialize the global skill registry
-    
-    Args:
-        registry: SkillRegistry instance to use as global
-        
-    Returns:
-        The registry instance
-    """
-    global _global_registry
-    _global_registry = registry
-    return registry
-
-
-__all__ = [
-    "SkillRegistry",
-    "get_skill_registry",
-    "init_skill_registry",
-]
+__all__ = ["SkillRegistry"]
