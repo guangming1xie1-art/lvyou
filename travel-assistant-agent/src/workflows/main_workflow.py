@@ -13,7 +13,7 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
-from deepagents import create_deep_agent, DeepAgent
+from deepagents import create_deep_agent
 from src.workflows.subagents import (
     get_info_collection_agent,
     get_search_agent,
@@ -133,15 +133,15 @@ def build_main_graph() -> StateGraph:
 
 # ============ 第5层：DeepAgent 顶层代理 ============
 
-_main_agent: Optional[DeepAgent] = None
+_main_agent: Optional[Any] = None
 
 
-def get_or_create_main_agent() -> DeepAgent:
+def get_or_create_main_agent() -> Any:
     """
     获取或创建主代理（全局单例）
     
     Returns:
-        DeepAgent 实例
+        CompiledStateGraph 实例
     """
     global _main_agent
     if _main_agent is None:
@@ -167,7 +167,6 @@ def get_or_create_main_agent() -> DeepAgent:
                 get_recommend_agent(),
                 get_booking_agent(),
             ],
-            runnable=main_runnable,
             system_prompt="""你是旅游协调员，负责协调4个子代理完成用户的旅游预订需求。
 
 工作流程：

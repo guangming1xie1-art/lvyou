@@ -57,10 +57,12 @@ standard_llm = ChatOpenAI(
 mcp_client = get_mcp_client()
 
 
-def get_tools_and_skills_text() -> str:
+async def get_tools_and_skills_text() -> str:
     """获取所有工具和技能的文本摘要"""
     try:
-        tools_text = mcp_client.get_tool_summaries_text()
+        # 异步获取工具
+        tools_summaries = await mcp_client.get_tool_summaries()
+        tools_text = "\n".join([f"- {tool['name']}: {tool['description']}" for tool in tools_summaries])
     except Exception as e:
         logger.warning(f"Failed to get MCP tools: {e}")
         tools_text = ""
@@ -168,6 +170,9 @@ async def search_node(state: SubState) -> Dict[str, Any]:
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
     user_content = last_msg.content if last_msg else ""
     
+    # 获取工具文本
+    tools_text = await get_tools_and_skills_text()
+    
     # 系统提示词
     system_prompt = f"""你是搜索员，负责根据用户需求搜索旅游目的地、酒店、航班等信息。
 
@@ -180,7 +185,7 @@ async def search_node(state: SubState) -> Dict[str, Any]:
 {collected_info}
 
 可用工具：
-{get_tools_and_skills_text()}
+{tools_text}
 
 返回格式（JSON）：
 {{
@@ -193,7 +198,7 @@ async def search_node(state: SubState) -> Dict[str, Any]:
     
     # 获取工具
     try:
-        tools = mcp_client.get_tools()
+        tools = await mcp_client.get_tools()
     except Exception as e:
         logger.warning(f"Failed to get tools: {e}")
         tools = []
@@ -265,6 +270,9 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
     user_content = last_msg.content if last_msg else ""
     
+    # 获取工具文本
+    tools_text = await get_tools_and_skills_text()
+    
     # 系统提示词
     system_prompt = f"""你是推荐员，负责根据用户需求和搜索结果生成个性化旅游推荐方案。
 
@@ -280,7 +288,7 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
 {search_results}
 
 可用工具：
-{get_tools_and_skills_text()}
+{tools_text}
 
 返回格式（JSON）：
 {{
@@ -300,7 +308,7 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
     
     # 获取工具
     try:
-        tools = mcp_client.get_tools()
+        tools = await mcp_client.get_tools()
     except Exception as e:
         logger.warning(f"Failed to get tools: {e}")
         tools = []
@@ -370,6 +378,9 @@ async def booking_node(state: SubState) -> Dict[str, Any]:
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
     user_content = last_msg.content if last_msg else ""
     
+    # 获取工具文本
+    tools_text = await get_tools_and_skills_text()
+    
     # 系统提示词
     system_prompt = f"""你是预订员，负责完成用户选定的旅游预订。
 
@@ -382,7 +393,7 @@ async def booking_node(state: SubState) -> Dict[str, Any]:
 {recommendations}
 
 可用工具：
-{get_tools_and_skills_text()}
+{tools_text}
 
 返回格式（JSON）：
 {{
@@ -395,7 +406,7 @@ async def booking_node(state: SubState) -> Dict[str, Any]:
     
     # 获取工具
     try:
-        tools = mcp_client.get_tools()
+        tools = await mcp_client.get_tools()
     except Exception as e:
         logger.warning(f"Failed to get tools: {e}")
         tools = []

@@ -5,88 +5,142 @@ MCP Client for Java API Integration
 将 Java API 方法包装为 LangChain Tools
 """
 import asyncio
-import httpx
 import logging
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass
 
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.sessions import HttpConnection
 from src.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class JavaAPITool:
-    """Java API 工具定义"""
-    name: str
-    description: str
-    input_schema: Dict[str, Any]
-    endpoint: str
-
-
 class MCPClient:
     """
     MCP Client 连接 Java API 后端
-    将 Java API 的方法包装为 LLM Tool
+    使用 langchain_mcp_adapters.MultiServerMCPClient 实现
     """
     
     def __init__(self, java_api_url: Optional[str] = None):
-        self.java_api_url = java_api_url or settings.java_api_base_url
-        self.timeout = settings.java_api_timeout
-        self.max_retries = settings.java_api_max_retries
-        self.auth_token = settings.java_api_auth_token
+        self.java_api_url = java_api_url or settings.java_api_url
+        self._client: Optional[MultiServerMCPClient] = None
         
-        self._connected = False
-        self._tools: List[JavaAPITool] = []
-        self._client: Optional[httpx.AsyncClient] = None
-    
-    async def connect(self) -> bool:
-        """连接到 Java API 后端"""
-        try:
-            # 创建 httpx 客户端
-            self._client = httpx.AsyncClient(
-                base_url=self.java_api_url,
-                timeout=self.timeout,
-                headers={
-                    "Authorization": f"Bearer {self.auth_token}" if self.auth_token else None,
-                    "Content-Type": "application/json"
+    async def _get_client(self) -> MultiServerMCPClient:
+        """获取或创建 MCP 客户端"""
+        if self._client is None:
+            # 配置连接
+            connections = {
+                "java_api": {
+                    "url": f"{self.java_api_url}/mcp",
+                    "transport": "http"
                 }
-            )
+            }
             
-            # 测试连接（可选）
-            try:
-                response = await self._client.get("/health", timeout=5)
-                if response.status_code == 200:
-                    logger.info(f"Connected to Java API: {self.java_api_url}")
-                else:
-                    logger.warning(f"Java API health check failed: {response.status_code}")
-            except Exception as e:
-                logger.warning(f"Java API health check failed: {e}, continuing anyway")
+            self._client = MultiServerMCPClient(connections=connections)
+            logger.info(f"Created MCP client for {self.java_api_url}")
+        
+        return self._client
+    
+    async def get_tools(self) -> List[Dict[str, Any]]:
+        """获取所有工具定义（LangChain Tool 格式）"""
+        try:
+            client = await self._get_client()
+            tools = await client.get_tools()
             
-            self._connected = True
-            self._init_tools()
-            return True
+            # 转换为字典格式
+            tool_dicts = []
+            for tool in tools:
+                tool_dict = {
+                    "name": tool.name,
+                    "description": getattr(tool, 'description', str(tool)),
+                    "args_schema": tool.args_schema if hasattr(tool, 'args_schema') else None,
+                }
+                tool_dicts.append(tool_dict)
             
+            return tool_dicts
+        
         except Exception as e:
-            logger.error(f"Failed to connect to Java API: {e}")
-            self._connected = False
-            return False
+            logger.warning(f"Failed to get tools from MCP: {e}")
+            return self._get_mock_tools()
     
-    async def disconnect(self):
-        """断开连接"""
-        if self._client:
-            await self._client.aclose()
-            self._client = None
-        self._connected = False
-        logger.info("Disconnected from Java API")
+    async def get_tool_summaries(self) -> List[Dict[str, str]]:
+        """获取工具摘要（名称 + 描述）"""
+        try:
+            client = await self._get_client()
+            tools = await client.get_tools()
+            
+            summaries = []
+            for tool in tools:
+                summaries.append({
+                    "name": tool.name,
+                    "description": getattr(tool, 'description', str(tool))
+                })
+            return summaries
+        
+        except Exception as e:
+            logger.warning(f"Failed to get tool summaries: {e}")
+            return self._get_mock_tool_summaries()
     
-    def _init_tools(self):
-        """初始化 Java API 工具定义"""
-        self._tools = [
-            JavaAPITool(
-                name="search_destinations",
-                description="搜索旅游目的地、酒店、景点等信息",
-                input_schema={
+    def get_tool_summaries_text(self) -> str:
+        """
+        获取工具摘要（文本格式，用于 LLM prompt）
+        同步方法，优先返回缓存或mock数据
+        """
+        try:
+            # 这里返回mock数据，因为需要异步调用
+            return self._get_mock_tool_summaries_text()
+        except Exception as e:
+            logger.warning(f"Failed to get tool summaries text: {e}")
+            return "暂无可用工具"
+    
+    async def call_tool(
+        self,
+        tool_name: str,
+        parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """调用 Java API 工具"""
+        try:
+            client = await self._get_client()
+            
+            # 直接调用 MCP 工具
+            # 注意：实际的工具调用可能需要不同的方法
+            tools = await client.get_tools()
+            
+            # 查找匹配的工具
+            target_tool = None
+            for tool in tools:
+                if tool.name == tool_name:
+                    target_tool = tool
+                    break
+            
+            if target_tool:
+                # 调用工具
+                if hasattr(target_tool, 'ainvoke'):
+                    result = await target_tool.ainvoke(parameters)
+                else:
+                    result = target_tool.invoke(parameters)
+                
+                return {
+                    "result": result,
+                    "error": None
+                }
+            else:
+                return {
+                    "result": None,
+                    "error": f"Tool '{tool_name}' not found"
+                }
+        
+        except Exception as e:
+            logger.warning(f"Failed to call tool {tool_name}: {e}")
+            return self._mock_response(tool_name, parameters)
+    
+    def _get_mock_tools(self) -> List[Dict[str, Any]]:
+        """返回 Mock 工具定义"""
+        return [
+            {
+                "name": "search_destinations",
+                "description": "搜索旅游目的地、酒店、景点等信息",
+                "args_schema": {
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "description": "搜索关键词"},
@@ -96,13 +150,12 @@ class MCPClient:
                         }
                     },
                     "required": ["query"]
-                },
-                endpoint="/search/destinations"
-            ),
-            JavaAPITool(
-                name="get_recommendations",
-                description="根据用户偏好和搜索结果生成个性化推荐",
-                input_schema={
+                }
+            },
+            {
+                "name": "get_recommendations",
+                "description": "根据用户偏好和搜索结果生成个性化推荐",
+                "args_schema": {
                     "type": "object",
                     "properties": {
                         "user_preferences": {
@@ -115,13 +168,12 @@ class MCPClient:
                         }
                     },
                     "required": ["user_preferences"]
-                },
-                endpoint="/recommendations/generate"
-            ),
-            JavaAPITool(
-                name="create_booking",
-                description="创建旅游预订",
-                input_schema={
+                }
+            },
+            {
+                "name": "create_booking",
+                "description": "创建旅游预订",
+                "args_schema": {
                     "type": "object",
                     "properties": {
                         "booking_details": {
@@ -130,13 +182,12 @@ class MCPClient:
                         }
                     },
                     "required": ["booking_details"]
-                },
-                endpoint="/bookings/create"
-            ),
-            JavaAPITool(
-                name="get_booking_status",
-                description="查询预订状态",
-                input_schema={
+                }
+            },
+            {
+                "name": "get_booking_status",
+                "description": "查询预订状态",
+                "args_schema": {
                     "type": "object",
                     "properties": {
                         "booking_id": {
@@ -145,125 +196,25 @@ class MCPClient:
                         }
                     },
                     "required": ["booking_id"]
-                },
-                endpoint="/bookings/{booking_id}/status"
-            ),
-        ]
-        logger.info(f"Initialized {len(self._tools)} Java API tools")
-    
-    def get_tools(self) -> List[Dict[str, Any]]:
-        """
-        获取所有工具定义（LangChain Tool 格式）
-        
-        Returns:
-            工具定义列表
-        """
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description,
-                "input_schema": tool.input_schema,
-            }
-            for tool in self._tools
-        ]
-    
-    def get_tool_summaries(self) -> List[Dict[str, str]]:
-        """
-        获取工具摘要（名称 + 描述）
-        用于 LLM Prompt
-        """
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description,
-            }
-            for tool in self._tools
-        ]
-    
-    def get_tool_summaries_text(self) -> str:
-        """
-        获取工具摘要（文本格式，用于 LLM prompt）
-        
-        Returns:
-            格式化的文本字符串
-        """
-        summaries = []
-        for tool in self._tools:
-            summaries.append(f"- {tool.name}: {tool.description}")
-        return "\n".join(summaries)
-    
-    async def call_tool(
-        self,
-        tool_name: str,
-        parameters: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        调用 Java API 工具
-        
-        Args:
-            tool_name: 工具名称
-            parameters: 参数
-            
-        Returns:
-            {"result": ..., "error": null | string}
-        """
-        # 查找工具
-        tool = None
-        for t in self._tools:
-            if t.name == tool_name:
-                tool = t
-                break
-        
-        if not tool:
-            return {
-                "result": None,
-                "error": f"Tool '{tool_name}' not found"
-            }
-        
-        # 如果未连接，尝试连接
-        if not self._connected:
-            success = await self.connect()
-            if not success:
-                return self._mock_response(tool_name, parameters)
-        
-        # 调用 Java API
-        try:
-            # 处理 URL 参数
-            endpoint = tool.endpoint
-            if "{booking_id}" in endpoint and "booking_id" in parameters:
-                endpoint = endpoint.format(booking_id=parameters["booking_id"])
-                # 从 parameters 中移除 booking_id（已经在 URL 中）
-                parameters = {k: v for k, v in parameters.items() if k != "booking_id"}
-            
-            # 发起请求
-            response = await self._client.post(
-                endpoint,
-                json=parameters,
-                timeout=self.timeout
-            )
-            
-            # 处理响应
-            if response.status_code == 200:
-                result = response.json()
-                return {
-                    "result": result,
-                    "error": None
                 }
-            else:
-                error_msg = f"Java API error: {response.status_code}"
-                logger.error(error_msg)
-                return {
-                    "result": None,
-                    "error": error_msg
-                }
-        
-        except httpx.TimeoutException:
-            logger.error(f"Timeout calling {tool_name}")
-            return self._mock_response(tool_name, parameters)
-        
-        except Exception as e:
-            logger.error(f"Error calling {tool_name}: {e}")
-            return self._mock_response(tool_name, parameters)
+            },
+        ]
+    
+    def _get_mock_tool_summaries(self) -> List[Dict[str, str]]:
+        """返回 Mock 工具摘要"""
+        return [
+            {"name": "search_destinations", "description": "搜索旅游目的地、酒店、景点等信息"},
+            {"name": "get_recommendations", "description": "根据用户偏好和搜索结果生成个性化推荐"},
+            {"name": "create_booking", "description": "创建旅游预订"},
+            {"name": "get_booking_status", "description": "查询预订状态"},
+        ]
+    
+    def _get_mock_tool_summaries_text(self) -> str:
+        """返回 Mock 工具摘要文本"""
+        return """- search_destinations: 搜索旅游目的地、酒店、景点等信息
+- get_recommendations: 根据用户偏好和搜索结果生成个性化推荐
+- create_booking: 创建旅游预订
+- get_booking_status: 查询预订状态"""
     
     def _mock_response(
         self,
@@ -333,10 +284,6 @@ class MCPClient:
                 "result": None,
                 "error": f"No mock data available for {tool_name}"
             }
-    
-    def is_connected(self) -> bool:
-        """检查是否已连接"""
-        return self._connected
 
 
 # ============ 全局单例 ============
@@ -352,17 +299,7 @@ def get_mcp_client() -> MCPClient:
     return _mcp_client
 
 
-async def init_mcp_client(java_api_url: Optional[str] = None) -> MCPClient:
-    """初始化并连接 MCP Client"""
-    global _mcp_client
-    _mcp_client = MCPClient(java_api_url)
-    await _mcp_client.connect()
-    return _mcp_client
-
-
 __all__ = [
     "MCPClient",
-    "JavaAPITool",
     "get_mcp_client",
-    "init_mcp_client",
 ]
