@@ -1,27 +1,34 @@
 """
-主工作流图
-使用 LangGraph StateGraph 构建主图，按顺序调用 4 个子图
-支持 Token 用量自动累加
+【第3、4、5层】主工作流
+
+架构层次：
+- 第5层：DeepAgent 顶层代理
+- 第4层：主工作流 StateGraph
+- 第3层：call_subagent_node 工厂函数
 """
 from typing import TypedDict, Dict, Any, Optional, List, Annotated, Sequence
 from langgraph.graph import StateGraph, END
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, HumanMessage
+from collections import Counter
 import operator
 import logging
 
-from src.workflows.subgraphs import (
-    build_collect_info_graph,
-    build_search_graph,
-    build_recommend_graph,
-    build_booking_graph,
+from deepagents import create_deep_agent
+
+from src.workflows.subagents import (
+    get_info_collection_agent,
+    get_search_agent,
+    get_recommend_agent,
+    get_booking_agent,
 )
+from src.llm import LLMFactory
 
 logger = logging.getLogger(__name__)
 
 
-# ============ 主工作流状态定义 ============
+# ============ 【第4层】主工作流状态定义 ============
 
-class MainWorkflowState(TypedDict):
+class MainState(TypedDict):
     """
     主工作流状态
     使用 Annotated[Dict, operator.add] 实现 usage 自动累加
@@ -30,7 +37,7 @@ class MainWorkflowState(TypedDict):
     messages: Sequence[BaseMessage]
     user_message: str
     
-    # 中间结果
+    # 中间结果（从子代理传递）
     collected_info: Optional[Dict[str, Any]]
     search_results: Optional[Dict[str, Any]]
     recommendations: Optional[List[Dict[str, Any]]]
@@ -40,234 +47,227 @@ class MainWorkflowState(TypedDict):
     usage: Annotated[Dict[str, int], operator.add]
     
     # 最终输出
-    final_response: Optional[Dict[str, Any]]
+    final_response: Optional[str]
 
 
-# ============ 预编译子图实例（单例模式） ============
+# ============ 【第3层】call_subagent_node 工厂函数 ============
 
-_collect_info_graph = None
-_search_graph = None
-_recommend_graph = None
-_booking_graph = None
-
-
-def get_collect_info_graph():
-    """获取信息收集子图（懒加载）"""
-    global _collect_info_graph
-    if _collect_info_graph is None:
-        _collect_info_graph = build_collect_info_graph()
-    return _collect_info_graph
-
-
-def get_search_graph():
-    """获取搜索子图（懒加载）"""
-    global _search_graph
-    if _search_graph is None:
-        _search_graph = build_search_graph()
-    return _search_graph
-
-
-def get_recommend_graph():
-    """获取推荐子图（懒加载）"""
-    global _recommend_graph
-    if _recommend_graph is None:
-        _recommend_graph = build_recommend_graph()
-    return _recommend_graph
-
-
-def get_booking_graph():
-    """获取预订子图（懒加载）"""
-    global _booking_graph
-    if _booking_graph is None:
-        _booking_graph = build_booking_graph()
-    return _booking_graph
-
-
-# ============ 主工作流节点 ============
-
-def collect_node(state: MainWorkflowState) -> Dict[str, Any]:
+def call_subagent_node(subagent_name: str):
     """
-    信息收集节点
-    调用 collect_info_graph 子图
+    工厂函数，创建调用子代理的节点函数
+    
+    Args:
+        subagent_name: 子代理名称 ("info_collection", "search", "recommend", "booking")
+    
+    Returns:
+        节点函数，接受 MainState 并返回更新
     """
-    user_message = state.get("user_message", "")
+    def _node(state: MainState) -> Dict[str, Any]:
+        """
+        节点函数：调用指定的 CompiledSubAgent
+        
+        Args:
+            state: 主工作流状态
+        
+        Returns:
+            更新的状态字段（messages, usage, 以及对应的结果字段）
+        """
+        # 获取最后一条用户消息
+        user_message = state.get("user_message", "")
+        if not user_message and state.get("messages"):
+            last_msg = state["messages"][-1]
+            user_message = last_msg.content if hasattr(last_msg, 'content') else str(last_msg)
+        
+        logger.info(f"[call_subagent_node] Calling subagent: {subagent_name}")
+        
+        # 获取对应的 CompiledSubAgent
+        if subagent_name == "info_collection":
+            agent = get_info_collection_agent()
+            result_key = "collected_info"
+            
+            # 构建输入状态
+            input_state = {
+                "user_message": user_message,
+                "collected_info": None,
+                "usage": {"prompt": 0, "completion": 0, "total": 0}
+            }
+        
+        elif subagent_name == "search":
+            agent = get_search_agent()
+            result_key = "search_results"
+            
+            input_state = {
+                "user_message": user_message,
+                "collected_info": state.get("collected_info", {}),
+                "search_results": None,
+                "usage": {"prompt": 0, "completion": 0, "total": 0}
+            }
+        
+        elif subagent_name == "recommend":
+            agent = get_recommend_agent()
+            result_key = "recommendations"
+            
+            input_state = {
+                "user_message": user_message,
+                "collected_info": state.get("collected_info", {}),
+                "search_results": state.get("search_results", {}),
+                "recommendations": None,
+                "usage": {"prompt": 0, "completion": 0, "total": 0}
+            }
+        
+        elif subagent_name == "booking":
+            agent = get_booking_agent()
+            result_key = "booking_confirmation"
+            
+            input_state = {
+                "user_message": user_message,
+                "collected_info": state.get("collected_info", {}),
+                "recommendations": state.get("recommendations", []),
+                "booking_confirmation": None,
+                "usage": {"prompt": 0, "completion": 0, "total": 0}
+            }
+        
+        else:
+            raise ValueError(f"Unknown subagent: {subagent_name}")
+        
+        # 调用 CompiledSubAgent 的 invoke() 方法
+        try:
+            res = agent.invoke(input_state)
+            
+            # 提取结果
+            output = res["output"]
+            usage = Counter(res.get("usage") or {})
+            if usage.get("total", 0) == 0:
+                usage["total"] = usage.get("prompt", 0) + usage.get("completion", 0)
+            full_state = res["state"]
+            
+            # 返回更新（usage 会通过 operator.add 自动累加）
+            update = {
+                "messages": [HumanMessage(content=output)],
+                "usage": usage,  # ← 自动通过 operator.add 累加（Counter 支持 +）
+            }
+            
+            # 添加结果到对应的字段
+            if result_key in full_state:
+                update[result_key] = full_state[result_key]
+            
+            logger.info(f"[call_subagent_node] {subagent_name} completed, usage: {usage}")
+            
+            return update
+        
+        except Exception as e:
+            logger.error(f"[call_subagent_node] {subagent_name} error: {e}")
+            
+            # 返回错误信息
+            return {
+                "messages": [HumanMessage(content=f"Error in {subagent_name}: {str(e)}")],
+                "usage": Counter({"prompt": 0, "completion": 0, "total": 0}),
+            }
     
-    logger.info(f"[Main Workflow] collect_node: processing message")
-    
-    # 调用子图
-    subgraph = get_collect_info_graph()
-    result = subgraph.invoke({
-        "user_message": user_message,
-        "collected_info": None,
-        "usage": {"prompt": 0, "completion": 0, "total": 0}
-    })
-    
-    # 返回结果和用量（usage 会自动累加）
-    return {
-        "collected_info": result.get("collected_info"),
-        "usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0})
-    }
+    return _node
 
 
-def search_node(state: MainWorkflowState) -> Dict[str, Any]:
-    """
-    搜索节点
-    调用 search_graph 子图
-    """
-    user_message = state.get("user_message", "")
-    collected_info = state.get("collected_info", {})
-    
-    logger.info(f"[Main Workflow] search_node: processing with collected_info")
-    
-    # 调用子图
-    subgraph = get_search_graph()
-    result = subgraph.invoke({
-        "user_message": user_message,
-        "collected_info": collected_info,
-        "search_results": None,
-        "usage": {"prompt": 0, "completion": 0, "total": 0}
-    })
-    
-    return {
-        "search_results": result.get("search_results"),
-        "usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0})
-    }
+# ============ 【第4层】构建主工作流图 ============
 
-
-def recommend_node(state: MainWorkflowState) -> Dict[str, Any]:
+def build_main_graph() -> Any:
     """
-    推荐节点
-    调用 recommend_graph 子图
+    构建主工作流 StateGraph
+    
+    执行顺序: collect → search → recommend → booking → END
+    
+    Returns:
+        编译后的 StateGraph (CompiledGraph)
     """
-    user_message = state.get("user_message", "")
-    collected_info = state.get("collected_info", {})
-    search_results = state.get("search_results", {})
+    graph = StateGraph(MainState)
     
-    logger.info(f"[Main Workflow] recommend_node: generating recommendations")
-    
-    # 调用子图
-    subgraph = get_recommend_graph()
-    result = subgraph.invoke({
-        "user_message": user_message,
-        "collected_info": collected_info,
-        "search_results": search_results,
-        "recommendations": None,
-        "usage": {"prompt": 0, "completion": 0, "total": 0}
-    })
-    
-    return {
-        "recommendations": result.get("recommendations", []),
-        "usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0})
-    }
-
-
-def booking_node(state: MainWorkflowState) -> Dict[str, Any]:
-    """
-    预订节点
-    调用 booking_graph 子图
-    """
-    user_message = state.get("user_message", "")
-    collected_info = state.get("collected_info", {})
-    recommendations = state.get("recommendations", [])
-    
-    logger.info(f"[Main Workflow] booking_node: processing booking")
-    
-    # 调用子图
-    subgraph = get_booking_graph()
-    result = subgraph.invoke({
-        "user_message": user_message,
-        "collected_info": collected_info,
-        "recommendations": recommendations,
-        "booking_confirmation": None,
-        "usage": {"prompt": 0, "completion": 0, "total": 0}
-    })
-    
-    return {
-        "booking_confirmation": result.get("booking_confirmation"),
-        "usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0})
-    }
-
-
-def finalize_node(state: MainWorkflowState) -> Dict[str, Any]:
-    """
-    最终化节点
-    生成最终响应，包含所有中间结果和总用量
-    """
-    logger.info(f"[Main Workflow] finalize_node: generating final response")
-    
-    final_response = {
-        "collected_info": state.get("collected_info"),
-        "search_results": state.get("search_results"),
-        "recommendations": state.get("recommendations"),
-        "booking_confirmation": state.get("booking_confirmation"),
-        "total_usage": state.get("usage", {"prompt": 0, "completion": 0, "total": 0}),
-        "status": "success"
-    }
-    
-    return {
-        "final_response": final_response
-    }
-
-
-# ============ 构建主工作流图 ============
-
-def build_main_workflow():
-    """
-    构建主工作流图
-    执行顺序: collect → search → recommend → booking → finalize → END
-    """
-    graph = StateGraph(MainWorkflowState)
-    
-    # 添加节点
-    graph.add_node("collect", collect_node)
-    graph.add_node("search", search_node)
-    graph.add_node("recommend", recommend_node)
-    graph.add_node("booking", booking_node)
-    graph.add_node("finalize", finalize_node)
+    # 添加 4 个节点，每个都调用一个 CompiledSubAgent
+    graph.add_node("collect", call_subagent_node("info_collection"))
+    graph.add_node("search", call_subagent_node("search"))
+    graph.add_node("recommend", call_subagent_node("recommend"))
+    graph.add_node("booking", call_subagent_node("booking"))
     
     # 设置边（顺序执行）
     graph.set_entry_point("collect")
     graph.add_edge("collect", "search")
     graph.add_edge("search", "recommend")
     graph.add_edge("recommend", "booking")
-    graph.add_edge("booking", "finalize")
-    graph.add_edge("finalize", END)
+    graph.add_edge("booking", END)
+    
+    logger.info("Main workflow graph built")
     
     return graph.compile()
 
 
-# ============ 主工作流单例 ============
+# ============ 【第5层】DeepAgent 顶层代理 ============
 
-_main_workflow = None
+_main_agent = None
 
 
-def get_main_workflow():
-    """获取主工作流实例（懒加载单例）"""
-    global _main_workflow
-    if _main_workflow is None:
-        logger.info("Building main workflow...")
-        _main_workflow = build_main_workflow()
-        logger.info("Main workflow built successfully")
-    return _main_workflow
+def get_or_create_main_agent():
+    """
+    获取或创建 DeepAgent 主代理（单例）
+    
+    Returns:
+        DeepAgent 实例
+    """
+    global _main_agent
+    
+    if _main_agent is None:
+        # 创建 LLM（使用默认模型）
+        try:
+            llm = LLMFactory.create_model()
+        except Exception as e:
+            logger.warning(f"Failed to create LLM: {e}, using None")
+            llm = None
+        
+        # 获取 4 个子代理
+        subagents = [
+            get_info_collection_agent(),
+            get_search_agent(),
+            get_recommend_agent(),
+            get_booking_agent(),
+        ]
+        
+        # 构建主工作流图
+        main_runnable = build_main_graph()
+        
+        # 创建 DeepAgent
+        _main_agent = create_deep_agent(
+            model=llm,
+            subagents=subagents,
+            runnable=main_runnable,
+            system_prompt="你是旅游协调员，按顺序调用子代理并完成预订。"
+        )
+        
+        logger.info("Main DeepAgent created")
+    
+    return _main_agent
 
 
 # ============ 便捷调用函数 ============
 
 async def run_main_workflow(user_message: str) -> Dict[str, Any]:
     """
-    运行主工作流的便捷函数
+    异步运行主工作流的便捷函数
     
     Args:
         user_message: 用户消息
         
     Returns:
-        包含所有结果和总用量的字典
+        {
+            "collected_info": {...},
+            "search_results": {...},
+            "recommendations": [...],
+            "booking_confirmation": {...},
+            "total_usage": {"prompt": X, "completion": Y, "total": Z},
+            "status": "success"
+        }
     """
-    workflow = get_main_workflow()
+    main_agent = get_or_create_main_agent()
     
     # 初始状态
     initial_state = {
-        "messages": [],
+        "messages": [HumanMessage(content=user_message)],
         "user_message": user_message,
         "collected_info": None,
         "search_results": None,
@@ -277,11 +277,21 @@ async def run_main_workflow(user_message: str) -> Dict[str, Any]:
         "final_response": None
     }
     
-    # 执行工作流
-    logger.info(f"Running main workflow for message: {user_message[:50]}...")
-    result = await workflow.ainvoke(initial_state)
+    # 调用 DeepAgent
+    logger.info(f"Running main workflow for: {user_message[:50]}...")
+    result = await main_agent.ainvoke(initial_state)
     
-    return result.get("final_response", {})
+    # 构建最终响应
+    final_response = {
+        "collected_info": result.get("collected_info"),
+        "search_results": result.get("search_results"),
+        "recommendations": result.get("recommendations"),
+        "booking_confirmation": result.get("booking_confirmation"),
+        "total_usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0}),
+        "status": "success"
+    }
+    
+    return final_response
 
 
 def run_main_workflow_sync(user_message: str) -> Dict[str, Any]:
@@ -294,11 +304,11 @@ def run_main_workflow_sync(user_message: str) -> Dict[str, Any]:
     Returns:
         包含所有结果和总用量的字典
     """
-    workflow = get_main_workflow()
+    main_agent = get_or_create_main_agent()
     
     # 初始状态
     initial_state = {
-        "messages": [],
+        "messages": [HumanMessage(content=user_message)],
         "user_message": user_message,
         "collected_info": None,
         "search_results": None,
@@ -308,19 +318,30 @@ def run_main_workflow_sync(user_message: str) -> Dict[str, Any]:
         "final_response": None
     }
     
-    # 执行工作流
-    logger.info(f"Running main workflow (sync) for message: {user_message[:50]}...")
-    result = workflow.invoke(initial_state)
+    # 调用 DeepAgent（同步）
+    logger.info(f"Running main workflow (sync) for: {user_message[:50]}...")
+    result = main_agent.invoke(initial_state)
     
-    return result.get("final_response", {})
+    # 构建最终响应
+    final_response = {
+        "collected_info": result.get("collected_info"),
+        "search_results": result.get("search_results"),
+        "recommendations": result.get("recommendations"),
+        "booking_confirmation": result.get("booking_confirmation"),
+        "total_usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0}),
+        "status": "success"
+    }
+    
+    return final_response
 
 
 # ============ 导出 ============
 
 __all__ = [
-    "MainWorkflowState",
-    "build_main_workflow",
-    "get_main_workflow",
+    "MainState",
+    "call_subagent_node",
+    "build_main_graph",
+    "get_or_create_main_agent",
     "run_main_workflow",
     "run_main_workflow_sync",
 ]
