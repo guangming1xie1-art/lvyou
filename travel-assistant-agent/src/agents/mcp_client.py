@@ -1,272 +1,356 @@
 """
-MCP Client for Agent Integration
+MCP Client for Java API Integration
 
-This module provides an MCP client that allows the Agent to discover
-and invoke skills via the MCP protocol.
+使用 langchain_mcp_adapters 连接到后端 Java API 服务
+将 Java API 方法包装为 LangChain Tools
 """
-
 import asyncio
-import json
+import httpx
+import logging
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
-from enum import Enum
-try:
-    from utils.logger import app_logger
-except ModuleNotFoundError:
-    from src.utils.logger import app_logger
 
-class MCPSkillCategory(Enum):
-    """Skill categories for filtering"""
-    DESTINATION = "destination"
-    PRICING = "pricing"
-    REVIEWS = "reviews"
-    WEATHER = "weather"
-    PLANNING = "planning"
+from src.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
-class MCPSkill:
-    """Represents an available MCP skill"""
+class JavaAPITool:
+    """Java API 工具定义"""
     name: str
     description: str
     input_schema: Dict[str, Any]
-    output_schema: Dict[str, Any]
-    category: str
-    version: str = "1.0.0"
-    
-    @classmethod
-    def from_definition(cls, definition: Dict) -> "MCPSkill":
-        """Create from MCP definition format"""
-        return cls(
-            name=definition["name"],
-            description=definition["description"],
-            input_schema=definition.get("inputSchema", {}),
-            output_schema=definition.get("outputSchema", {}),
-            category=definition.get("category", "general"),
-            version=definition.get("version", "1.0.0")
-        )
-
-
-@dataclass
-class MCPSkillResult:
-    """Result from a skill execution"""
-    success: bool
-    skill_name: str
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    endpoint: str
 
 
 class MCPClient:
     """
-    MCP Client for Travel Assistant Agent.
-    
-    This client provides methods for:
-    - Discovering available skills
-    - Invoking skills with parameters
-    - Managing skill calls
+    MCP Client 连接 Java API 后端
+    将 Java API 的方法包装为 LLM Tool
     """
     
-    def __init__(self, server_url: str = None):
-        self.server_url = server_url
-        self._skills_cache: List[MCPSkill] = []
+    def __init__(self, java_api_url: Optional[str] = None):
+        self.java_api_url = java_api_url or settings.java_api_base_url
+        self.timeout = settings.java_api_timeout
+        self.max_retries = settings.java_api_max_retries
+        self.auth_token = settings.java_api_auth_token
+        
         self._connected = False
+        self._tools: List[JavaAPITool] = []
+        self._client: Optional[httpx.AsyncClient] = None
     
     async def connect(self) -> bool:
-        """Connect to MCP server"""
-        self._connected = True
-        app_logger.info("MCP Client connected (simulated)")
-        await self._discover_skills()
-        return self._connected
-    
-    async def disconnect(self):
-        """Disconnect from MCP server"""
-        self._connected = False
-        self._skills_cache = []
-        app_logger.info("MCP Client disconnected")
-    
-    async def _discover_skills(self):
-        """Discover available skills from server"""
-        # In a real implementation, this would call the server's list_skills endpoint
-        # For demo, we use the skills module directly
-        from mcp_server.skills import get_skill_definitions, get_all_skills
-        
-        definitions = get_skill_definitions()
-        self._skills_cache = [MCPSkill.from_definition(d) for d in definitions]
-        app_logger.info(f"Discovered {len(self._skills_cache)} skills")
-    
-    def list_skills(self) -> List[MCPSkill]:
-        """List all available skills"""
-        return self._skills_cache.copy()
-    
-    def list_skill_names(self) -> List[str]:
-        """List names of all available skills"""
-        return [s.name for s in self._skills_cache]
-    
-    def get_skill(self, name: str) -> Optional[MCPSkill]:
-        """Get a specific skill by name"""
-        for skill in self._skills_cache:
-            if skill.name == name:
-                return skill
-        return None
-    
-    def get_skills_by_category(self, category: MCPSkillCategory) -> List[MCPSkill]:
-        """Get skills filtered by category"""
-        return [s for s in self._skills_cache if s.category == category.value]
-    
-    async def call_skill(
-        self,
-        skill_name: str,
-        parameters: Dict[str, Any]
-    ) -> MCPSkillResult:
-        """
-        Execute a skill with the given parameters.
-        
-        Args:
-            skill_name: Name of the skill to execute
-            parameters: Input parameters for the skill
-            
-        Returns:
-            MCPSkillResult with execution result
-        """
+        """连接到 Java API 后端"""
         try:
-            from mcp_server.skills import get_skill
-            skill = get_skill(skill_name)
-            
-            if not skill:
-                return MCPSkillResult(
-                    success=False,
-                    skill_name=skill_name,
-                    error=f"Skill '{skill_name}' not found"
-                )
-            
-            # Execute the skill
-            result = await skill.execute_with_error_handling(**parameters)
-            
-            app_logger.info(f"Skill '{skill_name}' executed")
-            
-            return MCPSkillResult(
-                success="error" not in result if isinstance(result, dict) else True,
-                skill_name=skill_name,
-                result=result
+            # 创建 httpx 客户端
+            self._client = httpx.AsyncClient(
+                base_url=self.java_api_url,
+                timeout=self.timeout,
+                headers={
+                    "Authorization": f"Bearer {self.auth_token}" if self.auth_token else None,
+                    "Content-Type": "application/json"
+                }
             )
+            
+            # 测试连接（可选）
+            try:
+                response = await self._client.get("/health", timeout=5)
+                if response.status_code == 200:
+                    logger.info(f"Connected to Java API: {self.java_api_url}")
+                else:
+                    logger.warning(f"Java API health check failed: {response.status_code}")
+            except Exception as e:
+                logger.warning(f"Java API health check failed: {e}, continuing anyway")
+            
+            self._connected = True
+            self._init_tools()
+            return True
             
         except Exception as e:
-            app_logger.error(f"Error executing skill '{skill_name}': {e}")
-            return MCPSkillResult(
-                success=False,
-                skill_name=skill_name,
-                error=str(e)
+            logger.error(f"Failed to connect to Java API: {e}")
+            self._connected = False
+            return False
+    
+    async def disconnect(self):
+        """断开连接"""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+        self._connected = False
+        logger.info("Disconnected from Java API")
+    
+    def _init_tools(self):
+        """初始化 Java API 工具定义"""
+        self._tools = [
+            JavaAPITool(
+                name="search_destinations",
+                description="搜索旅游目的地、酒店、景点等信息",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "搜索关键词"},
+                        "filters": {
+                            "type": "object",
+                            "description": "过滤条件（预算、日期、偏好等）"
+                        }
+                    },
+                    "required": ["query"]
+                },
+                endpoint="/search/destinations"
+            ),
+            JavaAPITool(
+                name="get_recommendations",
+                description="根据用户偏好和搜索结果生成个性化推荐",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "user_preferences": {
+                            "type": "object",
+                            "description": "用户偏好信息"
+                        },
+                        "search_results": {
+                            "type": "array",
+                            "description": "搜索结果列表"
+                        }
+                    },
+                    "required": ["user_preferences"]
+                },
+                endpoint="/recommendations/generate"
+            ),
+            JavaAPITool(
+                name="create_booking",
+                description="创建旅游预订",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "booking_details": {
+                            "type": "object",
+                            "description": "预订详情（目的地、日期、酒店、航班等）"
+                        }
+                    },
+                    "required": ["booking_details"]
+                },
+                endpoint="/bookings/create"
+            ),
+            JavaAPITool(
+                name="get_booking_status",
+                description="查询预订状态",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "booking_id": {
+                            "type": "string",
+                            "description": "预订 ID"
+                        }
+                    },
+                    "required": ["booking_id"]
+                },
+                endpoint="/bookings/{booking_id}/status"
+            ),
+        ]
+        logger.info(f"Initialized {len(self._tools)} Java API tools")
+    
+    def get_tools(self) -> List[Dict[str, Any]]:
+        """
+        获取所有工具定义（LangChain Tool 格式）
+        
+        Returns:
+            工具定义列表
+        """
+        return [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "input_schema": tool.input_schema,
+            }
+            for tool in self._tools
+        ]
+    
+    def get_tool_summaries(self) -> List[Dict[str, str]]:
+        """
+        获取工具摘要（名称 + 描述）
+        用于 LLM Prompt
+        """
+        return [
+            {
+                "name": tool.name,
+                "description": tool.description,
+            }
+            for tool in self._tools
+        ]
+    
+    async def call_tool(
+        self,
+        tool_name: str,
+        parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        调用 Java API 工具
+        
+        Args:
+            tool_name: 工具名称
+            parameters: 参数
+            
+        Returns:
+            {"result": ..., "error": null | string}
+        """
+        # 查找工具
+        tool = None
+        for t in self._tools:
+            if t.name == tool_name:
+                tool = t
+                break
+        
+        if not tool:
+            return {
+                "result": None,
+                "error": f"Tool '{tool_name}' not found"
+            }
+        
+        # 如果未连接，尝试连接
+        if not self._connected:
+            success = await self.connect()
+            if not success:
+                return self._mock_response(tool_name, parameters)
+        
+        # 调用 Java API
+        try:
+            # 处理 URL 参数
+            endpoint = tool.endpoint
+            if "{booking_id}" in endpoint and "booking_id" in parameters:
+                endpoint = endpoint.format(booking_id=parameters["booking_id"])
+                # 从 parameters 中移除 booking_id（已经在 URL 中）
+                parameters = {k: v for k, v in parameters.items() if k != "booking_id"}
+            
+            # 发起请求
+            response = await self._client.post(
+                endpoint,
+                json=parameters,
+                timeout=self.timeout
             )
-    
-    async def call_skills_parallel(
-        self,
-        calls: List[Dict[str, Any]]
-    ) -> List[MCPSkillResult]:
-        """
-        Execute multiple skills in parallel.
-        
-        Args:
-            calls: List of {"skill": skill_name, "parameters": params} dictionaries
             
-        Returns:
-            List of MCPSkillResult objects
-        """
-        tasks = []
-        for call in calls:
-            skill_name = call.get("skill") or call.get("name")
-            parameters = call.get("parameters") or {}
-            tasks.append(self.call_skill(skill_name, parameters))
-        
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Convert exceptions to results
-        processed_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                call = calls[i]
-                skill_name = call.get("skill") or call.get("name")
-                processed_results.append(MCPSkillResult(
-                    success=False,
-                    skill_name=skill_name,
-                    error=str(result)
-                ))
+            # 处理响应
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "result": result,
+                    "error": None
+                }
             else:
-                processed_results.append(result)
+                error_msg = f"Java API error: {response.status_code}"
+                logger.error(error_msg)
+                return {
+                    "result": None,
+                    "error": error_msg
+                }
         
-        return processed_results
+        except httpx.TimeoutException:
+            logger.error(f"Timeout calling {tool_name}")
+            return self._mock_response(tool_name, parameters)
+        
+        except Exception as e:
+            logger.error(f"Error calling {tool_name}: {e}")
+            return self._mock_response(tool_name, parameters)
     
-    async def call_skills_sequential(
+    def _mock_response(
         self,
-        calls: List[Dict[str, Any]],
-        pass_previous_outputs: bool = True
-    ) -> List[MCPSkillResult]:
+        tool_name: str,
+        parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
-        Execute multiple skills sequentially, passing outputs to next calls.
-        
-        Args:
-            calls: List of {"skill": skill_name, "parameters": params} dictionaries
-            pass_previous_outputs: Whether to include previous results in next call parameters
-            
-        Returns:
-            List of MCPSkillResult objects in order
+        返回 Mock 数据（当 Java API 不可用时）
         """
-        results = []
-        accumulated_data = {}
+        logger.warning(f"Returning mock data for {tool_name}")
         
-        for call in calls:
-            skill_name = call.get("skill") or call.get("name")
-            parameters = call.get("parameters") or {}
-            
-            # Optionally merge accumulated data into parameters
-            if pass_previous_outputs and accumulated_data:
-                parameters = {**parameters, **accumulated_data}
-            
-            result = await self.call_skill(skill_name, parameters)
-            results.append(result)
-            
-            if result.success and result.result:
-                accumulated_data.update(result.result)
+        if tool_name == "search_destinations":
+            return {
+                "result": {
+                    "destinations": [
+                        {
+                            "id": "dest_mock_001",
+                            "name": "模拟目的地",
+                            "description": "这是模拟数据（Java API 不可用）",
+                            "rating": 4.5
+                        }
+                    ],
+                    "total": 1,
+                    "mock": True
+                },
+                "error": "Java API unavailable, using mock data"
+            }
         
-        return results
+        elif tool_name == "get_recommendations":
+            return {
+                "result": {
+                    "recommendations": [
+                        {
+                            "id": "rec_mock_001",
+                            "title": "模拟推荐方案",
+                            "description": "这是模拟数据（Java API 不可用）",
+                            "confidence": 0.5
+                        }
+                    ],
+                    "mock": True
+                },
+                "error": "Java API unavailable, using mock data"
+            }
+        
+        elif tool_name == "create_booking":
+            return {
+                "result": {
+                    "booking_id": "BK_MOCK_001",
+                    "status": "pending",
+                    "mock": True
+                },
+                "error": "Java API unavailable, using mock data"
+            }
+        
+        elif tool_name == "get_booking_status":
+            return {
+                "result": {
+                    "booking_id": parameters.get("booking_id", "unknown"),
+                    "status": "unknown",
+                    "mock": True
+                },
+                "error": "Java API unavailable, using mock data"
+            }
+        
+        else:
+            return {
+                "result": None,
+                "error": f"No mock data available for {tool_name}"
+            }
     
     def is_connected(self) -> bool:
-        """Check if client is connected to server"""
+        """检查是否已连接"""
         return self._connected
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get usage statistics"""
-        return {
-            "connected": self._connected,
-            "skills_count": len(self._skills_cache),
-            "skills": self.list_skill_names()
-        }
 
 
-# Singleton instance
+# ============ 全局单例 ============
+
 _mcp_client: Optional[MCPClient] = None
 
 
 def get_mcp_client() -> MCPClient:
-    """Get the global MCP client instance"""
+    """获取全局 MCP Client 实例（懒加载）"""
     global _mcp_client
     if _mcp_client is None:
         _mcp_client = MCPClient()
     return _mcp_client
 
 
-async def init_mcp_client(server_url: str = None) -> MCPClient:
-    """Initialize and connect the global MCP client"""
+async def init_mcp_client(java_api_url: Optional[str] = None) -> MCPClient:
+    """初始化并连接 MCP Client"""
     global _mcp_client
-    _mcp_client = MCPClient(server_url)
+    _mcp_client = MCPClient(java_api_url)
     await _mcp_client.connect()
     return _mcp_client
 
 
 __all__ = [
     "MCPClient",
-    "MCPSkill",
-    "MCPSkillResult",
-    "MCPSkillCategory",
+    "JavaAPITool",
     "get_mcp_client",
     "init_mcp_client",
 ]

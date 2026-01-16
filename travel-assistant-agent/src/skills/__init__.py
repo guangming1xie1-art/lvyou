@@ -6,8 +6,7 @@ including skill discovery, registration, dynamic loading, and execution.
 """
 
 from .base import Skill, SkillInput, SkillOutput
-from .registry import SkillRegistry, get_skill_registry
-from .loader import SkillLoader
+from .registry import SkillRegistry
 
 __version__ = "1.0.0"
 
@@ -19,8 +18,4 @@ __all__ = [
     
     # Registry
     "SkillRegistry",
-    "get_skill_registry",
-    
-    # Loader
-    "SkillLoader",
 ]
