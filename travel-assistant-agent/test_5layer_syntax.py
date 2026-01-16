@@ -237,36 +237,37 @@ def test_skills_md():
         return False
 
 
-def test_deepagents_compat():
-    """测试 deepagents 兼容层"""
+def test_deepagents_library():
+    """测试 deepagents 库导入"""
     print("\n" + "="*60)
-    print("【兼容层】deepagents.py - 语法检查")
+    print("【库测试】deepagents v0.2.7 库 - 导入检查")
     print("="*60)
     
-    filepath = "deepagents.py"
-    print(f"检查文件: {filepath}")
-    
-    if check_file_syntax(filepath):
-        print("✓ 语法正确")
-        
-        with open(filepath, 'r') as f:
-            content = f.read()
-        
-        required_items = [
-            "class DeepAgent",
-            "class CompiledSubAgent",
-            "def create_deep_agent",
-        ]
-        
-        for item in required_items:
-            if item in content:
-                print(f"  ✓ 包含: {item}")
-            else:
-                print(f"  ✗ 缺少: {item}")
-                return False
-        
+    try:
+        from deepagents import create_deep_agent, CompiledSubAgent
+        print("✓ 成功导入 deepagents 库")
+        print("✓ create_deep_agent:", create_deep_agent)
+        print("✓ CompiledSubAgent:", CompiledSubAgent)
         return True
-    return False
+    except ImportError as e:
+        print(f"✗ 导入失败: {e}")
+        return False
+
+
+def test_mcp_client_library():
+    """测试 langchain_mcp_adapters 库"""
+    print("\n" + "="*60)
+    print("【库测试】langchain_mcp_adapters 库 - 导入检查")
+    print("="*60)
+    
+    try:
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+        print("✓ 成功导入 MultiServerMCPClient")
+        print("✓ MultiServerMCPClient:", MultiServerMCPClient)
+        return True
+    except ImportError as e:
+        print(f"✗ 导入失败: {e}")
+        return False
 
 
 def main():
@@ -277,8 +278,11 @@ def main():
     
     results = []
     
-    # deepagents 兼容层
-    results.append(("兼容层: deepagents.py", test_deepagents_compat()))
+    # deepagents 库测试
+    results.append(("deepagents v0.2.7 库", test_deepagents_library()))
+    
+    # langchain_mcp_adapters 库测试
+    results.append(("langchain_mcp_adapters 库", test_mcp_client_library()))
     
     # 第0层
     results.append(("第0层: TokenCounter", test_layer_0()))
@@ -313,15 +317,17 @@ def main():
     all_passed = all(r[1] for r in results)
     
     if all_passed:
-        print("\n🎉 所有语法检查通过！5层架构重构完成！")
-        print("\n文件结构:")
+        print("\n🎉 所有测试通过！5层架构重构完成！")
+        print("\n✅ 使用真正的库：")
+        print("  - deepagents v0.2.7: CompiledSubAgent, create_deep_agent")
+        print("  - langchain_mcp_adapters: MultiServerMCPClient")
+        print("\n📁 文件结构:")
         print("  第0层: src/utils/token_counter.py")
         print("  第1层: src/workflows/subgraphs.py")
         print("  第2层: src/workflows/subagents.py")
         print("  第3、4、5层: src/workflows/main_workflow.py")
         print("  MCP: src/agents/mcp_client.py")
         print("  Skills: src/skills/registry.py, src/skills/SKILLS.md")
-        print("  兼容层: deepagents.py")
         return 0
     else:
         print("\n❌ 部分测试失败，请检查错误信息")
