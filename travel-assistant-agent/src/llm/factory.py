@@ -1,6 +1,6 @@
 """
 LLM 工厂类
-提供统一的 LLM 实例创建接口，支持多模型切换
+提供统一的 LLM 实例创建接口，支持多模型切换和层级选择
 """
 from typing import Optional, List, Dict, Any
 import os
@@ -13,6 +13,13 @@ class LLMFactory:
     """LLM工厂类，支持多模型切换"""
 
     _instances: Dict[str, Any] = {}
+
+    # 默认层级模型配置
+    DEFAULT_MODELS = {
+        "cheap": "deepseek-v3",      # 便宜层
+        "standard": "qwen-max",      # 标准层
+        "powerful": "gpt-4-turbo",   # 强力层
+    }
 
     @classmethod
     def create_model(
@@ -133,3 +140,39 @@ class LLMFactory:
             cost += cache_read_tokens * config.cache_read_cost / 1_000_000
 
         return cost
+
+    @classmethod
+    def create_model_by_tier(
+        cls,
+        tier: str = "standard",
+        tier_override: Optional[Dict[str, str]] = None,
+        **kwargs
+    ) -> Any:
+        """
+        根据层级创建 LLM 实例
+
+        Args:
+            tier: 模型层级（cheap/standard/powerful）
+            tier_override: 层级覆盖配置（例如 {"cheap": "qwen-max"}）
+            **kwargs: 覆盖模型配置的参数
+
+        Returns:
+            ChatOpenAI 实例
+        """
+        from .models import ModelTier
+
+        # 验证层级
+        if tier not in ["cheap", "standard", "powerful"]:
+            raise ValueError(f"Invalid tier: {tier}. Must be one of: cheap, standard, powerful")
+
+        # 获取模型名称
+        if tier_override and tier in tier_override:
+            model_name = tier_override[tier]
+        else:
+            model_name = cls.DEFAULT_MODELS.get(tier)
+            if model_name is None:
+                raise ValueError(f"No default model configured for tier: {tier}")
+
+        logger.info(f"Creating {tier} tier model: {model_name}")
+
+        return cls.create_model(name=model_name, **kwargs)

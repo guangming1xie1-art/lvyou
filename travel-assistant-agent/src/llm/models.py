@@ -16,6 +16,13 @@ class ModelProvider(str, Enum):
     GLM = "glm"
 
 
+class ModelTier(str, Enum):
+    """LLM 层级枚举"""
+    CHEAP = "cheap"      # 便宜层：信息收集、预订
+    STANDARD = "standard"  # 标准层：搜索、推荐
+    POWERFUL = "powerful"  # 强力层：复杂推理
+
+
 class ModelConfig(BaseModel):
     """模型配置"""
     name: str                              # 模型名称
