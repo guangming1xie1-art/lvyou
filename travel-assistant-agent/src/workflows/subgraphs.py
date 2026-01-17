@@ -15,6 +15,7 @@ import operator
 import logging
 
 from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage, BaseMessage, AIMessage, SystemMessage
 
 from src.utils.token_counter import TokenCounter
@@ -52,6 +53,166 @@ knowledge_base = KnowledgeBase()
 
 # MCP Client
 mcp_client = get_mcp_client()
+
+
+# ============ 技能到工具的适配器 ============
+
+def skill_to_tool(skill):
+    """将Skill实例转换为LangChain Tool"""
+    from langchain_core.tools import tool
+    
+    @tool
+    def skill_tool(**kwargs):
+        """使用技能执行任务"""
+        import asyncio
+        
+        # 运行技能的execute方法
+        try:
+            result = asyncio.run(skill.execute(kwargs))
+            return str(result)
+        except Exception as e:
+            return f"Skill execution error: {str(e)}"
+    
+    # 设置技能的基本信息
+    skill_tool.name = skill.name
+    skill_tool.description = skill.description
+    
+    return skill_tool
+
+
+# ============ 辅助函数 ============
+
+def create_search_plan_prompt(collected_info: Dict, conversation_history: List[Dict]) -> str:
+    """生成搜索规划提示词"""
+    history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history[-6:]])
+    
+    return f"""你是搜索规划师，负责分析用户需求并制定结构化的搜索计划。
+
+你的任务：
+1. 分析用户需求和已收集的信息
+2. 提取关键搜索要素：目的地、时间、预算、偏好
+3. 生成JSON格式的搜索策略
+
+已收集的用户需求：
+{collected_info}
+
+对话历史：
+{history_text if history_text else "（无历史记录）"}
+
+返回格式（JSON）：
+{{
+    "search_plan": {{
+        "destination": "目的地",
+        "check_in": "入住日期", 
+        "check_out": "退房日期",
+        "budget_range": "预算范围",
+        "search_priorities": ["酒店", "航班", "景点"],
+        "rag_search_keywords": ["关键词1", "关键词2"]
+    }},
+    "output": "搜索计划描述"
+}}"""
+
+
+def create_recommend_plan_prompt(collected_info: Dict, search_results: Dict, conversation_history: List[Dict]) -> str:
+    """生成推荐规划提示词"""
+    history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history[-6:]])
+    
+    return f"""你是推荐规划师，负责分析用户需求和搜索结果，制定个性化推荐策略。
+
+你的任务：
+1. 综合分析用户需求和搜索结果
+2. 确定推荐主题和重点
+3. 生成推荐策略
+
+用户需求：
+{collected_info}
+
+搜索结果摘要：
+{str(search_results)[:500]}...
+
+对话历史：
+{history_text if history_text else "（无历史记录）"}
+
+返回格式（JSON）：
+{{
+    "recommend_plan": {{
+        "themes": ["主题1", "主题2", "主题3"],
+        "num_plans": 3,
+        "focus_points": ["重点1", "重点2"],
+        "weights": {{"预算": 0.3, "体验": 0.4, "安全": 0.3}}
+    }},
+    "output": "推荐策略描述"
+}}"""
+
+
+async def build_search_tools(search_plan: Dict) -> List:
+    """根据搜索计划构建搜索工具"""
+    tools = []
+    
+    try:
+        # 1. RAG 检索工具
+        from langchain_core.tools import tool
+        
+        @tool
+        def rag_search_tool(query: str) -> str:
+            """使用旅游知识库进行RAG搜索"""
+            rag_context = get_rag_context(query, use_cache=True)
+            return f"RAG搜索结果：\n{rag_context}"
+        
+        tools.append(rag_search_tool)
+        
+        # 2. MCP Java 工具
+        mcp_tools = await mcp_client.get_tools()
+        tools.extend(mcp_tools)
+        
+        # 3. SKILLS 搜索技能
+        try:
+            search_skill = await SkillRegistry.load_skill("search")
+            if search_skill:
+                # 使用适配器转换为工具
+                tools.append(skill_to_tool(search_skill))
+        except Exception as e:
+            logger.warning(f"Failed to load search skill: {e}")
+        
+    except Exception as e:
+        logger.warning(f"Failed to build search tools: {e}")
+    
+    return tools
+
+
+async def build_recommend_tools(recommend_plan: Dict) -> List:
+    """根据推荐策略构建推荐工具"""
+    tools = []
+    
+    try:
+        # 1. RAG 检索工具（用于旅游贴士和行程建议）
+        from langchain_core.tools import tool
+        
+        @tool
+        def rag_recommend_tool(query: str) -> str:
+            """使用旅游知识库获取推荐建议"""
+            rag_context = get_rag_context(query, use_cache=True)
+            return f"RAG推荐建议：\n{rag_context}"
+        
+        tools.append(rag_recommend_tool)
+        
+        # 2. MCP Java 工具
+        mcp_tools = await mcp_client.get_tools()
+        tools.extend(mcp_tools)
+        
+        # 3. SKILLS 推荐技能
+        try:
+            recommend_skill = await SkillRegistry.load_skill("recommend")
+            if recommend_skill:
+                # 使用适配器转换为工具
+                tools.append(skill_to_tool(recommend_skill))
+        except Exception as e:
+            logger.warning(f"Failed to load recommend skill: {e}")
+        
+    except Exception as e:
+        logger.warning(f"Failed to build recommend tools: {e}")
+    
+    return tools
 
 
 async def get_tools_and_skills_text() -> str:
@@ -217,25 +378,102 @@ def build_collect_info_graph() -> StateGraph:
     return graph.compile()
 
 
-# ============ 2. 搜索子图（标准层 + RAG + 缓存） ============
+# ============ 2. 搜索子图（两阶段流程） ============
 
-async def search_node(state: SubState) -> Dict[str, Any]:
-    """搜索节点（标准层 + RAG + 缓存）"""
+async def search_plan_node(state: SubState) -> Dict[str, Any]:
+    """搜索规划节点（便宜层 + 缓存）"""
     counter = TokenCounter()
 
     # 获取已收集的信息
     collected_info = state.get("collected_info", {})
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
     user_content = last_msg.content if last_msg else ""
+    conversation_history = state.get("conversation_history", [])
 
     # 构建缓存键
     destination = collected_info.get("destination", "unknown")
-    cache_key = f"{user_content[:50]}:{destination}"
+    cache_key = f"search_plan:{user_content[:50]}:{destination}"
+
+    # 尝试从缓存获取搜索计划
+    cached = cache_strategy.get_search_results(query=f"plan_{cache_key}", destination=destination)
+    if cached:
+        logger.info(f"Search plan cache HIT")
+        return {
+            "messages": [AIMessage(content=cached.get("output", ""))],
+            "usage": {"prompt": 0, "completion": 0, "total": 0},
+            "output": cached.get("output", ""),
+            "search_plan": cached.get("search_plan", {})
+        }
+
+    # 生成搜索规划提示词
+    system_prompt = create_search_plan_prompt(collected_info, conversation_history)
+
+    # 调用 LLM（便宜层）
+    try:
+        # 使用 LLMFactory 创建便宜层模型
+        llm = LLMFactory.create_model_by_tier(tier="cheap")
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_content)
+        ]
+
+        result = await llm.ainvoke(
+            messages,
+            config={"callbacks": [counter]}
+        )
+
+        output_text = result.content
+
+        # 尝试解析为 JSON
+        import json
+        try:
+            search_plan = json.loads(output_text)
+        except:
+            search_plan = {"raw": output_text, "search_plan": {"destination": destination}}
+
+        # 缓存搜索计划
+        cache_strategy.cache_search_results(
+            query=f"plan_{cache_key}",
+            results={"search_plan": search_plan},
+            destination=destination
+        )
+
+        return {
+            "messages": [result],
+            "usage": counter.dump(),
+            "output": output_text,
+            "search_plan": search_plan.get("search_plan", {})
+        }
+
+    except Exception as e:
+        logger.error(f"search_plan_node failed: {e}")
+        return {
+            "messages": [AIMessage(content=f"Error: {e}")],
+            "usage": {"prompt": 0, "completion": 0, "total": 0},
+            "output": f"Error: {e}",
+            "search_plan": {"error": str(e)}
+        }
+
+
+async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
+    """搜索执行节点（create_react_agent + 标准层）"""
+    counter = TokenCounter()
+
+    # 获取搜索计划和状态
+    search_plan = state.get("search_plan", {})
+    collected_info = state.get("collected_info", {})
+    last_msg = state.get("messages", [])[-1] if state.get("messages") else None
+    user_content = last_msg.content if last_msg else ""
+
+    # 构建缓存键
+    destination = search_plan.get("destination", "unknown")
+    cache_key = f"search_exec:{user_content[:50]}:{destination}"
 
     # 尝试从缓存获取搜索结果
     cached = cache_strategy.get_search_results(query=user_content, destination=destination)
     if cached:
-        logger.info(f"Search cache HIT")
+        logger.info(f"Search execute cache HIT")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "total": 0},
@@ -243,71 +481,62 @@ async def search_node(state: SubState) -> Dict[str, Any]:
             "search_results": cached.get("search_results", {})
         }
 
-    # 获取 RAG 上下文
-    rag_context = get_rag_context(user_content, use_cache=True)
-
-    # 获取工具文本
-    tools_text = await get_tools_and_skills_text()
-
-    # 系统提示词
-    system_prompt = f"""你是搜索员，负责根据用户需求搜索旅游目的地、酒店、航班等信息。
-
-你的任务：
-1. 分析用户需求和已收集的信息
-2. 使用可用的工具搜索相关信息
-3. 结合知识库信息提供更准确的搜索结果
-
-已收集的用户需求：
-{collected_info}
-
-旅游知识库参考：
-{rag_context if rag_context else "（暂无相关知识库信息）"}
-
-可用工具：
-{tools_text}
-
-返回格式（JSON）：
-{{
-    "destinations": [...],
-    "hotels": [...],
-    "flights": [...],
-    "total_results": 数量,
-    "rag_sources_used": ["来源1", "来源2"]
-}}
-"""
-
-    # 获取工具
+    # 构建工具列表
     try:
-        tools = await mcp_client.get_tools()
+        tools = await build_search_tools(search_plan)
+        logger.info(f"Built {len(tools)} search tools")
     except Exception as e:
-        logger.warning(f"Failed to get tools: {e}")
+        logger.warning(f"Failed to build search tools: {e}")
         tools = []
 
-    # 调用 LLM（标准层）
+    # 创建 ReAct Agent
     try:
         # 使用 LLMFactory 创建标准层模型
         llm = LLMFactory.create_model_by_tier(tier="standard")
 
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_content)
-        ]
+        # 构建系统提示词
+        system_prompt = f"""你是搜索执行员，负责根据搜索计划执行多轮搜索并综合结果。
 
-        # 如果有工具，使用 tool calling
-        if tools:
-            result = await llm.ainvoke(
-                messages,
-                tools=tools,
-                config={"callbacks": [counter]}
-            )
-        else:
-            result = await llm.ainvoke(
-                messages,
-                config={"callbacks": [counter]}
-            )
+搜索计划：
+{search_plan}
 
-        output_text = result.content
+已收集的用户需求：
+{collected_info}
 
+你的任务：
+1. 根据搜索计划逐步执行搜索
+2. 使用可用的工具进行多轮搜索
+3. 合并所有搜索结果（酒店、航班、景点）
+4. 返回综合搜索结果
+
+返回格式（JSON）：
+{{
+    "output": "综合搜索结果文本",
+    "search_results": {{
+        "destinations": [...],
+        "hotels": [...],
+        "flights": [...],
+        "attractions": [...],
+        "total_results": 数量,
+        "rag_sources_used": [...],
+        "tools_used": [...]
+    }}
+}}"""
+
+        # 使用 create_react_agent 创建执行代理
+        agent = create_react_agent(llm, tools)
+        
+        # 调用 agent
+        result = await agent.ainvoke({
+            "messages": [HumanMessage(content=system_prompt)],
+            "search_plan": search_plan,
+            "collected_info": collected_info,
+            "user_content": user_content
+        })
+
+        # 解析结果
+        output_text = result.get("output", "")
+        
         # 尝试解析为 JSON
         import json
         try:
@@ -323,14 +552,14 @@ async def search_node(state: SubState) -> Dict[str, Any]:
         )
 
         return {
-            "messages": [result],
+            "messages": [AIMessage(content=output_text)],
             "usage": counter.dump(),
             "output": output_text,
             "search_results": search_results
         }
 
     except Exception as e:
-        logger.error(f"search_node failed: {e}")
+        logger.error(f"search_execute_agent_node failed: {e}")
         return {
             "messages": [AIMessage(content=f"Error: {e}")],
             "usage": {"prompt": 0, "completion": 0, "total": 0},
@@ -340,21 +569,114 @@ async def search_node(state: SubState) -> Dict[str, Any]:
 
 
 def build_search_graph() -> StateGraph:
-    """构建搜索子图"""
+    """构建搜索子图（两阶段流程）"""
     graph = StateGraph(SubState)
-    graph.add_node("search", search_node)
-    graph.add_edge("search", END)
-    graph.set_entry_point("search")
+    
+    # 添加两个节点：规划 + 执行
+    graph.add_node("search_plan", search_plan_node)
+    graph.add_node("search_execute", search_execute_agent_node)
+    
+    # 设置边：规划 -> 执行 -> 结束
+    graph.add_edge("search_plan", "search_execute")
+    graph.add_edge("search_execute", END)
+    
+    # 设置入口点
+    graph.set_entry_point("search_plan")
+    
     return graph.compile()
 
 
-# ============ 3. 推荐子图（标准层 + RAG + 缓存） ============
+# ============ 3. 推荐子图（两阶段流程） ============
 
-async def recommend_node(state: SubState) -> Dict[str, Any]:
-    """推荐节点（标准层 + RAG + 缓存）"""
+async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
+    """推荐规划节点（便宜层 + 缓存）"""
     counter = TokenCounter()
 
     # 获取前面步骤的信息
+    collected_info = state.get("collected_info", {})
+    search_results = state.get("search_results", {})
+    last_msg = state.get("messages", [])[-1] if state.get("messages") else None
+    user_content = last_msg.content if last_msg else ""
+    conversation_history = state.get("conversation_history", [])
+
+    # 构建缓存键
+    destination = collected_info.get("destination", "unknown")
+    interests = collected_info.get("preferences", [])
+    cache_key = f"recommend_plan:{user_content[:50]}:{destination}:{','.join(interests)}"
+
+    # 尝试从缓存获取推荐计划
+    cached = cache_strategy.get_recommendations(
+        user_id=f"plan_{destination}",
+        interests=interests,
+        budget=collected_info.get("budget")
+    )
+    if cached:
+        logger.info(f"Recommend plan cache HIT")
+        return {
+            "messages": [AIMessage(content=cached.get("output", ""))],
+            "usage": {"prompt": 0, "completion": 0, "total": 0},
+            "output": cached.get("output", ""),
+            "recommend_plan": cached.get("recommend_plan", {})
+        }
+
+    # 生成推荐规划提示词
+    system_prompt = create_recommend_plan_prompt(collected_info, search_results, conversation_history)
+
+    # 调用 LLM（便宜层）
+    try:
+        # 使用 LLMFactory 创建便宜层模型
+        llm = LLMFactory.create_model_by_tier(tier="cheap")
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_content)
+        ]
+
+        result = await llm.ainvoke(
+            messages,
+            config={"callbacks": [counter]}
+        )
+
+        output_text = result.content
+
+        # 尝试解析为 JSON
+        import json
+        try:
+            recommend_plan = json.loads(output_text)
+        except:
+            recommend_plan = {"raw": output_text, "recommend_plan": {"themes": ["通用推荐"]}}
+
+        # 缓存推荐计划
+        cache_strategy.cache_recommendations(
+            user_id=f"plan_{destination}",
+            recommendations={"recommend_plan": recommend_plan},
+            interests=interests,
+            budget=collected_info.get("budget")
+        )
+
+        return {
+            "messages": [result],
+            "usage": counter.dump(),
+            "output": output_text,
+            "recommend_plan": recommend_plan.get("recommend_plan", {})
+        }
+
+    except Exception as e:
+        logger.error(f"recommend_plan_node failed: {e}")
+        return {
+            "messages": [AIMessage(content=f"Error: {e}")],
+            "usage": {"prompt": 0, "completion": 0, "total": 0},
+            "output": f"Error: {e}",
+            "recommend_plan": {"error": str(e)}
+        }
+
+
+async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
+    """推荐执行节点（create_react_agent + 标准层）"""
+    counter = TokenCounter()
+
+    # 获取推荐策略和状态
+    recommend_plan = state.get("recommend_plan", {})
     collected_info = state.get("collected_info", {})
     search_results = state.get("search_results", {})
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
@@ -363,7 +685,7 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
     # 构建缓存键
     destination = collected_info.get("destination", "unknown")
     interests = collected_info.get("preferences", [])
-    cache_key = f"{user_content[:50]}:{destination}:{','.join(interests)}"
+    cache_key = f"recommend_exec:{user_content[:50]}:{destination}:{','.join(interests)}"
 
     # 尝试从缓存获取推荐结果
     cached = cache_strategy.get_recommendations(
@@ -372,7 +694,7 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
         budget=collected_info.get("budget")
     )
     if cached:
-        logger.info(f"Recommend cache HIT")
+        logger.info(f"Recommend execute cache HIT")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "total": 0},
@@ -380,87 +702,77 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
             "recommendations": cached.get("recommendations", {})
         }
 
-    # 获取 RAG 上下文
-    rag_context = get_rag_context(user_content, use_cache=True)
-
-    # 获取工具文本
-    tools_text = await get_tools_and_skills_text()
-
-    # 系统提示词
-    system_prompt = f"""你是推荐员，负责根据用户需求和搜索结果生成个性化旅游推荐方案。
-
-你的任务：
-1. 综合分析用户需求和搜索结果
-2. 生成3-5个个性化推荐方案
-3. 每个方案包含详细的行程安排、预算估算、亮点介绍
-4. 结合知识库中的旅游贴士和推荐信息
-
-用户需求：
-{collected_info}
-
-搜索结果：
-{search_results}
-
-旅游知识库参考：
-{rag_context if rag_context else "（暂无相关知识库信息）"}
-
-可用工具：
-{tools_text}
-
-返回格式（JSON）：
-{{
-    "recommendations": [
-        {{
-            "id": "方案ID",
-            "title": "方案标题",
-            "description": "详细描述",
-            "itinerary": [...],
-            "estimated_cost": "预算",
-            "highlights": [...],
-            "confidence": 0.9,
-            "rag_sources_used": ["来源1", "来源2"]
-        }}
-    ]
-}}
-"""
-
-    # 获取工具
+    # 构建工具列表
     try:
-        tools = await mcp_client.get_tools()
+        tools = await build_recommend_tools(recommend_plan)
+        logger.info(f"Built {len(tools)} recommend tools")
     except Exception as e:
-        logger.warning(f"Failed to get tools: {e}")
+        logger.warning(f"Failed to build recommend tools: {e}")
         tools = []
 
-    # 调用 LLM（标准层）
+    # 创建 ReAct Agent
     try:
         # 使用 LLMFactory 创建标准层模型
         llm = LLMFactory.create_model_by_tier(tier="standard")
 
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_content)
-        ]
+        # 构建系统提示词
+        system_prompt = f"""你是推荐执行员，负责根据推荐策略生成个性化旅游方案。
 
-        if tools:
-            result = await llm.ainvoke(
-                messages,
-                tools=tools,
-                config={"callbacks": [counter]}
-            )
-        else:
-            result = await llm.ainvoke(
-                messages,
-                config={"callbacks": [counter]}
-            )
+推荐策略：
+{recommend_plan}
 
-        output_text = result.content
+用户需求：
+{collected_info}
 
+搜索结果摘要：
+{str(search_results)[:300]}...
+
+你的任务：
+1. 根据推荐策略生成3-5个个性化推荐方案
+2. 使用可用的工具获取更准确的信息
+3. 每个方案包含：行程安排、预算估算、亮点、预订链接
+4. 返回结构化的推荐结果
+
+返回格式（JSON）：
+{{
+    "output": "推荐方案文本",
+    "recommendations": {{
+        "plans": [
+            {{
+                "id": "plan_1",
+                "title": "方案标题",
+                "itinerary": [...],
+                "budget": {{...}},
+                "highlights": [...],
+                "booking_links": [...]
+            }}
+        ],
+        "rag_sources_used": [...],
+        "tools_used": [...]
+    }}
+}}"""
+
+        # 使用 create_react_agent 创建执行代理
+        agent = create_react_agent(llm, tools)
+        
+        # 调用 agent
+        result = await agent.ainvoke({
+            "messages": [HumanMessage(content=system_prompt)],
+            "recommend_plan": recommend_plan,
+            "collected_info": collected_info,
+            "search_results": search_results,
+            "user_content": user_content
+        })
+
+        # 解析结果
+        output_text = result.get("output", "")
+        
         # 尝试解析为 JSON
         import json
         try:
             recommendations = json.loads(output_text)
         except:
-            recommendations = {"raw": output_text, "recommendations": []}
+            recommendations = {"raw": output_text, "plans": []}
 
         # 缓存结果
         cache_strategy.cache_recommendations(
@@ -471,14 +783,14 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
         )
 
         return {
-            "messages": [result],
+            "messages": [AIMessage(content=output_text)],
             "usage": counter.dump(),
             "output": output_text,
             "recommendations": recommendations
         }
 
     except Exception as e:
-        logger.error(f"recommend_node failed: {e}")
+        logger.error(f"recommend_execute_agent_node failed: {e}")
         return {
             "messages": [AIMessage(content=f"Error: {e}")],
             "usage": {"prompt": 0, "completion": 0, "total": 0},
@@ -488,11 +800,20 @@ async def recommend_node(state: SubState) -> Dict[str, Any]:
 
 
 def build_recommend_graph() -> StateGraph:
-    """构建推荐子图"""
+    """构建推荐子图（两阶段流程）"""
     graph = StateGraph(SubState)
-    graph.add_node("recommend", recommend_node)
-    graph.add_edge("recommend", END)
-    graph.set_entry_point("recommend")
+    
+    # 添加两个节点：规划 + 执行
+    graph.add_node("recommend_plan", recommend_plan_node)
+    graph.add_node("recommend_execute", recommend_execute_agent_node)
+    
+    # 设置边：规划 -> 执行 -> 结束
+    graph.add_edge("recommend_plan", "recommend_execute")
+    graph.add_edge("recommend_execute", END)
+    
+    # 设置入口点
+    graph.set_entry_point("recommend_plan")
+    
     return graph.compile()
 
 
