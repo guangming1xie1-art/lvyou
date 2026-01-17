@@ -5,7 +5,7 @@
 - 第4层: 主工作流 StateGraph（按顺序执行4个子代理）
 - 第3层: call_subagent_node 工厂函数
 """
-from typing import Dict, Any, Sequence, Annotated, Optional
+from typing import Dict, Any, Sequence, Annotated, Optional, List
 import operator
 import logging
 
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # ============ MainState 定义（第4层）============
 
 class MainState(dict):
-    """主工作流状态"""
+    """主工作流状态（增强版，支持对话历史）"""
     messages: Sequence[BaseMessage]
     user_message: str
     collected_info: Optional[Dict]
@@ -37,18 +37,19 @@ class MainState(dict):
     booking_confirmation: Optional[Dict]
     usage: Annotated[Dict[str, int], operator.add]  # ← 自动累加
     final_response: Optional[str]
+    conversation_history: Annotated[List[Dict], operator.add]  # ← 新增：对话历史
 
 
 # ============ 第3层：call_subagent_node 工厂函数 ============
 
 def call_subagent_node(subagent_getter, output_key: str):
     """
-    工厂函数：创建调用子代理的节点
-    
+    工厂函数：创建调用子代理的节点（增强版，支持对话历史）
+
     Args:
         subagent_getter: 获取子代理的函数（懒加载）
         output_key: 输出数据存储的键名
-    
+
     Returns:
         节点函数
     """
@@ -56,33 +57,55 @@ def call_subagent_node(subagent_getter, output_key: str):
         try:
             # 获取子代理
             subagent = subagent_getter()
-            
+
             # 准备输入状态
             last_msg = state.get("messages", [])[-1] if state.get("messages") else None
             user_content = last_msg.content if last_msg else state.get("user_message", "")
-            
+
+            # 获取对话历史
+            conversation_history = state.get("conversation_history", [])
+
             input_state = {
                 "messages": [HumanMessage(content=user_content)],
                 "usage": {"prompt": 0, "completion": 0, "total": 0},
                 "collected_info": state.get("collected_info"),
                 "search_results": state.get("search_results"),
                 "recommendations": state.get("recommendations"),
+                "conversation_history": conversation_history,  # ← 传递对话历史
             }
-            
+
             # 调用子代理
             result = await subagent.ainvoke(input_state)
-            
+
             # 提取结果
             output = result.get("output", "")
             usage = result.get("usage", {"prompt": 0, "completion": 0, "total": 0})
             full_state = result.get("state", {})
-            
+
+            # 更新对话历史
+            new_history = []
+            # 添加用户消息
+            if user_content:
+                new_history.append({
+                    "role": "user",
+                    "content": user_content,
+                    "node": output_key,
+                })
+            # 添加 AI 回复
+            if output:
+                new_history.append({
+                    "role": "assistant",
+                    "content": output,
+                    "node": output_key,
+                })
+
             # 返回更新
             return_dict = {
                 "messages": [AIMessage(content=output)],
                 "usage": usage,  # ← 自动通过 operator.add 累加
+                "conversation_history": new_history,  # ← 更新对话历史
             }
-            
+
             # 根据 output_key 存储特定数据
             if output_key == "collected_info":
                 return_dict["collected_info"] = full_state.get("collected_info", {})
@@ -92,18 +115,19 @@ def call_subagent_node(subagent_getter, output_key: str):
                 return_dict["recommendations"] = full_state.get("recommendations", {})
             elif output_key == "booking_confirmation":
                 return_dict["booking_confirmation"] = full_state.get("booking_confirmation", {})
-            
+
             logger.info(f"Node '{output_key}' completed, usage: {usage}")
             return return_dict
-        
+
         except Exception as e:
             logger.error(f"Node '{output_key}' failed: {e}")
             return {
                 "messages": [AIMessage(content=f"Error in {output_key}: {e}")],
                 "usage": {"prompt": 0, "completion": 0, "total": 0},
+                "conversation_history": [],  # ← 出错时返回空历史
                 output_key: {"error": str(e)}
             }
-    
+
     return _node
 
 
@@ -189,10 +213,10 @@ def get_or_create_main_agent() -> Any:
 async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
     """
     异步运行主工作流
-    
+
     Args:
         user_message: 用户输入消息
-    
+
     Returns:
         {
             "collected_info": {...},
@@ -200,11 +224,12 @@ async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
             "recommendations": {...},
             "booking_confirmation": {...},
             "total_usage": {"prompt": ..., "completion": ..., "total": ...},
-            "messages": [...]
+            "messages": [...],
+            "conversation_history": [...]
         }
     """
     main_agent = get_or_create_main_agent()
-    
+
     initial_state = {
         "messages": [HumanMessage(content=user_message)],
         "user_message": user_message,
@@ -214,10 +239,11 @@ async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
         "booking_confirmation": None,
         "usage": {"prompt": 0, "completion": 0, "total": 0},
         "final_response": None,
+        "conversation_history": [],  # ← 初始化对话历史
     }
-    
+
     result = await main_agent.ainvoke(initial_state)
-    
+
     return {
         "collected_info": result.get("collected_info"),
         "search_results": result.get("search_results"),
@@ -226,6 +252,7 @@ async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
         "total_usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0}),
         "messages": result.get("messages", []),
         "final_response": result.get("final_response"),
+        "conversation_history": result.get("conversation_history", []),  # ← 返回对话历史
     }
 
 
