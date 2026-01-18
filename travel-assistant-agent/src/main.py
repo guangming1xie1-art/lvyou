@@ -4,8 +4,7 @@ FastAPI 主应用入口
 """
 from fastapi import FastAPI
 from pydantic import BaseModel
-from langchain_core.messages import HumanMessage
-from src.workflows.main_workflow import get_or_create_main_agent
+from src.workflows.main_workflow import run_main_workflow_async
 
 app = FastAPI()
 
@@ -15,15 +14,12 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     """唯一入口：接收用户消息，调用主代理"""
-    main_agent = get_or_create_main_agent()
-    result = await main_agent.ainvoke({
-        "messages": [HumanMessage(content=request.message)]
-    })
+    result = await run_main_workflow_async(request.message)
     
     return {
         "status": "success",
         "response": result.get("final_response", ""),
-        "total_usage": result.get("usage", {}),
+        "total_usage": result.get("total_usage", {}),
         "details": {
             "collected_info": result.get("collected_info", {}),
             "search_results": result.get("search_results", {}),
