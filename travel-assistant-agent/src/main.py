@@ -5,7 +5,7 @@ FastAPI 主应用入口
 from fastapi import FastAPI
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
-from src.workflows.main_workflow import main_agent
+from src.workflows.main_workflow import get_or_create_main_agent
 
 app = FastAPI()
 
@@ -15,6 +15,7 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     """唯一入口：接收用户消息，调用主代理"""
+    main_agent = get_or_create_main_agent()
     result = await main_agent.ainvoke({
         "messages": [HumanMessage(content=request.message)]
     })
