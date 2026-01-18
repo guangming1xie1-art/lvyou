@@ -11,7 +11,6 @@ import logging
 
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
-from langchain_openai import ChatOpenAI
 
 from deepagents import create_deep_agent
 from src.workflows.subagents import (
@@ -21,6 +20,7 @@ from src.workflows.subagents import (
     get_booking_agent,
 )
 from src.config import settings
+from src.llm.factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 
@@ -172,12 +172,7 @@ def get_or_create_main_agent() -> Any:
         logger.info("Creating main DeepAgent...")
         
         # 获取 LLM（可选，主要用于元数据）
-        llm = ChatOpenAI(
-            model=settings.llm_model if hasattr(settings, 'llm_model') else "qwen-turbo",
-            temperature=0,
-            api_key=settings.dashscope_api_key if hasattr(settings, 'dashscope_api_key') else None,
-            base_url=settings.dashscope_base_url if hasattr(settings, 'dashscope_base_url') else None,
-        )
+        llm = LLMFactory.create_model_by_tier(tier="cheap")
         
         # 构建主图
         main_runnable = build_main_graph()
@@ -185,6 +180,7 @@ def get_or_create_main_agent() -> Any:
         # 创建 DeepAgent
         _main_agent = create_deep_agent(
             model=llm,
+            runnable=main_runnable,
             subagents=[
                 get_info_collection_agent(),
                 get_search_agent(),
