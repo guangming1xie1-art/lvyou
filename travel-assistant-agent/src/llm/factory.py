@@ -69,42 +69,17 @@ class LLMFactory:
         api_key: str,
         **kwargs
     ) -> Any:
-        """创建具体的 LLM 实例"""
-        # 根据 provider 创建不同的实例
-        if config.provider.value == "claude":
-            # Anthropic Claude 需要使用原生 SDK
-            try:
-                from langchain_anthropic import ChatAnthropic
-                return ChatAnthropic(
-                    model=config.model_id,
-                    anthropic_api_key=api_key,
-                    temperature=kwargs.get("temperature", config.temperature),
-                    max_tokens=kwargs.get("max_tokens", config.max_tokens),
-                    top_p=kwargs.get("top_p", config.top_p),
-                )
-            except ImportError:
-                logger.warning("langchain_anthropic not available, using OpenAI-compatible interface")
-                # 降级使用 OpenAI 兼容接口
-                from langchain_openai import ChatOpenAI
-                return ChatOpenAI(
-                    model=config.model_id,
-                    base_url=config.base_url,
-                    api_key=api_key,
-                    temperature=kwargs.get("temperature", config.temperature),
-                    max_tokens=kwargs.get("max_tokens", config.max_tokens),
-                    top_p=kwargs.get("top_p", config.top_p),
-                )
-        else:
-            # OpenAI 兼容接口
-            from langchain_openai import ChatOpenAI
-            return ChatOpenAI(
-                model=config.model_id,
-                base_url=config.base_url,
-                api_key=api_key,
-                temperature=kwargs.get("temperature", config.temperature),
-                max_tokens=kwargs.get("max_tokens", config.max_tokens),
-                top_p=kwargs.get("top_p", config.top_p),
-            )
+        """创建LLM实例 - 统一使用OpenAI兼容接口"""
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=config.model_id,
+            base_url=config.base_url,
+            api_key=api_key,
+            temperature=kwargs.get("temperature", config.temperature),
+            max_tokens=kwargs.get("max_tokens", config.max_tokens),
+            top_p=kwargs.get("top_p", config.top_p),
+        )
 
     @classmethod
     def list_available_models(cls) -> List[str]:
