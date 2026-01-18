@@ -16,7 +16,8 @@ class TokenCounter(BaseCallbackHandler):
         self.prompt_tokens = 0
         self.completion_tokens = 0
         self.total_tokens = 0
-        
+        self.cached_tokens = 0  # ← 新增：缓存节省的 tokens
+    
     def on_llm_start(
         self, serialized: Dict[str, Any], prompts: list[str], **kwargs: Any
     ) -> None:
@@ -62,6 +63,10 @@ class TokenCounter(BaseCallbackHandler):
                 self.prompt_tokens += usage.get('input_tokens', 0)
             if 'output_tokens' in usage:
                 self.completion_tokens += usage.get('output_tokens', 0)
+            
+            # 统计缓存 tokens（阿里云 DashScope 格式）
+            if 'cached_tokens' in usage:
+                self.cached_tokens += usage.get('cached_tokens', 0)
     
     def on_llm_error(
         self, error: Exception, **kwargs: Any
@@ -83,6 +88,7 @@ class TokenCounter(BaseCallbackHandler):
         return {
             "prompt": self.prompt_tokens,
             "completion": self.completion_tokens,
+            "cached": self.cached_tokens,
             "total": self.total_tokens
         }
     
@@ -91,3 +97,4 @@ class TokenCounter(BaseCallbackHandler):
         self.prompt_tokens = 0
         self.completion_tokens = 0
         self.total_tokens = 0
+        self.cached_tokens = 0
