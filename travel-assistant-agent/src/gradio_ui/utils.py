@@ -97,6 +97,20 @@ def format_agent_response(response: str) -> str:
     # 如果响应包含markdown，Gradio会自动渲染
     return response
 
+
+def validate_multimedia_file(file_path: Optional[str], file_type: str) -> bool:
+    """验证多媒体文件
+    
+    Args:
+        file_path: 文件路径
+        file_type: 文件类型 ('image', 'audio', 'video')
+    
+    Returns:
+        是否有效
+    """
+    return MediaHandler.validate_file(file_path, file_type)
+
+
 # 为了向后兼容，保留一些可能被其他地方调用的函数名（如果必要）
 def create_chat_message(role, content):
     return {"role": role, "content": content}

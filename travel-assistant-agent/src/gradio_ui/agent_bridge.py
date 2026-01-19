@@ -1,28 +1,27 @@
-"""Agent桥接层，连接Gradio UI到LangGraph Agent"""
+"""Agent桥接层，连接Gradio UI到LangGraph工作流
+
+使用新的 deepagents CompiledSubAgent 架构
+"""
 
 from typing import Dict, Any, List, Optional
-import httpx
 from loguru import logger
 
+
 class AgentBridge:
-    """连接到Agent系统的桥接类"""
+    """Agent桥接类，直接调用本地工作流（不依赖HTTP）"""
     
-    def __init__(self, agent_url: str = "http://localhost:8000"):
-        """初始化Agent桥接
-        
-        Args:
-            agent_url: Agent服务的URL
-        """
-        self.agent_url = agent_url
-        self.http_client = httpx.AsyncClient(timeout=60.0)
+    def __init__(self):
+        """初始化Agent桥接"""
+        self.logger = logger
+        self.logger.info("AgentBridge initialized (local workflow mode)")
     
     async def chat(
         self, 
         user_input: str, 
         history: List[tuple],
         attachments: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """与Agent进行对话
+    ) -> Dict[str, Any]:
+        """与工作流进行对话
         
         Args:
             user_input: 用户输入的消息
@@ -30,9 +29,8 @@ class AgentBridge:
             attachments: 附件信息（图片、音频、视频等）
         
         Returns:
-            Agent的响应文本
+            工作流执行结果字典
         """
-        
         try:
             # 构建请求
             # 注意：history 是 (user, assistant) 元组列表
@@ -43,63 +41,57 @@ class AgentBridge:
                 if assistant_msg:
                     formatted_history.append({"role": "assistant", "content": assistant_msg})
 
-            payload = {
-                "message": user_input,
-                "conversation_history": formatted_history,
-                "attachments": attachments or {}
+            # 构建完整输入消息
+            full_message = user_input
+            if attachments:
+                attachment_info = ", ".join([f"{k}: {v}" for k, v in attachments.items()])
+                full_message = f"{user_input}\n\n[附件: {attachment_info}]"
+
+            self.logger.info(f"Calling workflow with message: {full_message[:100]}...")
+            
+            # 导入并调用工作流
+            from src.workflows.main_workflow import run_main_workflow_async
+            
+            result = await run_main_workflow_async(full_message)
+            
+            self.logger.info("Workflow completed successfully")
+            
+            return {
+                "response": result.get("final_response", "处理完成"),
+                "data": result
             }
-            
-            # 调用Agent API
-            logger.info(f"Calling Agent API at {self.agent_url}/agent/chat with payload: {payload}")
-            response = await self.http_client.post(
-                f"{self.agent_url}/agent/chat",
-                json=payload
-            )
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            logger.info(f"Agent response: {result}")
-            
-            # 处理统一响应格式 {code, message, data}
-            if isinstance(result, dict) and "data" in result:
-                data = result["data"]
-                return data.get("response", "Agent暂时没有回复")
-            
-            # 兼容原始格式
-            return result.get("response", "Agent暂时没有回复")
         
-        except httpx.TimeoutException:
-            logger.error("Agent请求超时")
-            return "Agent处理超时，请稍后重试"
-        except httpx.HTTPError as e:
-            logger.error(f"Agent请求失败: {e}")
-            if hasattr(e, 'response') and e.response:
-                logger.error(f"Response body: {e.response.text}")
-            return f"与Agent通信出错：{str(e)}"
+        except ImportError as e:
+            self.logger.error(f"导入工作流模块失败: {e}")
+            return {
+                "response": "系统配置错误，无法加载工作流模块",
+                "error": str(e)
+            }
         except Exception as e:
-            logger.error(f"发生意外错误: {e}")
-            return f"处理请求时发生错误: {str(e)}"
+            self.logger.error(f"工作流执行失败: {e}")
+            return {
+                "response": f"处理请求时出错: {str(e)}",
+                "error": str(e)
+            }
     
-    async def get_agent_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> Dict[str, Any]:
         """获取Agent的状态"""
-        try:
-            response = await self.http_client.get(f"{self.agent_url}/agent/status")
-            response.raise_for_status()
-            result = response.json()
-            # 处理统一响应格式
-            if isinstance(result, dict) and "data" in result:
-                return result["data"]
-            return result
-        except Exception as e:
-            logger.error(f"无法获取Agent状态: {e}")
-            return {"status": "offline"}
+        return {
+            "status": "online",
+            "mode": "local_workflow",
+            "architecture": "deepagents CompiledSubAgent"
+        }
     
     async def close(self):
-        """关闭HTTP客户端"""
-        await self.http_client.aclose()
+        """关闭连接（本地模式不需要）"""
+        self.logger.info("AgentBridge closed")
 
-# 全局Agent桥接实例
-# 注意：在实际应用中，agent_url 应该从配置中读取
-from config import settings
-agent_bridge = AgentBridge(agent_url=f"http://{settings.app_host}:{settings.app_port}")
+
+# 导出兼容的接口
+def get_agent_bridge() -> AgentBridge:
+    """获取AgentBridge单例"""
+    return agent_bridge
+
+
+# 创建全局实例（向后兼容）
+agent_bridge = AgentBridge()
