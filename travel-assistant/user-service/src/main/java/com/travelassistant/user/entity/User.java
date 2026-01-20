@@ -1,6 +1,5 @@
-package com.travelassistant.common.entity;
+package com.travelassistant.user.entity;
 
-import com.travelassistant.common.converter.JsonbConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -25,11 +24,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
-  @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private UUID id;
-
+public class User extends BaseEntity {
+  
   // 账户信息
   @Column(unique = true, nullable = false, length = 255)
   private String email;
@@ -43,14 +39,8 @@ public class User {
   private Map<String, Object> preferencesJson;
 
   // 审计字段
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private LocalDateTime createdAt;
-
   @Column(name = "created_by")
   private UUID createdBy;
-
-  @Column(name = "updated_at", nullable = false)
-  private LocalDateTime updatedAt;
 
   @Column(name = "updated_by")
   private UUID updatedBy;
@@ -58,10 +48,7 @@ public class User {
   // 业务逻辑
   @PrePersist
   protected void onCreate() {
-    LocalDateTime now = LocalDateTime.now();
-    createdAt = now;
-    updatedAt = now;
-
+    super.onCreate();
     if (preferencesJson == null) {
       preferencesJson = new HashMap<>();
     }
@@ -69,7 +56,7 @@ public class User {
 
   @PreUpdate
   protected void onUpdate() {
-    updatedAt = LocalDateTime.now();
+    super.onUpdate();
   }
 
   /**

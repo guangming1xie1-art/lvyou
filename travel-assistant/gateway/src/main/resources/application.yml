@@ -26,6 +26,36 @@ spring:
           lower-case-service-id: true
 
       routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+
+        - id: hotel-service
+          uri: lb://hotel-service
+          predicates:
+            - Path=/api/hotel/**
+
+        - id: flight-service
+          uri: lb://flight-service
+          predicates:
+            - Path=/api/flight/**
+
+        - id: attraction-service
+          uri: lb://attraction-service
+          predicates:
+            - Path=/api/attraction/**
+
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/booking/**
+
+        - id: recommendation-service
+          uri: lb://recommendation-service
+          predicates:
+            - Path=/api/recommendation/**
+
         - id: auth-service
           uri: lb://auth-service
           predicates:
@@ -45,6 +75,13 @@ spring:
           uri: lb://order-service
           predicates:
             - Path=/api/orders/**
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: GET,POST,PUT,DELETE,OPTIONS
+            allowedHeaders: "*"
 
 management:
   endpoints:

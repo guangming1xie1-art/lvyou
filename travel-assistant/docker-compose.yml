@@ -1,141 +1,213 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: travel-assistant-ms-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: travel_assistant
-    ports:
-      - '5433:5432'
-    volumes:
-      - postgres_ms_data:/var/lib/postgresql/data
-    networks:
-      - travel-network
-
+  # Nacos 配置中心和服务注册中心
   nacos:
-    image: nacos/nacos-server:v2.3.2
-    container_name: travel-assistant-nacos
-    environment:
-      MODE: standalone
-      PREFER_HOST_MODE: hostname
-      JVM_XMS: 256m
-      JVM_XMX: 256m
+    image: nacos/nacos-server:latest
+    container_name: nacos
     ports:
-      - '8848:8848'
+      - "8848:8848"
+    environment:
+      - MODE=standalone
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - MYSQL_SERVICE_HOST=postgres
+      - MYSQL_SERVICE_DB_NAME=nacos
+      - MYSQL_SERVICE_PORT=5432
+      - MYSQL_SERVICE_USER=postgres
+      - MYSQL_SERVICE_PASSWORD=password
+      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+    volumes:
+      - nacos-data:/home/nacos/data
+    depends_on:
+      - postgres
     networks:
-      - travel-network
+      - travel-assistant-network
 
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=travel_assistant
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - travel-assistant-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - travel-assistant-network
+
+  # API Gateway
   gateway:
     build:
-      context: .
-      dockerfile: gateway/Dockerfile
-    container_name: travel-assistant-gateway
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway
     ports:
-      - '8080:8080'
+      - "8080:8080"
     environment:
-      NACOS_ADDR: nacos:8848
+      - NACOS_ADDR=nacos:8848
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - nacos
     networks:
-      - travel-network
+      - travel-assistant-network
 
-  auth-service:
+  # User Service
+  user-service:
     build:
-      context: .
-      dockerfile: auth-service/Dockerfile
-    container_name: travel-assistant-auth-service
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
     ports:
-      - '8085:8081'
+      - "8083:8083"
     environment:
-      NACOS_ADDR: nacos:8848
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      APP_JWT_SECRET: dev-secret-key-please-change-32bytes-123456
-    depends_on:
-      - nacos
-      - postgres
-    networks:
-      - travel-network
-
-  travel-request-service:
-    build:
-      context: .
-      dockerfile: travel-request-service/Dockerfile
-    container_name: travel-assistant-travel-request-service
-    ports:
-      - '8082:8082'
-    environment:
-      NACOS_ADDR: nacos:8848
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=user_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - nacos
       - postgres
     networks:
-      - travel-network
+      - travel-assistant-network
 
-  travel-plan-service:
+  # Hotel Service
+  hotel-service:
     build:
-      context: .
-      dockerfile: travel-plan-service/Dockerfile
-    container_name: travel-assistant-travel-plan-service
+      context: ./hotel-service
+      dockerfile: Dockerfile
+    container_name: hotel-service
     ports:
-      - '8083:8083'
+      - "8081:8081"
     environment:
-      NACOS_ADDR: nacos:8848
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=hotel_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - nacos
       - postgres
     networks:
-      - travel-network
+      - travel-assistant-network
 
-  order-service:
+  # Flight Service
+  flight-service:
     build:
-      context: .
-      dockerfile: order-service/Dockerfile
-    container_name: travel-assistant-order-service
+      context: ./flight-service
+      dockerfile: Dockerfile
+    container_name: flight-service
     ports:
-      - '8084:8084'
+      - "8082:8082"
     environment:
-      NACOS_ADDR: nacos:8848
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=flight_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - nacos
       - postgres
     networks:
-      - travel-network
+      - travel-assistant-network
 
-  mcp-service:
+  # Attraction Service
+  attraction-service:
     build:
-      context: .
-      dockerfile: mcp-service/Dockerfile
-    container_name: travel-assistant-mcp-service
+      context: ./attraction-service
+      dockerfile: Dockerfile
+    container_name: attraction-service
     ports:
-      - '8081:8081'
+      - "8084:8084"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      AGENT_RAG_SYNC_URL: http://travel-assistant-agent:8000/api/rag/sync
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=attraction_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - SPRING_PROFILES_ACTIVE=docker
     depends_on:
+      - nacos
       - postgres
     networks:
-      - travel-network
+      - travel-assistant-network
 
-networks:
-  travel-network:
-    driver: bridge
-    name: travel-network
+  # Booking Service
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: Dockerfile
+    container_name: booking-service
+    ports:
+      - "8085:8085"
+    environment:
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=booking_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - nacos
+      - postgres
+    networks:
+      - travel-assistant-network
+
+  # Recommendation Service
+  recommendation-service:
+    build:
+      context: ./recommendation-service
+      dockerfile: Dockerfile
+    container_name: recommendation-service
+    ports:
+      - "8086:8086"
+    environment:
+      - NACOS_ADDR=nacos:8848
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - nacos
+    networks:
+      - travel-assistant-network
+
+  # Travel Assistant Agent
+  travel-assistant-agent:
+    build:
+      context: ../travel-assistant-agent
+      dockerfile: Dockerfile
+    container_name: travel-assistant-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - API_BASE_URL=http://gateway:8080
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - gateway
+    networks:
+      - travel-assistant-network
 
 volumes:
-  postgres_ms_data:
+  postgres-data:
+  nacos-data:
+  redis-data:
+
+networks:
+  travel-assistant-network:
+    driver: bridge
