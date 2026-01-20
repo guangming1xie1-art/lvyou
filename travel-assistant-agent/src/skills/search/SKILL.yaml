@@ -1,0 +1,308 @@
+name: search
+version: "1.0.0"
+category: search
+enabled: true
+
+description: |
+  根据用户需求搜索旅游目的地、酒店、航班等信息
+  支持多维度过滤和排序
+
+# 机器可读的输入参数定义（JSON Schema）
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: "搜索关键词"
+      minLength: 1
+      maxLength: 200
+    filters:
+      type: object
+      description: "可选的过滤条件"
+      properties:
+        budget:
+          type: object
+          description: "预算范围"
+          properties:
+            min:
+              type: number
+              minimum: 0
+            max:
+              type: number
+              minimum: 0
+            currency:
+              type: string
+              default: "CNY"
+        dates:
+          type: object
+          description: "日期范围"
+          properties:
+            check_in:
+              type: string
+              description: "入住日期 (YYYY-MM-DD)"
+            check_out:
+              type: string
+              description: "退房日期 (YYYY-MM-DD)"
+            departure:
+              type: string
+              description: "出发日期 (YYYY-MM-DD)"
+            return:
+              type: string
+              description: "返回日期 (YYYY-MM-DD)"
+        preferences:
+          type: array
+          description: "用户偏好标签"
+          items:
+            type: string
+        travelers_count:
+          type: integer
+          description: "旅行人数"
+          minimum: 1
+          default: 1
+        search_type:
+          type: string
+          description: "搜索类型"
+          enum: ["destination", "hotel", "flight", "all"]
+    limit:
+      type: integer
+      description: "返回结果数"
+      default: 10
+      minimum: 1
+      maximum: 100
+    offset:
+      type: integer
+      description: "分页偏移"
+      default: 0
+      minimum: 0
+  required: ["query"]
+
+# 输出格式定义（JSON Schema）
+output_schema:
+  type: object
+  properties:
+    results:
+      type: array
+      description: "搜索结果"
+      items:
+        type: object
+        properties:
+          id:
+            type: string
+            description: "结果ID"
+          type:
+            type: string
+            enum: ["destination", "hotel", "flight"]
+          name:
+            type: string
+            description: "名称"
+          country:
+            type: string
+            description: "国家（仅目的地）"
+          description:
+            type: string
+            description: "描述"
+          rating:
+            type: number
+            description: "评分（0-5）"
+            minimum: 0
+            maximum: 5
+          reviews_count:
+            type: integer
+            description: "评论数量"
+          price_range:
+            type: object
+            description: "价格范围（仅目的地）"
+            properties:
+              min:
+                type: number
+              max:
+                type: number
+              currency:
+                type: string
+          price:
+            type: number
+            description: "价格（酒店/航班）"
+          currency:
+            type: string
+            description: "货币代码"
+          amenities:
+            type: array
+            description: "设施列表（酒店）"
+            items:
+              type: string
+          popular_attractions:
+            type: array
+            description: "热门景点（目的地）"
+            items:
+              type: string
+          best_season:
+            type: array
+            description: "最佳季节（目的地）"
+            items:
+              type: string
+    total:
+      type: integer
+      description: "总结果数"
+    search_quality:
+      type: number
+      description: "搜索质量评分（0-1）"
+      minimum: 0
+      maximum: 1
+    filters_applied:
+      type: object
+      description: "应用的过滤条件"
+    metadata:
+      type: object
+      description: "元数据"
+      properties:
+        execution_time_ms:
+          type: integer
+        data_sources:
+          type: array
+          items:
+            type: string
+        mock:
+          type: boolean
+  required: ["results", "total"]
+
+# 动态成本计算
+cost:
+  base: 0.01
+  per_result: 0.001
+  formula: "base + min(results_count, 100) * per_result"
+  description: "基础费用加上每个结果的单位费用"
+
+# 性能指标
+performance:
+  avg_execution_time_ms: 500
+  p95_execution_time_ms: 1200
+  timeout_ms: 5000
+
+# 依赖管理
+dependencies: []
+
+# LLM 使用提示
+llm_hint: |
+  当用户要求搜索旅游信息时，使用此 skill。
+  确保提供明确的搜索关键词。
+  如果用户有预算限制，通过 filters.budget 传递。
+  如果用户对酒店、航班或目的地有特定偏好，使用 filters.preferences。
+  区分旅行人数和日期等重要参数。
+
+# 使用示例（用于 LLM few-shot）
+examples:
+  - input:
+      query: "杭州酒店"
+      filters:
+        budget:
+          max: 500
+          currency: "CNY"
+        preferences: ["湖景", "早餐"]
+      limit: 5
+    output:
+      results:
+        - id: "hotel_001"
+          type: "hotel"
+          name: "西湖假日酒店"
+          rating: 4.5
+          price: 380
+          currency: "CNY"
+          amenities: ["WiFi", "早餐", "游泳池"]
+      total: 25
+      search_quality: 0.9
+      metadata: {}
+  - input:
+      query: "上海飞杭州"
+      filters:
+        search_type: "flight"
+      limit: 10
+    output:
+      results:
+        - id: "flight_001"
+          type: "flight"
+          name: "东方航空 MU xxx"
+          price: 280
+          currency: "CNY"
+          rating: 4.2
+      total: 15
+      search_quality: 0.85
+      metadata: {}
+  - input:
+      query: "巴黎旅游"
+      filters:
+        budget:
+          min: 10000
+          max: 20000
+          currency: "CNY"
+        preferences: ["文化", "美食", "购物"]
+        travelers_count: 2
+      limit: 10
+    output:
+      results:
+        - id: "dest_001"
+          type: "destination"
+          name: "巴黎"
+          country: "法国"
+          description: "浪漫之都，拥有丰富的历史文化和美食"
+          rating: 4.8
+          reviews_count: 12500
+          price_range:
+            min: 10000
+            max: 20000
+            currency: "CNY"
+          popular_attractions: ["埃菲尔铁塔", "卢浮宫", "凯旋门"]
+          best_season: ["春季", "秋季"]
+      total: 42
+      search_quality: 0.92
+      metadata: {}
+  - input:
+      query: "东京经济型酒店"
+      filters:
+        budget:
+          max: 300
+          currency: "USD"
+        dates:
+          check_in: "2024-06-01"
+          check_out: "2024-06-05"
+        search_type: "hotel"
+      limit: 8
+    output:
+      results:
+        - id: "hotel_tokyo_001"
+          type: "hotel"
+          name: "东京商务酒店"
+          rating: 4.0
+          price: 250
+          currency: "USD"
+          amenities: ["WiFi", "商务中心", "早餐"]
+      total: 12
+      search_quality: 0.88
+      metadata: {}
+  - input:
+      query: "马尔代夫蜜月游"
+      filters:
+        budget:
+          min: 20000
+          max: 50000
+          currency: "CNY"
+        preferences: ["海滩", "蜜月", "奢华"]
+        search_type: "destination"
+      limit: 5
+    output:
+      results:
+        - id: "dest_maldives_001"
+          type: "destination"
+          name: "马尔代夫"
+          country: "马尔代夫"
+          description: "印度洋上的珍珠，完美的蜜月圣地"
+          rating: 4.9
+          reviews_count: 8900
+          price_range:
+            min: 25000
+            max: 45000
+            currency: "CNY"
+          popular_attractions: ["水上屋", "珊瑚礁", "潜水点"]
+          best_season: ["11月-4月"]
+      total: 8
+      search_quality: 0.95
+      metadata: {}
