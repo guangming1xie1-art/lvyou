@@ -17,6 +17,9 @@ from .common import (
     SubState, cache_strategy, get_tools_and_skills_text, 
     build_search_tools
 )
+from src.agents.mcp_client import get_mcp_client
+from src.rag.retriever import HybridRetriever
+from .hybrid_retrieval import hybrid_rank
 
 
 async def search_plan_node(state: SubState) -> Dict[str, Any]:
@@ -233,12 +236,35 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     
     # 5️⃣ 构建工具
     tools = await build_search_tools(search_plan)
-    
+
     # 6️⃣ 执行逻辑
+    # Step 1: Java MCP 查询原始数据
+    mcp_client = get_mcp_client()
+    raw_hotels_resp = await mcp_client.call_tool(
+        "search_hotels",
+        destination=search_plan.get("destination"),
+        price_min=collected_info.get("budget_min", 0),
+        price_max=collected_info.get("budget_max", 1000000),
+        rating_min=4.0
+    )
+    raw_hotels = raw_hotels_resp.get("data", []) if isinstance(raw_hotels_resp.get("data"), list) else []
+
+    # Step 2: RAG 混合检索
+    hybrid_retriever = HybridRetriever()
+    rag_query = f"{search_plan.get('destination')} {', '.join(search_plan.get('rag_search_keywords', []))}"
+    rag_docs = await hybrid_retriever.aretrieve(rag_query, k=50)
+
+    # Step 3: 混合排序
+    ranked_hotels = hybrid_rank(raw_hotels, rag_docs, search_plan)
+
     user_query = f"""请执行以下搜索任务：
 搜索计划：{json.dumps(search_plan, ensure_ascii=False)}
 用户信息：{json.dumps(collected_info, ensure_ascii=False)}
-用户原始请求：{user_content}"""
+用户原始请求：{user_content}
+
+## 已获取的优质酒店（经过混合排序）：
+{json.dumps(ranked_hotels[:5], ensure_ascii=False, indent=2)}
+"""
 
     try:
         agent = create_react_agent(llm, tools)

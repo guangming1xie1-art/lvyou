@@ -48,7 +48,7 @@ services:
       dockerfile: auth-service/Dockerfile
     container_name: travel-assistant-auth-service
     ports:
-      - '8081:8081'
+      - '8085:8081'
     environment:
       NACOS_ADDR: nacos:8848
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
@@ -111,6 +111,23 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
     depends_on:
       - nacos
+      - postgres
+    networks:
+      - travel-network
+
+  mcp-service:
+    build:
+      context: .
+      dockerfile: mcp-service/Dockerfile
+    container_name: travel-assistant-mcp-service
+    ports:
+      - '8081:8081'
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      AGENT_RAG_SYNC_URL: http://travel-assistant-agent:8000/api/rag/sync
+    depends_on:
       - postgres
     networks:
       - travel-network

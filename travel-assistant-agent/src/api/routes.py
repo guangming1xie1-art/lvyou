@@ -22,6 +22,7 @@ from ..security import rate_limiter, audit_logger
 from ..auth.models import User
 from ..cache import RedisCache, CacheManager
 from ..config import settings
+from ..workflows.subgraphs.common import knowledge_base
 
 
 # Create API routers
@@ -29,6 +30,7 @@ from ..config import settings
 # - chat_router: unified conversation entry
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 chat_router = APIRouter(tags=["chat"])
+rag_router = APIRouter(prefix="/api/rag", tags=["rag"])
 
 _conversation_agent: Optional[ConversationAgent] = None
 
@@ -38,6 +40,37 @@ def get_conversation_agent() -> ConversationAgent:
     if _conversation_agent is None:
         _conversation_agent = ConversationAgent()
     return _conversation_agent
+
+
+# ============== RAG Synchronization ==============
+
+@rag_router.post("/sync")
+async def sync_rag_documents(request: Dict[str, Any]):
+    """
+    Synchronize documents from Java MCP to Python Agent RAG
+    """
+    documents = request.get("documents", [])
+    if not documents:
+        return {"status": "success", "count": 0, "message": "No documents provided"}
+    
+    try:
+        from langchain.schema import Document
+        docs_to_add = []
+        for doc in documents:
+            content = doc.get("content", "")
+            metadata = doc.get("metadata", {})
+            if content:
+                docs_to_add.append(Document(page_content=content, metadata=metadata))
+        
+        if docs_to_add:
+            knowledge_base.add_documents(docs_to_add)
+            app_logger.info(f"Synchronized {len(docs_to_add)} documents to RAG")
+            
+        return {"status": "success", "count": len(docs_to_add)}
+    except Exception as e:
+        app_logger.error(f"RAG sync failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Initialize cache
 redis_cache = None

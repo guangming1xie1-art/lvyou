@@ -5,8 +5,14 @@ FastAPI 主应用入口
 from fastapi import FastAPI
 from pydantic import BaseModel
 from src.workflows.main_workflow import run_main_workflow_async
+from src.api.routes import router, chat_router, rag_router
 
-app = FastAPI()
+app = FastAPI(title="Travel Assistant Agent API", version="2.0.0")
+
+# Register routers
+app.include_router(router)
+app.include_router(chat_router)
+app.include_router(rag_router)
 
 class ChatRequest(BaseModel):
     message: str
