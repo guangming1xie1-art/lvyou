@@ -1,297 +1,242 @@
 -- =============================================================================
 -- Travel Assistant Database Schema
--- 数据库初始化脚本 - 包含核心表结构
--- =============================================================================
--- 创建时间: 2025-01-20
--- 版本: v1.0.0
--- 描述: travel-assistant 项目的核心数据库表结构
+-- 统一数据库 Schema 与 Java 实体类字段定义（PostgreSQL）
+--
+-- 说明：
+-- 1) 本脚本聚焦核心业务实体：users / hotels / flights / attractions
+-- 2) 所有表均包含审计字段 created_at/created_by/updated_at/updated_by
+-- 3) updated_at 通过触发器在 UPDATE 时自动刷新
+-- 4) JSON 字段使用 JSONB，配合应用侧 JsonbConverter 进行序列化/反序列化
 -- =============================================================================
 
--- 启用必要的 PostgreSQL 扩展
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "citext";
+-- 启用 gen_random_uuid()（PostgreSQL pgcrypto 扩展）
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- =============================================================================
--- 1. 用户表 (users)
--- 用户基础信息和偏好设置
+-- 通用函数：自动维护 updated_at
+-- =============================================================================
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =============================================================================
+-- 表 1：users - 用户表
+-- 用于登录与个性化推荐（偏好 JSON）
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS users (
-    -- 基础字段
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email CITEXT UNIQUE NOT NULL,                    -- 邮箱 (唯一，支持大小写不敏感)
-    username VARCHAR(100) UNIQUE NOT NULL,           -- 用户名 (唯一)
-    password_hash VARCHAR(255) NOT NULL,             -- 密码哈希
-    
-    -- 个人信息
-    full_name VARCHAR(255),                          -- 全名
-    
-    -- 用户偏好设置
-    preferences_json JSONB,                          -- 用户偏好 (JSON格式)
-    travel_style VARCHAR(50) DEFAULT 'relaxed',      -- 旅游风格: relaxed, adventure, cultural
-    budget_level VARCHAR(50) DEFAULT 'mid',          -- 预算等级: luxury, mid, budget
-    
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP WITH TIME ZONE              -- 最后登录时间
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 账户信息
+  email VARCHAR(255) NOT NULL UNIQUE,
+  username VARCHAR(100) NOT NULL UNIQUE,
+
+  -- 用户偏好（用于个性化推荐）
+  -- 示例：{"budget_level":"mid","travel_style":"adventure","preferred_destinations":["Paris"],"interests":["beach"]}
+  preferences_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL
 );
 
--- 用户表索引
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+-- users 索引（唯一约束已自动生成索引；此处为查询场景补充/显式声明）
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
-CREATE INDEX IF NOT EXISTS idx_users_travel_style ON users(travel_style);
-CREATE INDEX IF NOT EXISTS idx_users_budget_level ON users(budget_level);
+
+COMMENT ON TABLE users IS '用户表：用于登录与个性化推荐（preferences_json）';
+COMMENT ON COLUMN users.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON COLUMN users.email IS '用户邮箱：唯一且必填，用于登录';
+COMMENT ON COLUMN users.username IS '用户名：唯一且必填（展示/登录标识之一）';
+COMMENT ON COLUMN users.preferences_json IS '用户偏好 JSON：预算/风格/兴趣/偏好目的地等，用于推荐';
+COMMENT ON COLUMN users.created_at IS '创建时间：记录第一次创建时间';
+COMMENT ON COLUMN users.created_by IS '创建者用户ID：通常为自己或管理员；系统导入可为空；外键到 users.id';
+COMMENT ON COLUMN users.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
+COMMENT ON COLUMN users.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
 
 -- =============================================================================
--- 2. 酒店表 (hotels)
--- 酒店基础信息和价格库存
+-- 表 2：hotels - 酒店表
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS hotels (
-    -- 基础字段
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,                      -- 酒店名称
-    destination VARCHAR(100) NOT NULL,              -- 目的地
-    
-    -- 价格和评分
-    price DECIMAL(10,2) NOT NULL,                   -- 价格 (每晚)
-    rating DECIMAL(3,1) CHECK (rating >= 0 AND rating <= 5),  -- 评分 (0-5)
-    
-    -- 详细信息
-    description TEXT,                               -- 酒店描述
-    facilities JSONB,                               -- 设施列表 (JSON数组)
-    
-    -- 入住时间
-    check_in_time TIME DEFAULT '15:00:00',          -- 入住时间
-    check_out_time TIME DEFAULT '11:00:00',         -- 退房时间
-    
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 酒店信息
+  name VARCHAR(255) NOT NULL,
+  destination VARCHAR(100) NOT NULL,
+
+  -- 价格与评分
+  price NUMERIC(10,2) NOT NULL,
+  rating NUMERIC(2,1) NOT NULL DEFAULT 0.0,
+
+  -- 介绍与设施
+  description TEXT,
+  facilities JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  -- 日期字段（业务中通常来自搜索参数，可为空以便存储基础酒店信息）
+  check_in_date DATE,
+  check_out_date DATE,
+
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+
+  CONSTRAINT chk_hotels_rating_range CHECK (rating >= 0 AND rating <= 5)
 );
 
--- 酒店表索引
+-- hotels 索引
 CREATE INDEX IF NOT EXISTS idx_hotels_destination ON hotels(destination);
-CREATE INDEX IF NOT EXISTS idx_hotels_price ON hotels(price);
+CREATE INDEX IF NOT EXISTS idx_hotels_destination_price ON hotels(destination, price);
 CREATE INDEX IF NOT EXISTS idx_hotels_rating ON hotels(rating);
 CREATE INDEX IF NOT EXISTS idx_hotels_created_at ON hotels(created_at);
-CREATE INDEX IF NOT EXISTS idx_hotels_destination_price ON hotels(destination, price);
-CREATE INDEX IF NOT EXISTS idx_hotels_destination_rating ON hotels(destination, rating);
+
+COMMENT ON TABLE hotels IS '酒店表：酒店基础信息、价格与设施；check_in/out_date 通常来自搜索参数';
+COMMENT ON COLUMN hotels.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON COLUMN hotels.name IS '酒店名称：必填，最长 255';
+COMMENT ON COLUMN hotels.destination IS '目的地城市：必填，最长 100，用于检索与聚合（建立索引）';
+COMMENT ON COLUMN hotels.price IS '每晚价格：NUMERIC(10,2)，精确到分（¥/晚）';
+COMMENT ON COLUMN hotels.rating IS '酒店评分：0-5，精度 0.1；默认 0；带范围校验';
+COMMENT ON COLUMN hotels.description IS '酒店介绍：详细描述（可为空）';
+COMMENT ON COLUMN hotels.facilities IS '设施列表：JSON 数组，例如 ["WiFi","Pool","Gym"]';
+COMMENT ON COLUMN hotels.check_in_date IS '入住日期：通常由用户搜索条件产生；可用于缓存/记录最近一次搜索结果';
+COMMENT ON COLUMN hotels.check_out_date IS '退住日期：通常由用户搜索条件产生；可用于缓存/记录最近一次搜索结果';
+COMMENT ON COLUMN hotels.created_at IS '创建时间：记录第一次创建时间';
+COMMENT ON COLUMN hotels.created_by IS '创建者用户ID：系统导入可为空；外键到 users.id';
+COMMENT ON COLUMN hotels.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
+COMMENT ON COLUMN hotels.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
 
 -- =============================================================================
--- 3. 航班表 (flights)
--- 航班信息和价格库存
+-- 表 3：flights - 航班表
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS flights (
-    -- 基础字段
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    origin VARCHAR(100) NOT NULL,                   -- 出发地
-    destination VARCHAR(100) NOT NULL,              -- 目的地
-    
-    -- 日期和时间
-    departure_date DATE NOT NULL,                  -- 出发日期
-    return_date DATE,                               -- 返回日期 (可选，单程为NULL)
-    departure_time TIME NOT NULL,                  -- 出发时间
-    arrival_time TIME NOT NULL,                    -- 到达时间
-    
-    -- 价格和库存
-    price DECIMAL(10,2) NOT NULL,                  -- 价格
-    available_seats INTEGER DEFAULT 0,             -- 可用座位数
-    
-    -- 航班详情
-    airline VARCHAR(100) NOT NULL,                 -- 航空公司
-    flight_number VARCHAR(50) NOT NULL,            -- 航班号
-    duration_minutes INTEGER NOT NULL,              -- 飞行时长 (分钟)
-    
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 航线信息
+  origin VARCHAR(100) NOT NULL,
+  destination VARCHAR(100) NOT NULL,
+
+  -- 日期
+  departure_date DATE NOT NULL,
+  return_date DATE,
+
+  -- 价格与航空公司
+  price NUMERIC(10,2) NOT NULL,
+  airline VARCHAR(100) NOT NULL,
+
+  -- 飞行时长（分钟）
+  duration INTEGER,
+
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+
+  CONSTRAINT chk_flights_duration_non_negative CHECK (duration IS NULL OR duration >= 0)
 );
 
--- 航班表索引
-CREATE INDEX IF NOT EXISTS idx_flights_origin_destination ON flights(origin, destination);
+-- flights 索引
+CREATE INDEX IF NOT EXISTS idx_flights_route ON flights(origin, destination);
 CREATE INDEX IF NOT EXISTS idx_flights_departure_date ON flights(departure_date);
-CREATE INDEX IF NOT EXISTS idx_flights_price ON flights(price);
-CREATE INDEX IF NOT EXISTS idx_flights_airline ON flights(airline);
+CREATE INDEX IF NOT EXISTS idx_flights_route_departure_date ON flights(origin, destination, departure_date);
 CREATE INDEX IF NOT EXISTS idx_flights_created_at ON flights(created_at);
-CREATE INDEX IF NOT EXISTS idx_flights_route_date ON flights(origin, destination, departure_date);
+
+COMMENT ON TABLE flights IS '航班表：航线、出发/返回日期、价格、航空公司及时长';
+COMMENT ON COLUMN flights.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON COLUMN flights.origin IS '出发城市代码/名称：必填，如 "Shanghai" 或 "SHA"';
+COMMENT ON COLUMN flights.destination IS '目的地城市代码/名称：必填';
+COMMENT ON COLUMN flights.departure_date IS '出发日期：必填；常用搜索条件（建立索引）';
+COMMENT ON COLUMN flights.return_date IS '返回日期：可为空；单程航班为 NULL，用于往返航班';
+COMMENT ON COLUMN flights.price IS '单人票价：NUMERIC(10,2)，精确到分';
+COMMENT ON COLUMN flights.airline IS '航空公司名称：必填，如 "China Eastern"';
+COMMENT ON COLUMN flights.duration IS '飞行时长：单位分钟，如 120 表示 2 小时；可为空';
+COMMENT ON COLUMN flights.created_at IS '创建时间：记录第一次创建时间';
+COMMENT ON COLUMN flights.created_by IS '创建者用户ID：外键到 users.id，可为空';
+COMMENT ON COLUMN flights.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
+COMMENT ON COLUMN flights.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
 
 -- =============================================================================
--- 4. 景点表 (attractions)
--- 旅游景点信息和评价
+-- 表 4：attractions - 景点表
+-- tags 为核心字段（JSON 数组），配合 GIN 索引进行标签检索
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS attractions (
-    -- 基础字段
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    destination VARCHAR(100) NOT NULL,              -- 目的地
-    name VARCHAR(255) NOT NULL,                      -- 景点名称
-    
-    -- 分类和评价
-    category VARCHAR(50) NOT NULL,                  -- 分类: museum, park, historic, food, entertainment, etc.
-    rating DECIMAL(3,1) CHECK (rating >= 0 AND rating <= 5),  -- 评分 (0-5)
-    
-    -- 详细信息
-    description TEXT,                               -- 景点描述
-    opening_hours VARCHAR(100),                     -- 营业时间 (文本格式)
-    ticket_price DECIMAL(10,2),                     -- 门票价格
-    
-    -- 地理位置
-    latitude DECIMAL(10,8),                        -- 纬度
-    longitude DECIMAL(11,8),                       -- 经度
-    
-    -- 联系信息
-    phone VARCHAR(20),                              -- 电话
-    website VARCHAR(500),                           -- 网站
-    
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 基本信息
+  destination VARCHAR(100) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+
+  -- 分类与评分
+  category VARCHAR(50),
+  description TEXT,
+  rating NUMERIC(2,1) NOT NULL DEFAULT 0.0,
+  opening_hours VARCHAR(100),
+
+  -- 核心字段：标签数组（JSON）
+  -- 示例：夏季海滩 ["summer","beach","family","swimming"]
+  --       冬季滑雪 ["winter","skiing","snow","adventure"]
+  tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+
+  CONSTRAINT chk_attractions_rating_range CHECK (rating >= 0 AND rating <= 5)
 );
 
--- 景点表索引
+-- attractions 索引
 CREATE INDEX IF NOT EXISTS idx_attractions_destination ON attractions(destination);
 CREATE INDEX IF NOT EXISTS idx_attractions_category ON attractions(category);
 CREATE INDEX IF NOT EXISTS idx_attractions_rating ON attractions(rating);
-CREATE INDEX IF NOT EXISTS idx_attractions_name ON attractions(name);
 CREATE INDEX IF NOT EXISTS idx_attractions_created_at ON attractions(created_at);
-CREATE INDEX IF NOT EXISTS idx_attractions_destination_category ON attractions(destination, category);
-CREATE INDEX IF NOT EXISTS idx_attractions_destination_rating ON attractions(destination, rating);
+
+-- ⭐ tags 查询加速：GIN 索引
+CREATE INDEX IF NOT EXISTS idx_attractions_tags_gin ON attractions USING GIN (tags);
+
+COMMENT ON TABLE attractions IS '景点表：景点信息、评分与标签（tags）用于分类/搜索/推荐';
+COMMENT ON COLUMN attractions.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON COLUMN attractions.destination IS '景点所在城市：必填；常用搜索条件（建立索引）';
+COMMENT ON COLUMN attractions.name IS '景点名称：必填，最长 255';
+COMMENT ON COLUMN attractions.category IS '景点分类：如 Museum/Park/Historic/Food/Beach 等（建立索引）';
+COMMENT ON COLUMN attractions.description IS '景点详细介绍：可为空';
+COMMENT ON COLUMN attractions.rating IS '景点评分：0-5；默认 0；可用于排序/过滤（建立索引）';
+COMMENT ON COLUMN attractions.opening_hours IS '营业时间：如 "09:00-18:00" 或 "09:00-18:00, 周一休息"';
+COMMENT ON COLUMN attractions.tags IS '核心字段：景点标签数组（JSONB），用于分类、搜索与 RAG/推荐；使用 GIN 索引加速';
+COMMENT ON COLUMN attractions.created_at IS '创建时间：记录第一次创建时间';
+COMMENT ON COLUMN attractions.created_by IS '创建者用户ID：外键到 users.id，可为空';
+COMMENT ON COLUMN attractions.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
+COMMENT ON COLUMN attractions.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
 
 -- =============================================================================
--- 5. RAG 知识库表 (rag_documents) - 可选
--- 用于存储AI助手的知识库文档和向量数据
+-- 触发器：维护 updated_at
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS rag_documents (
-    -- 基础字段
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    entity_type VARCHAR(50) NOT NULL,               -- 实体类型: hotel, attraction, flight, guide
-    entity_id UUID,                                 -- 关联的实体ID
-    
-    -- 文档内容
-    content TEXT NOT NULL,                         -- 文档内容
-    
-    -- 向量数据 (需要 pgvector 扩展)
-    embedding VECTOR(384),                          -- 向量嵌入 (384维)
-    
-    -- 元数据
-    source VARCHAR(100),                           -- 来源: review, wiki, user_guide, official
-    metadata JSONB,                                -- 额外元数据
-    
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+DROP TRIGGER IF EXISTS trg_set_updated_at_users ON users;
+CREATE TRIGGER trg_set_updated_at_users
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
 
--- RAG文档表索引
-CREATE INDEX IF NOT EXISTS idx_rag_documents_entity_type ON rag_documents(entity_type);
-CREATE INDEX IF NOT EXISTS idx_rag_documents_entity_id ON rag_documents(entity_id);
-CREATE INDEX IF NOT EXISTS idx_rag_documents_source ON rag_documents(source);
-CREATE INDEX IF NOT EXISTS idx_rag_documents_created_at ON rag_documents(created_at);
-CREATE INDEX IF NOT EXISTS idx_rag_documents_embedding ON rag_documents USING ivfflat (embedding vector_cosine_ops);
+DROP TRIGGER IF EXISTS trg_set_updated_at_hotels ON hotels;
+CREATE TRIGGER trg_set_updated_at_hotels
+BEFORE UPDATE ON hotels
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
 
--- =============================================================================
--- 6. 审计日志表 (audit_logs) - 可选
--- 记录系统操作日志，用于审计和分析
--- =============================================================================
-CREATE TABLE IF NOT EXISTS audit_logs (
-    -- 基础字段
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID,                                   -- 用户ID (可为NULL，匿名操作)
-    
-    -- 操作信息
-    action VARCHAR(100) NOT NULL,                  -- 操作类型: search, book, recommend, login, etc.
-    resource_type VARCHAR(50),                      -- 资源类型
-    resource_id UUID,                              -- 资源ID
-    
-    -- 详细信息
-    details JSONB,                                 -- 操作详情 (JSON格式)
-    ip_address INET,                               -- IP地址
-    user_agent TEXT,                               -- 用户代理
-    
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+DROP TRIGGER IF EXISTS trg_set_updated_at_flights ON flights;
+CREATE TRIGGER trg_set_updated_at_flights
+BEFORE UPDATE ON flights
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
 
--- 审计日志表索引
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_resource_type ON audit_logs(resource_type);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_ip_address ON audit_logs(ip_address);
-
--- =============================================================================
--- 触发器函数: 自动更新 updated_at 字段
--- =============================================================================
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- 为需要的表创建触发器
-CREATE TRIGGER update_users_updated_at 
-    BEFORE UPDATE ON users 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_hotels_updated_at 
-    BEFORE UPDATE ON hotels 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_flights_updated_at 
-    BEFORE UPDATE ON flights 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_attractions_updated_at 
-    BEFORE UPDATE ON attractions 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_rag_documents_updated_at 
-    BEFORE UPDATE ON rag_documents 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- =============================================================================
--- 注释和说明
--- =============================================================================
-
--- 表关系说明:
--- 1. users: 用户基础表，所有用户相关数据的主表
--- 2. hotels: 酒店信息表，存储酒店基础信息
--- 3. flights: 航班信息表，存储航班路线和时间信息  
--- 4. attractions: 景点信息表，存储旅游景点数据
--- 5. rag_documents: RAG知识库表，存储AI助手使用的向量数据
--- 6. audit_logs: 审计日志表，记录系统操作历史
-
--- 索引策略:
--- 1. 所有主键和外键字段都有索引
--- 2. 常用查询字段创建了复合索引
--- 3. 地理位置查询支持 (lat/lng)
--- 4. 时间范围查询优化 (created_at, departure_date)
-
--- 数据类型选择:
--- 1. UUID 作为主键，避免ID泄露
--- 2. JSONB 存储灵活的配置和偏好数据
--- 3. DECIMAL 用于精确的金钱计算
--- 4. TIMESTAMP WITH TIME ZONE 统一时区处理
-
--- 安全考虑:
--- 1. 密码只存储哈希值
--- 2. 邮箱和用户名唯一性约束
--- 3. 评分字段范围检查约束
--- 4. 敏感操作记录审计日志
-
--- 性能优化:
--- 1. 合理的索引策略
--- 2. 向量检索优化 (IVFFlat索引)
--- 3. 分区准备 (按日期分区用于大数据量场景)
-
--- 扩展性:
--- 1. JSON字段支持灵活扩展
--- 2. 模块化设计便于后续添加新功能
--- 3. 标准化命名规范便于维护
-
--- =============================================================================
--- 初始化完成
--- =============================================================================
+DROP TRIGGER IF EXISTS trg_set_updated_at_attractions ON attractions;
+CREATE TRIGGER trg_set_updated_at_attractions
+BEFORE UPDATE ON attractions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
