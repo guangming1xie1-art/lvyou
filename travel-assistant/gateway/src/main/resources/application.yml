@@ -61,21 +61,6 @@ spring:
           predicates:
             - Path=/api/auth/**
 
-        - id: travel-request-service
-          uri: lb://travel-request-service
-          predicates:
-            - Path=/api/requests/**
-
-        - id: travel-plan-service
-          uri: lb://travel-plan-service
-          predicates:
-            - Path=/api/plans/**
-
-        - id: order-service
-          uri: lb://order-service
-          predicates:
-            - Path=/api/orders/**
-
       globalcors:
         corsConfigurations:
           '[/**]':

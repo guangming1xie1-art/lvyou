@@ -16,9 +16,6 @@ travel-assistant/
 ├── attraction-service/      # 景点推荐服务
 ├── booking-service/         # 预订服务
 ├── recommendation-service/  # 智能推荐服务
-├── travel-request-service/  # 行程需求服务
-├── travel-plan-service/     # 行程规划服务
-├── order-service/           # 订单服务
 └── docker-compose.yml       # Nacos + PostgreSQL + 各微服务编排
 ```
 
@@ -34,9 +31,6 @@ travel-assistant/
 - **attraction-service** - 景点推荐服务 (8085)
 - **booking-service** - 预订服务 (8086)
 - **recommendation-service** - 智能推荐服务 (8087)
-- **travel-request-service** - 行程需求服务 (8088)
-- **travel-plan-service** - 行程规划服务 (8089)
-- **order-service** - 订单服务 (8090)
 
 所有服务通过 Nacos 进行服务注册与发现，支持动态配置管理。
 
