@@ -12,17 +12,16 @@
   <modules>
     <module>common</module>
     <module>gateway</module>
+    <module>auth-service</module>
     <module>user-service</module>
     <module>hotel-service</module>
     <module>flight-service</module>
     <module>attraction-service</module>
     <module>booking-service</module>
     <module>recommendation-service</module>
-    <module>auth-service</module>
     <module>travel-request-service</module>
     <module>travel-plan-service</module>
     <module>order-service</module>
-    <module>mcp-service</module>
   </modules>
 
   <properties>
