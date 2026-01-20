@@ -1,6 +1,6 @@
-package com.travelassistant.common.entity;
+package com.travelassistant.attraction.entity;
 
-import com.travelassistant.common.converter.JsonbConverter;
+import com.travelassistant.attraction.converter.JsonbConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -24,11 +24,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Attraction {
-  @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private UUID id;
-
+public class Attraction extends BaseEntity {
+  
   // 基本信息
   @Column(nullable = false, length = 100)
   private String destination;
@@ -54,14 +51,8 @@ public class Attraction {
   private List<String> tags; // ["summer", "beach", "family"] 或 ["winter", "skiing"]
 
   // 审计字段
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private LocalDateTime createdAt;
-
   @Column(name = "created_by")
   private UUID createdBy;
-
-  @Column(name = "updated_at", nullable = false)
-  private LocalDateTime updatedAt;
 
   @Column(name = "updated_by")
   private UUID updatedBy;
@@ -69,10 +60,7 @@ public class Attraction {
   // 业务逻辑
   @PrePersist
   protected void onCreate() {
-    LocalDateTime now = LocalDateTime.now();
-    createdAt = now;
-    updatedAt = now;
-
+    super.onCreate();
     if (rating == null) {
       rating = BigDecimal.ZERO;
     }
@@ -83,7 +71,7 @@ public class Attraction {
 
   @PreUpdate
   protected void onUpdate() {
-    updatedAt = LocalDateTime.now();
+    super.onUpdate();
   }
 
   /**

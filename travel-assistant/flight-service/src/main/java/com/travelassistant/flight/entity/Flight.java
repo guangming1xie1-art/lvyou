@@ -1,4 +1,4 @@
-package com.travelassistant.common.entity;
+package com.travelassistant.flight.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,11 +21,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Flight {
-  @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private UUID id;
-
+public class Flight extends BaseEntity {
+  
   // 航线信息
   @Column(nullable = false, length = 100)
   private String origin;
@@ -52,14 +49,8 @@ public class Flight {
   private Integer duration;
 
   // 审计字段
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private LocalDateTime createdAt;
-
   @Column(name = "created_by")
   private UUID createdBy;
-
-  @Column(name = "updated_at", nullable = false)
-  private LocalDateTime updatedAt;
 
   @Column(name = "updated_by")
   private UUID updatedBy;
@@ -67,14 +58,12 @@ public class Flight {
   // 业务逻辑
   @PrePersist
   protected void onCreate() {
-    LocalDateTime now = LocalDateTime.now();
-    createdAt = now;
-    updatedAt = now;
+    super.onCreate();
   }
 
   @PreUpdate
   protected void onUpdate() {
-    updatedAt = LocalDateTime.now();
+    super.onUpdate();
   }
 
   // 业务方法

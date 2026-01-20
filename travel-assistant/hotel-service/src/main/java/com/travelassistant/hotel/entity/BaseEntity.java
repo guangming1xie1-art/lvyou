@@ -1,4 +1,4 @@
-package com.travelassistant.common.entity;
+package com.travelassistant.hotel.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.GeneratedValue;
@@ -8,41 +8,41 @@ import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @MappedSuperclass
 public abstract class BaseEntity {
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private java.util.UUID id;
 
   @Column(name = "created_at", nullable = false, updatable = false)
-  private Instant createdAt;
+  private LocalDateTime createdAt;
 
   @Column(name = "updated_at", nullable = false)
-  private Instant updatedAt;
+  private LocalDateTime updatedAt;
 
   @PrePersist
   protected void onCreate() {
-    Instant now = Instant.now();
+    LocalDateTime now = LocalDateTime.now();
     this.createdAt = now;
     this.updatedAt = now;
   }
 
   @PreUpdate
   protected void onUpdate() {
-    this.updatedAt = Instant.now();
+    this.updatedAt = LocalDateTime.now();
   }
 
-  public Long getId() {
+  public java.util.UUID getId() {
     return id;
   }
 
-  public Instant getCreatedAt() {
+  public LocalDateTime getCreatedAt() {
     return createdAt;
   }
 
-  public Instant getUpdatedAt() {
+  public LocalDateTime getUpdatedAt() {
     return updatedAt;
   }
 }
