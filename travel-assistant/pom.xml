@@ -16,6 +16,7 @@
     <module>travel-request-service</module>
     <module>travel-plan-service</module>
     <module>order-service</module>
+    <module>mcp-service</module>
   </modules>
 
   <properties>

@@ -321,3 +321,8 @@ class HybridRetriever:
             "vector_weight": self.vector_weight,
             "bm25_weight": self.bm25_weight,
         }
+
+    async def aretrieve(self, query: str, k: int = 5, **kwargs) -> List[Document]:
+        """异步检索支持"""
+        import asyncio
+        return await asyncio.to_thread(self.retrieve, query, k, **kwargs)

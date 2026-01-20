@@ -17,6 +17,9 @@ from .common import (
     SubState, cache_strategy, get_tools_and_skills_text, 
     build_recommend_tools
 )
+from src.agents.mcp_client import get_mcp_client
+from src.rag.retriever import HybridRetriever
+from .hybrid_retrieval import hybrid_rank
 
 
 async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
@@ -198,6 +201,7 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
     few_shots = "## 示例：根据杭州搜索结果生成一个西湖深度游方案。"
     tools_text = await get_tools_and_skills_text()
     
+    # 4️⃣ Prompt Cache
     cache_mgr = get_prompt_cache_manager()
     prompt_cache_id = await cache_mgr.get_or_create_cache(
         cache_key="recommend_execute",
@@ -207,13 +211,37 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
         tools_text=tools_text
     )
     
+    # Step 1: Java MCP 获取推荐基础数据
+    mcp_client = get_mcp_client()
+    rec_base_resp = await mcp_client.call_tool(
+        "get_recommendation_base",
+        email=collected_info.get("email", "guest@example.com"),
+        destination=destination
+    )
+    rec_base = rec_base_resp.get("data", {})
+    raw_hotels = rec_base.get("hotels", [])
+    
+    # Step 2: RAG 混合检索
+    hybrid_retriever = HybridRetriever()
+    rag_query = f"recommendations for {destination} with preferences {', '.join(collected_info.get('preferences', []))}"
+    rag_docs = await hybrid_retriever.aretrieve(rag_query, k=50)
+    
+    # Step 3: 混合排序
+    ranked_hotels = hybrid_rank(raw_hotels, rag_docs, recommend_plan)
+
     tools = await build_recommend_tools(recommend_plan)
     
-    user_query = f"""请生成旅游方案：
+    user_query = f"""请生成个性化旅游推荐方案：
 推荐计划：{json.dumps(recommend_plan, ensure_ascii=False)}
-搜索结果摘要：{str(search_results)[:2000]}
 用户信息：{json.dumps(collected_info, ensure_ascii=False)}
-用户原始请求：{user_content}"""
+搜索结果摘要：{str(search_results)[:1000]}
+
+## 基础推荐数据（Java MCP）:
+{json.dumps(rec_base.get('user', {}), ensure_ascii=False)}
+
+## 优质备选酒店（RAG 混合排序）:
+{json.dumps(ranked_hotels[:5], ensure_ascii=False, indent=2)}
+"""
 
     try:
         agent = create_react_agent(llm, tools)
