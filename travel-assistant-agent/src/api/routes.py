@@ -17,7 +17,7 @@ from ..agents.conversation_agent import ConversationAgent
 from ..models.schemas import ChatRequest, ChatResponse
 from ..utils.logger import app_logger
 from ..utils.pagination import paginate_results, sort_flights, sort_hotels
-from ..auth.dependencies import get_current_active_user, get_current_user
+from ..auth.dependencies import get_current_active_user, get_current_user, get_user_token
 from ..security import rate_limiter, audit_logger
 from ..auth.models import User
 from ..cache import RedisCache, CacheManager
@@ -103,7 +103,8 @@ _task_store: Dict[str, Dict[str, Any]] = {}
 
 async def _create_task(
     task_type: str,
-    task_data: Dict[str, Any]
+    task_data: Dict[str, Any],
+    user_id: str = None
 ) -> str:
     """Create a new task and return its ID"""
     task_id = str(uuid.uuid4())
@@ -115,7 +116,8 @@ async def _create_task(
         "error": None,
         "created_at": asyncio.get_event_loop().time(),
         "updated_at": asyncio.get_event_loop().time(),
-        "progress": 0.0
+        "progress": 0.0,
+        "user_id": user_id
     }
     return task_id
 
@@ -160,6 +162,7 @@ async def search_travel(
     request: SearchRequest,
     http_request: Request,
     current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     sort_by: str = Query("price", description="排序字段 (price, duration, rating)"),
@@ -167,10 +170,10 @@ async def search_travel(
 ):
     """
     Search for flights and hotels
-    
+
     This endpoint searches for travel options based on the provided criteria.
     It can search for flights, hotels, or both depending on the request parameters.
-    
+
     - **origin**: Departure city or airport code
     - **destination**: Arrival city or airport code
     - **departure_date**: Departure date (YYYY-MM-DD)
@@ -197,20 +200,20 @@ async def search_travel(
             check_out_date=request.check_out_date,
             rooms=request.rooms
         )
-        
+
         if cached_result:
             app_logger.info(f"Cache hit for search: {request.origin} -> {request.destination}")
-            
+
             # Apply sorting and pagination to cached results
             outbound_flights = sort_flights(cached_result.get("outbound_flights", []), sort_by)
             return_flights = sort_flights(cached_result.get("return_flights", []), sort_by)
             hotels = sort_hotels(cached_result.get("hotels", []), sort_by)
-            
+
             # Paginate results
             paginated_outbound = paginate_results(outbound_flights, page, page_size)
             paginated_return = paginate_results(return_flights, page, page_size)
             paginated_hotels = paginate_results(hotels, page, page_size)
-            
+
             return {
                 "success": True,
                 "task_id": cached_result.get("task_id", "cached"),
@@ -221,13 +224,17 @@ async def search_travel(
                 "pagination": paginated_outbound["pagination"],
                 "cache_hit": True
             }
-    
+
     # Check rate limit
-    await rate_limiter.check_limit(http_request)
-    
-    task_id = await _create_task("search", request.dict())
+    if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute."
+        )
+
+    task_id = await _create_task("search", request.dict(), user_id=current_user.id)
     app_logger.info(f"[{task_id}] Search request received", request=request.dict())
-    
+
     # Log API call
     await audit_logger.log_api_call(
         user_id=current_user.id,
@@ -380,7 +387,19 @@ async def search_travel(
         )
         
         app_logger.info(f"[{task_id}] Search completed successfully")
-        
+
+        # Log successful action
+        await audit_logger.log_api_call(
+            user_id=current_user.id,
+            action="search",
+            endpoint="/api/agent/search",
+            method="POST",
+            params=request.dict(),
+            result="success",
+            ip_address=http_request.client.host if http_request.client else None,
+            user_agent=http_request.headers.get("user-agent")
+        )
+
         return {
             "success": True,
             "task_id": task_id,
@@ -392,21 +411,34 @@ async def search_travel(
             "cache_hit": False,
             "error": error
         }
-        
+
     except Exception as e:
         app_logger.error(f"[{task_id}] Search failed with error: {e}")
-        
+
         error_detail = {
             "code": "INTERNAL_ERROR",
             "message": str(e)
         }
-        
+
         await _update_task(
             task_id,
             status="failed",
             error=error_detail
         )
-        
+
+        # Log error action
+        await audit_logger.log_api_call(
+            user_id=current_user.id,
+            action="search",
+            endpoint="/api/agent/search",
+            method="POST",
+            params=request.dict(),
+            result="failure",
+            error_message=str(e),
+            ip_address=http_request.client.host if http_request.client else None,
+            user_agent=http_request.headers.get("user-agent")
+        )
+
         return {
             "success": False,
             "task_id": task_id,
@@ -424,17 +456,18 @@ async def recommend_travel(
     request: RecommendRequest,
     http_request: Request,
     current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token),
     use_cache: bool = Query(True, description="是否使用缓存")
 ):
     """
     Get travel recommendations
-    
+
     This endpoint provides comprehensive travel recommendations including:
     - Destination information
     - Top attractions
     - Weather forecast
     - Destination reviews
-    
+
     - **destination**: Travel destination
     - **start_date**: Start date (YYYY-MM-DD)
     - **end_date**: End date (YYYY-MM-DD)
@@ -448,20 +481,24 @@ async def recommend_travel(
             interests=request.preferences,
             budget=request.budget
         )
-        
+
         if cached_result:
             app_logger.info(f"Cache hit for recommendations: {request.destination}")
             return {
                 **cached_result,
                 "cache_hit": True
             }
-    
+
     # Check rate limit
-    await rate_limiter.check_limit(http_request)
-    
-    task_id = await _create_task("recommend", request.dict())
+    if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute."
+        )
+
+    task_id = await _create_task("recommend", request.dict(), user_id=current_user.id)
     app_logger.info(f"[{task_id}] Recommend request received for {request.destination}")
-    
+
     # Log API call
     await audit_logger.log_api_call(
         user_id=current_user.id,
@@ -632,26 +669,51 @@ async def recommend_travel(
         )
         
         app_logger.info(f"[{task_id}] Recommendation completed successfully")
-        
+
+        # Log successful action
+        await audit_logger.log_api_call(
+            user_id=current_user.id,
+            action="recommend",
+            endpoint="/api/agent/recommend",
+            method="POST",
+            params=request.dict(),
+            result="success",
+            ip_address=http_request.client.host if http_request.client else None,
+            user_agent=http_request.headers.get("user-agent")
+        )
+
         return {
             **result_data,
             "cache_hit": False
         }
-        
+
     except Exception as e:
         app_logger.error(f"[{task_id}] Recommendation failed with error: {e}")
-        
+
         error_detail = {
             "code": "INTERNAL_ERROR",
             "message": str(e)
         }
-        
+
         await _update_task(
             task_id,
             status="failed",
             error=error_detail
         )
-        
+
+        # Log error action
+        await audit_logger.log_api_call(
+            user_id=current_user.id,
+            action="recommend",
+            endpoint="/api/agent/recommend",
+            method="POST",
+            params=request.dict(),
+            result="failure",
+            error_message=str(e),
+            ip_address=http_request.client.host if http_request.client else None,
+            user_agent=http_request.headers.get("user-agent")
+        )
+
         return {
             "success": False,
             "task_id": task_id,
@@ -669,14 +731,15 @@ async def recommend_travel(
 async def create_booking(
     request: BookRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
 ):
     """
     Create a travel booking
-    
+
     This endpoint creates a booking for flights, hotels, and other services.
     Returns a booking ID that can be used to track the booking status.
-    
+
     - **customer_info**: Customer details (name, email, phone)
     - **trip_details**: Trip details (destination, dates, travelers)
     - **selected_flight**: Optional selected flight
@@ -685,11 +748,15 @@ async def create_booking(
     - **additional_services**: Additional services to include
     """
     # Check rate limit
-    await rate_limiter.check_limit(http_request)
-    
-    task_id = await _create_task("booking", request.dict())
+    if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute."
+        )
+
+    task_id = await _create_task("booking", request.dict(), user_id=current_user.id)
     app_logger.info(f"[{task_id}] Booking request received for {request.trip_details.get('destination')}")
-    
+
     # Log API call
     await audit_logger.log_api_call(
         user_id=current_user.id,
@@ -735,7 +802,19 @@ async def create_booking(
                 result=booking_result.result,
                 progress=1.0
             )
-            
+
+            # Log successful action
+            await audit_logger.log_api_call(
+                user_id=current_user.id,
+                action="book",
+                endpoint="/api/agent/book",
+                method="POST",
+                params=request.dict(),
+                result="success",
+                ip_address=http_request.client.host if http_request.client else None,
+                user_agent=http_request.headers.get("user-agent")
+            )
+
             return {
                 "success": True,
                 "task_id": task_id,
@@ -752,18 +831,31 @@ async def create_booking(
             }
         else:
             app_logger.warning(f"[{task_id}] Booking failed: {booking_result.error}")
-            
+
             error_detail = booking_result.error or {
                 "code": "BOOKING_FAILED",
                 "message": "Booking could not be created"
             }
-            
+
             await _update_task(
                 task_id,
                 status="failed",
                 error=error_detail
             )
-            
+
+            # Log error action
+            await audit_logger.log_api_call(
+                user_id=current_user.id,
+                action="book",
+                endpoint="/api/agent/book",
+                method="POST",
+                params=request.dict(),
+                result="failure",
+                error_message=str(error_detail),
+                ip_address=http_request.client.host if http_request.client else None,
+                user_agent=http_request.headers.get("user-agent")
+            )
+
             return {
                 "success": False,
                 "task_id": task_id,
@@ -772,21 +864,34 @@ async def create_booking(
                 "error": error_detail,
                 "next_steps": ["Please try again or contact support"]
             }
-        
+
     except Exception as e:
         app_logger.error(f"[{task_id}] Booking failed with error: {e}")
-        
+
         error_detail = {
             "code": "INTERNAL_ERROR",
             "message": str(e)
         }
-        
+
         await _update_task(
             task_id,
             status="failed",
             error=error_detail
         )
-        
+
+        # Log error action
+        await audit_logger.log_api_call(
+            user_id=current_user.id,
+            action="book",
+            endpoint="/api/agent/book",
+            method="POST",
+            params=request.dict(),
+            result="failure",
+            error_message=str(e),
+            ip_address=http_request.client.host if http_request.client else None,
+            user_agent=http_request.headers.get("user-agent")
+        )
+
         return {
             "success": False,
             "task_id": task_id,
@@ -803,24 +908,25 @@ async def create_booking(
 async def get_task_status(
     task_id: str,
     http_request: Request,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
 ):
     """
     Get task status
-    
+
     Query the status of a previously submitted task.
-    
+
     - **task_id**: The ID returned when the task was created
-    
+
     Returns the current status and result (if completed) of the task.
     """
     if task_id not in _task_store:
         app_logger.warning(f"Status request for unknown task: {task_id}")
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    
+
     task_data = _task_store[task_id]
     app_logger.info(f"Status request for task {task_id}: {task_data['status']}")
-    
+
     # Log API call
     await audit_logger.log_api_call(
         user_id=current_user.id,
@@ -831,36 +937,42 @@ async def get_task_status(
         ip_address=http_request.client.host if http_request.client else None,
         user_agent=http_request.headers.get("user-agent")
     )
-    
+
     return _format_task_status(task_data)
 
 
 @router.get("/tasks")
 async def list_tasks(
     status: Optional[str] = None,
-    limit: int = 20
+    limit: int = 20,
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
 ):
     """
     List all tasks
-    
-    Returns a list of all tasks, optionally filtered by status.
+
+    Returns a list of all tasks for the current user, optionally filtered by status.
     Useful for debugging and monitoring.
     """
-    tasks = list(_task_store.values())
-    
+    # Only return tasks that belong to the current user
+    user_tasks = [
+        task for task in _task_store.values()
+        if task.get("user_id") == current_user.id
+    ]
+
     if status:
-        tasks = [t for t in tasks if t["status"] == status]
-    
+        user_tasks = [t for t in user_tasks if t["status"] == status]
+
     # Sort by updated_at (newest first)
-    tasks.sort(key=lambda x: x["updated_at"], reverse=True)
-    
+    user_tasks.sort(key=lambda x: x["updated_at"], reverse=True)
+
     # Apply limit
-    tasks = tasks[:limit]
-    
+    user_tasks = user_tasks[:limit]
+
     return {
-        "total": len(_task_store),
-        "filtered": len(tasks),
-        "tasks": [_format_task_status(t) for t in tasks]
+        "total": len(user_tasks),
+        "filtered": len(user_tasks),
+        "tasks": [_format_task_status(t) for t in user_tasks]
     }
 
 
@@ -871,13 +983,18 @@ async def chat_endpoint(
     request: ChatRequest,
     http_request: Request,
     current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
 ):
     """唯一的对话入口。
 
     请求：{"message": "我想去北京旅游 5 天..."}
     响应：{"search_results": [...], "recommendations": [...], "booking_info": {...}, "response": "...", "status": "success"}
     """
-    await rate_limiter.check_limit(http_request)
+    if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute."
+        )
 
     agent = get_conversation_agent()
 
