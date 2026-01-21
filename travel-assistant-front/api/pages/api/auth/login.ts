@@ -46,7 +46,7 @@ export default withMiddleware(async (req, res) => {
 
     touchLastLogin(user.id)
 
-    const tokens = await createTokenPair(user.id)
+    const tokens = createTokenPair(toPublicUser(user))
 
     const response: SuccessResponse = {
       access_token: tokens.access_token,
