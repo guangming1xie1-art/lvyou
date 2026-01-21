@@ -85,6 +85,20 @@ export function verifyToken<T extends object>(token: string): T {
   }) as T
 }
 
+/**
+ * 为用户创建 access token + refresh token 对
+ */
+export function createTokenPair(user: PublicUser) {
+  const accessTokenData = issueAccessToken(user)
+  const refreshTokenData = issueRefreshToken(user)
+
+  return {
+    access_token: accessTokenData.token,
+    refresh_token: refreshTokenData.token,
+    expires_in: accessTokenData.expires_in,
+  }
+}
+
 export function safeNowIso(): string {
   return nowIso()
 }
