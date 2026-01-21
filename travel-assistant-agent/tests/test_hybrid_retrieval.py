@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, patch
-from src.workflows.subgraphs.hybrid_retrieval import hybrid_rank, _calc_price_score
+from workflows.subgraphs.hybrid_retrieval import hybrid_rank, _calc_price_score
 
 def test_calc_price_score():
     budget = {"min": 200, "max": 500}
@@ -45,7 +45,7 @@ def test_hybrid_rank():
 
 @pytest.mark.asyncio
 async def test_mcp_client_call_tool_with_cache():
-    from src.agents.mcp_client import MCPClient
+    from agents.mcp_client import MCPClient
     
     with patch('redis.asyncio.Redis') as mock_redis, \
          patch('httpx.AsyncClient.post') as mock_post:

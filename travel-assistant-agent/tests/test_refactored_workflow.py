@@ -16,18 +16,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key")
 os.environ.setdefault("DASHSCOPE_API_KEY", "test-key")
-from src.workflows.subgraphs import (
+from workflows.subgraphs import (
     build_collect_info_graph,
     build_search_graph,
     build_recommend_graph,
     build_booking_graph,
 )
-from src.workflows.main_workflow import (
+from workflows.main_workflow import (
     get_main_workflow,
     run_main_workflow_sync,
 )
-from src.agents.mcp_client import get_mcp_client
-from src.skills.registry import SkillRegistry
+from agents.mcp_client import get_mcp_client
+from skills.registry import SkillRegistry
 
 
 class TestSubGraphs:

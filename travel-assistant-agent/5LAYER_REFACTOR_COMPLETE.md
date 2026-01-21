@@ -170,14 +170,14 @@ SKILLS.md: ✓ 通过
 
 ### 运行主工作流
 ```python
-from src.workflows.main_workflow import run_main_workflow_async
+from workflows.main_workflow import run_main_workflow_async
 
 result = await run_main_workflow_async("我想6月去巴黎玩5天")
 ```
 
 ### 使用 DeepAgent
 ```python
-from src.workflows.main_workflow import get_or_create_main_agent
+from workflows.main_workflow import get_or_create_main_agent
 from langchain_core.messages import HumanMessage
 
 main_agent = get_or_create_main_agent()
@@ -188,7 +188,7 @@ result = await main_agent.ainvoke({
 
 ### 单独使用子代理
 ```python
-from src.workflows.subagents import get_info_collection_agent
+from workflows.subagents import get_info_collection_agent
 
 agent = get_info_collection_agent()
 result = await agent.ainvoke({

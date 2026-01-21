@@ -19,7 +19,7 @@
 
 **使用方式：**
 ```python
-from src.llm.factory import LLMFactory
+from llm.factory import LLMFactory
 
 # 便宜层（信息收集、预订）
 cheap_llm = LLMFactory.create_model_by_tier(tier="cheap")
@@ -53,7 +53,7 @@ powerful_llm = LLMFactory.create_model_by_tier(tier="powerful")
 
 **使用方式：**
 ```python
-from src.cache.cache_strategy import CacheStrategy
+from cache.cache_strategy import CacheStrategy
 
 cache = CacheStrategy()
 
@@ -92,7 +92,7 @@ cache.set(key, result, ttl=3600)
 
 **使用方式：**
 ```python
-from src.rag.knowledge_base import KnowledgeBase
+from rag.knowledge_base import KnowledgeBase
 
 kb = KnowledgeBase()
 
@@ -119,7 +119,7 @@ rag_context = get_rag_context(query="搜索巴黎酒店", use_cache=True)
 
 **使用方式：**
 ```python
-from src.workflows.main_workflow import run_main_workflow_async
+from workflows.main_workflow import run_main_workflow_async
 
 result = await run_main_workflow_async("我想去巴黎玩5天")
 
@@ -314,7 +314,7 @@ $ python3 test_fusion_syntax.py
 
 ```python
 # 现有调用方式完全兼容
-from src.workflows.main_workflow import run_main_workflow_async
+from workflows.main_workflow import run_main_workflow_async
 
 result = await run_main_workflow_async("我想去巴黎玩5天")
 print(result["collected_info"])
@@ -331,12 +331,12 @@ for msg in result["conversation_history"]:
     print(f"{msg['role']}: {msg['content']}")
 
 # 缓存统计（新增）
-from src.cache.cache_strategy import CacheStrategy
+from cache.cache_strategy import CacheStrategy
 cache = CacheStrategy()
 print(cache.get_stats())
 
 # RAG 检索（新增）
-from src.rag.knowledge_base import KnowledgeBase
+from rag.knowledge_base import KnowledgeBase
 kb = KnowledgeBase()
 context = kb.get_relevant_context("巴黎旅游", k=5)
 ```
@@ -370,7 +370,7 @@ context = kb.get_relevant_context("巴黎旅游", k=5)
 
 ```python
 import asyncio
-from src.workflows.main_workflow import run_main_workflow_async
+from workflows.main_workflow import run_main_workflow_async
 
 async def main():
     result = await run_main_workflow_async("我想6月去巴黎玩5天，预算2万")
@@ -401,7 +401,7 @@ asyncio.run(main())
 ### 单独使用子代理
 
 ```python
-from src.workflows.subagents import get_search_agent
+from workflows.subagents import get_search_agent
 from langchain_core.messages import HumanMessage
 
 async def search_only():

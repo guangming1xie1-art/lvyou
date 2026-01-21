@@ -42,7 +42,7 @@ REDIS_MAX_CONNECTIONS=50
 #### 缓存使用
 
 ```python
-from src.cache import CacheManager, RedisCache
+from cache import CacheManager, RedisCache
 
 # 初始化
 redis_cache = RedisCache(host='localhost', port=6379)

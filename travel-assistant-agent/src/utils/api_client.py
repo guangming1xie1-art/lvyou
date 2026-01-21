@@ -4,7 +4,7 @@ API 客户端工具
 """
 from typing import Any, Dict, Optional
 import httpx
-from config import settings
+from conf import settings
 from utils.logger import app_logger
 
 

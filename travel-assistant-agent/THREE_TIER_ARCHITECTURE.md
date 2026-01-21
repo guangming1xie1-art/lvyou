@@ -93,7 +93,7 @@ class LLMFactory:
 #### 使用示例
 
 ```python
-from src.llm import LLMFactory
+from llm import LLMFactory
 
 # 创建模型实例
 llm = LLMFactory.create_model("gpt-4")
@@ -213,7 +213,7 @@ class ConversationWorkflow:
 #### 使用示例
 
 ```python
-from src.workflows.conversation import ConversationWorkflow
+from workflows.conversation import ConversationWorkflow
 
 # 创建工作流
 workflow = ConversationWorkflow()
@@ -362,7 +362,7 @@ async def book_ticket(attraction: str, visit_date: str, visitors: int) -> Dict:
 #### 使用示例
 
 ```python
-from src.agents.subagents import SearchAgent, RecommendationAgent, BookingAgent
+from agents.subagents import SearchAgent, RecommendationAgent, BookingAgent
 
 # 创建智能体
 search_agent = SearchAgent(llm=None)
@@ -395,9 +395,9 @@ booking_result = await booking_agent.execute({
 ### 完整流程示例
 
 ```python
-from src.llm import LLMFactory
-from src.workflows.conversation import ConversationWorkflow
-from src.agents.subagents import SearchAgent, RecommendationAgent, BookingAgent
+from llm import LLMFactory
+from workflows.conversation import ConversationWorkflow
+from agents.subagents import SearchAgent, RecommendationAgent, BookingAgent
 
 # 第一层：创建 LLM 实例
 llm = LLMFactory.create_model("gpt-4")
@@ -425,7 +425,7 @@ print(response)
 
 ```python
 from fastapi import APIRouter, HTTPException
-from src.workflows.conversation import ConversationWorkflow
+from workflows.conversation import ConversationWorkflow
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

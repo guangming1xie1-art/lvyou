@@ -2,7 +2,7 @@
 # Lvyou Agent Dependencies
 # ==============================================================================
 # Core framework: LangChain v1.0 & LangGraph v1.0 for workflow orchestration.
-# DeepAgent v0.2.7 for sub-agent reasoning and token optimization.
+# DeepAgents v0.2.7 for sub-agent reasoning and token optimization.
 # Pydantic v2.0+ for high-performance data validation.
 # ==============================================================================
 
@@ -12,7 +12,7 @@ langchain-core>=1.0.0,<2.0.0
 langchain-anthropic>=0.1.0
 langchain-openai>=0.1.0
 langgraph>=1.0.0,<2.0.0
-deepagent>=0.2.7,<0.3.0
+deepagents>=0.2.7,<0.3.0
 langchain-experimental>=0.0.60
 langchain-mcp-adapters>=0.1.0
 

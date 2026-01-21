@@ -12,11 +12,7 @@ from functools import wraps
 from typing import Any, Dict, Optional
 from loguru import logger as loguru_logger
 
-try:
-    from config import settings
-except ModuleNotFoundError:
-    from src.config import settings
-
+from conf import settings
 class StructuredLogger:
     """结构化日志记录器"""
     

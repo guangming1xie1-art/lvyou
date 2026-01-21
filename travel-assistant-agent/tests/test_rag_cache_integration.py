@@ -19,8 +19,8 @@ class TestRAGIntegration:
 
     def test_full_rag_pipeline(self, temp_dir):
         """测试完整RAG流程"""
-        from src.rag.knowledge_base import KnowledgeBase
-        from src.rag.retriever import HybridRetriever
+        from rag.knowledge_base import KnowledgeBase
+        from rag.retriever import HybridRetriever
         
         # 1. 初始化知识库
         kb = KnowledgeBase(store_path=temp_dir)
@@ -48,7 +48,7 @@ class TestRAGIntegration:
 
     def test_hybrid_search(self, temp_dir):
         """测试混合搜索"""
-        from src.rag.retriever import HybridRetriever
+        from rag.retriever import HybridRetriever
         from langchain.schema import Document
         
         retriever = HybridRetriever()
@@ -70,7 +70,7 @@ class TestRAGIntegration:
 
     def test_knowledge_base_with_metadata(self, temp_dir):
         """测试带元数据的知识库"""
-        from src.rag.knowledge_base import TravelKnowledgeBase
+        from rag.knowledge_base import TravelKnowledgeBase
         
         kb = TravelKnowledgeBase(store_path=temp_dir)
         
@@ -106,7 +106,7 @@ class TestCacheIntegration:
     @pytest.fixture
     def mock_redis(self):
         """模拟Redis"""
-        with patch('src.cache.cache_strategy.RedisCache') as mock_class:
+        with patch('cache.cache_strategy.RedisCache') as mock_class:
             mock_redis = MagicMock()
             mock_redis.is_available.return_value = True
             mock_redis.get.return_value = None
@@ -116,7 +116,7 @@ class TestCacheIntegration:
 
     def test_cache_strategy_search_results(self, mock_redis):
         """测试缓存策略搜索结果"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         strategy = CacheStrategy(redis_cache=mock_redis)
         
@@ -135,7 +135,7 @@ class TestCacheIntegration:
 
     def test_cache_strategy_recommendations(self, mock_redis):
         """测试缓存策略推荐结果"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         strategy = CacheStrategy(redis_cache=mock_redis)
         
@@ -151,7 +151,7 @@ class TestCacheIntegration:
 
     def test_cache_strategy_rag_context(self, mock_redis):
         """测试缓存策略RAG上下文"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         strategy = CacheStrategy(redis_cache=mock_redis)
         
@@ -166,7 +166,7 @@ class TestPromptCacheIntegration:
 
     def test_build_anthropic_messages(self):
         """测试构建Anthropic消息"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -193,7 +193,7 @@ class TestSearchNodeIntegration:
     @pytest.mark.asyncio
     async def test_plan_search_with_rag(self):
         """测试带RAG的搜索规划"""
-        from src.workflows.conversation.nodes.search import plan_search
+        from workflows.conversation.nodes.search import plan_search
         
         state = {
             "user_message": "我想去巴黎旅游",
@@ -206,17 +206,17 @@ class TestSearchNodeIntegration:
         }
         
         # Mock依赖
-        with patch('src.workflows.conversation.nodes.search.get_cache_strategy') as mock_cache:
+        with patch('workflows.conversation.nodes.search.get_cache_strategy') as mock_cache:
             mock_strategy = MagicMock()
             mock_strategy.get_rag_context.return_value = None
             mock_cache.return_value = mock_strategy
             
-            with patch('src.workflows.conversation.nodes.search.get_knowledge_base') as mock_kb:
+            with patch('workflows.conversation.nodes.search.get_knowledge_base') as mock_kb:
                 mock_knowledge_base = MagicMock()
                 mock_knowledge_base.get_relevant_context.return_value = "Paris is a beautiful city"
                 mock_kb.return_value = mock_knowledge_base
                 
-                with patch('src.workflows.conversation.nodes.search.LLMFactory') as mock_llm:
+                with patch('workflows.conversation.nodes.search.LLMFactory') as mock_llm:
                     result = await plan_search(state)
                     
                     assert "search_query" in result
@@ -226,7 +226,7 @@ class TestSearchNodeIntegration:
     @pytest.mark.asyncio
     async def test_execute_search_with_cache(self):
         """测试带缓存的搜索执行"""
-        from src.workflows.conversation.nodes.search import execute_search
+        from workflows.conversation.nodes.search import execute_search
         
         state = {
             "search_query": "Paris flights",
@@ -235,7 +235,7 @@ class TestSearchNodeIntegration:
             "user_requirements": {"budget": "中等"}
         }
         
-        with patch('src.workflows.conversation.nodes.search.get_cache_strategy') as mock_cache:
+        with patch('workflows.conversation.nodes.search.get_cache_strategy') as mock_cache:
             mock_strategy = MagicMock()
             mock_strategy.get_search_results.return_value = None  # 缓存未命中
             mock_cache.return_value = mock_strategy
@@ -253,7 +253,7 @@ class TestFullWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_search_workflow_with_cache(self):
         """测试带缓存的搜索工作流"""
-        from src.workflows.conversation.nodes.search import plan_search, execute_search
+        from workflows.conversation.nodes.search import plan_search, execute_search
         
         initial_state = {
             "user_message": "帮我找东京的酒店",
@@ -265,13 +265,13 @@ class TestFullWorkflowIntegration:
         }
         
         # 1. 规划搜索
-        with patch('src.workflows.conversation.nodes.search.get_cache_strategy') as mock_cache:
+        with patch('workflows.conversation.nodes.search.get_cache_strategy') as mock_cache:
             mock_strategy = MagicMock()
             mock_strategy.get_rag_context.return_value = None
             mock_strategy.get_search_results.return_value = None
             mock_cache.return_value = mock_strategy
             
-            with patch('src.workflows.conversation.nodes.search.get_knowledge_base') as mock_kb:
+            with patch('workflows.conversation.nodes.search.get_knowledge_base') as mock_kb:
                 mock_knowledge_base = MagicMock()
                 mock_knowledge_base.get_relevant_context.return_value = "Tokyo has many hotels"
                 mock_kb.return_value = mock_knowledge_base

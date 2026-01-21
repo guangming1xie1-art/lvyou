@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any, List
 from uuid import uuid4
 from sqlalchemy import create_engine, text, Table, MetaData, Column, String, Boolean, DateTime
 from sqlalchemy.engine import Engine
-from config import settings
+from conf import settings
 from utils.logger import app_logger
 
 

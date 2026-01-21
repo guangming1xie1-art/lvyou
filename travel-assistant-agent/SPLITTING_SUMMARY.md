@@ -135,10 +135,10 @@ subgraphs.py ← 导入 __init__.py（向后兼容）
 ### ✅ 原有导入方式继续工作
 ```python
 # 旧代码（无需修改）
-from src.workflows.subgraphs import build_search_graph
+from workflows.subgraphs import build_search_graph
 
 # 新代码（推荐）
-from src.workflows.subgraphs import build_search_graph
+from workflows.subgraphs import build_search_graph
 ```
 
 两者都能正常工作，因为 `subgraphs.py` 代理文件重定向到 `subgraphs/` 包。

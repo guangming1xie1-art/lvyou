@@ -4,9 +4,9 @@ Enhanced Search Skill Implementation with Pydantic Support
 """
 from typing import Dict, Any, Optional, List
 import logging
-from src.skills.base_enhanced import EnhancedSkill
-from src.skills.search.models import SearchInput, SearchOutput, SearchResultItem, SearchMetadata
-from src.agents.mcp_client import get_mcp_client
+from skills.base_enhanced import EnhancedSkill
+from skills.search.models import SearchInput, SearchOutput, SearchResultItem, SearchMetadata
+from agents.mcp_client import get_mcp_client
 
 logger = logging.getLogger(__name__)
 

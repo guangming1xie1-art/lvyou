@@ -64,7 +64,7 @@
 
 ### 基本搜索
 ```python
-from src.skills.search import SearchSkill
+from skills.search import SearchSkill
 
 skill = SearchSkill()
 result = await skill.execute({

@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.skills.search.models import SearchInput, SearchOutput, SearchResultItem
-from src.skills.registry import SkillRegistry
-from src.skills.prompt_generator import SkillPromptGenerator
-from src.skills.dependency_resolver import DependencyResolver
-from src.skills.executor import SkillExecutor
+from skills.search.models import SearchInput, SearchOutput, SearchResultItem
+from skills.registry import SkillRegistry
+from skills.prompt_generator import SkillPromptGenerator
+from skills.dependency_resolver import DependencyResolver
+from skills.executor import SkillExecutor
 
 
 class TestSkillSystemUpgrade:

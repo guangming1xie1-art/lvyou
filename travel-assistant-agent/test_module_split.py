@@ -13,7 +13,7 @@ def test_module_split():
     # Test 1: Import from the new package structure
     print("1️⃣ Testing imports from subgraphs package...")
     try:
-        from src.workflows import subgraphs
+        from workflows import subgraphs
         print(f"   ✓ Package imported: {subgraphs.__name__}")
         print(f"   ✓ Package location: {subgraphs.__file__}")
         
@@ -29,7 +29,7 @@ def test_module_split():
     # Test 2: Import main API from new package
     print("\n2️⃣ Testing import from subgraphs.__init__...")
     try:
-        from src.workflows.subgraphs import (
+        from workflows.subgraphs import (
             SubState,
             build_collect_info_graph,
             build_search_graph,
@@ -48,7 +48,7 @@ def test_module_split():
     # Test 3: Test backward compatibility import from old path
     print("\n3️⃣ Testing backward compatibility import from subgraphs.py...")
     try:
-        from src.workflows.subgraphs import (
+        from workflows.subgraphs import (
             SubState as OldSubState,
             build_collect_info_graph as old_collect,
             build_search_graph as old_search,
@@ -64,11 +64,11 @@ def test_module_split():
     # Test 4: Import individual modules
     print("\n4️⃣ Testing individual module imports...")
     modules = [
-        ("src.workflows.subgraphs.common", ["SubState", "cache_strategy", "skill_to_tool"]),
-        ("src.workflows.subgraphs.collect", ["build_collect_info_graph"]),
-        ("src.workflows.subgraphs.search", ["build_search_graph"]),
-        ("src.workflows.subgraphs.recommend", ["build_recommend_graph"]),
-        ("src.workflows.subgraphs.booking", ["build_booking_graph"]),
+        ("workflows.subgraphs.common", ["SubState", "cache_strategy", "skill_to_tool"]),
+        ("workflows.subgraphs.collect", ["build_collect_info_graph"]),
+        ("workflows.subgraphs.search", ["build_search_graph"]),
+        ("workflows.subgraphs.recommend", ["build_recommend_graph"]),
+        ("workflows.subgraphs.booking", ["build_booking_graph"]),
     ]
     
     for module_name, expected_exports in modules:
@@ -89,7 +89,7 @@ def test_module_split():
     # Test 5: Check __all__ exports
     print("\n5️⃣ Testing __all__ exports...")
     try:
-        from src.workflows.subgraphs import __all__
+        from workflows.subgraphs import __all__
         expected = [
             "SubState",
             "build_collect_info_graph",

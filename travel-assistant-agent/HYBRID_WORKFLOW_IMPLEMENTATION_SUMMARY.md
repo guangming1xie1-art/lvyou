@@ -231,7 +231,7 @@ curl "http://localhost:8000/api/v1/agents/stats"
 ### 3. 配置优化
 
 ```python
-from config import settings
+from conf import settings
 
 # 调整工作流参数
 settings.workflow_quality_threshold = 0.7  # 提高质量阈值

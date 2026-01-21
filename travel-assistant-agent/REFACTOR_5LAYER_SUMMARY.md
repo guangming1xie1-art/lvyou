@@ -233,7 +233,7 @@ result = await main_agent.ainvoke({...})
 ### 完整端到端调用
 
 ```python
-from src.workflows.main_workflow import run_main_workflow_sync
+from workflows.main_workflow import run_main_workflow_sync
 
 # 运行主工作流
 result = run_main_workflow_sync("我想6月去巴黎玩5天，预算1-1.5万")
@@ -249,7 +249,7 @@ print("总 token 用量:", result["total_usage"])
 ### 调用 DeepAgent
 
 ```python
-from src.workflows.main_workflow import get_or_create_main_agent
+from workflows.main_workflow import get_or_create_main_agent
 from langchain_core.messages import HumanMessage
 
 # 获取主代理
@@ -273,7 +273,7 @@ print(result["usage"])  # 总 token 用量
 ### 调用单个 CompiledSubAgent
 
 ```python
-from src.workflows.subagents import get_info_collection_agent
+from workflows.subagents import get_info_collection_agent
 
 # 获取子代理
 agent = get_info_collection_agent()
@@ -356,7 +356,7 @@ print(result["usage"])   # 这个子代理的 token 用量
 
 ```python
 # 在子图中使用 MCP Client
-from src.agents.mcp_client import get_mcp_client
+from agents.mcp_client import get_mcp_client
 
 async def search_node(state):
     # ...
@@ -372,7 +372,7 @@ async def search_node(state):
 
 ```python
 # 在子图中使用 Skills
-from src.skills.registry import SkillRegistry
+from skills.registry import SkillRegistry
 
 async def search_node(state):
     # ...

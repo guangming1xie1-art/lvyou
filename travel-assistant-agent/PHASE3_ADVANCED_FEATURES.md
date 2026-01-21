@@ -434,7 +434,7 @@ curl -X POST http://localhost:8000/mcp/tools/call \
 ### Example 2: Using Agent Skills
 
 ```python
-from src.skills import get_skill_registry
+from skills import get_skill_registry
 
 # Get registry
 registry = get_skill_registry()
@@ -491,7 +491,7 @@ curl -X POST http://localhost:8000/skills/batch-execute \
 ### Example 4: Using Connection Pool
 
 ```python
-from src.concurrency import APIConnectionPool
+from concurrency import APIConnectionPool
 
 # Create pool
 pool = APIConnectionPool(max_connections=100)
@@ -512,7 +512,7 @@ print(f"Utilization: {stats['utilization']:.2%}")
 ### Example 5: Using Rate Limiter
 
 ```python
-from src.concurrency import RateLimiter
+from concurrency import RateLimiter
 
 # Create rate limiter
 limiter = RateLimiter(rate=100, burst=200)
@@ -533,7 +533,7 @@ print(f"Allow rate: {stats['allow_rate']:.2%}")
 ### Example 6: Streaming Responses
 
 ```python
-from src.concurrency import StreamingManager
+from concurrency import StreamingManager
 from fastapi import FastAPI
 
 app = FastAPI()

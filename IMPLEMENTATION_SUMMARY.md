@@ -180,8 +180,8 @@ tests/
 
 ### **Basic Usage**
 ```python
-from src.skills.executor import SkillExecutor
-from src.skills.registry import SkillRegistry
+from skills.executor import SkillExecutor
+from skills.registry import SkillRegistry
 
 # Execute with full validation & cost tracking
 result = await SkillExecutor.execute(
@@ -204,7 +204,7 @@ result = await SkillExecutor.execute(
 
 ### **Generate LLM Prompt**
 ```python
-from src.skills.prompt_generator import SkillPromptGenerator
+from skills.prompt_generator import SkillPromptGenerator
 
 # Auto-generated from YAML schemas
 system_prompt = SkillPromptGenerator.generate_system_prompt(skills_dir)
@@ -213,7 +213,7 @@ system_prompt = SkillPromptGenerator.generate_system_prompt(skills_dir)
 
 ### **Dependency Resolution**
 ```python
-from src.skills.dependency_resolver import DependencyResolver
+from skills.dependency_resolver import DependencyResolver
 
 # Check for cycles
 has_no_cycles = DependencyResolver.validate_dependencies("recommend", loader)

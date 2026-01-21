@@ -184,7 +184,7 @@ class SkillRegistry:
     @classmethod
     async def load_skill(cls, name: str):
         """动态加载完整实现"""
-        module = __import__(f"src.skills.{name}.skill")
+        module = __import__(f"skills.{name}.skill")
         skill_class = getattr(module, f"{name.capitalize()}Skill")
         return skill_class()
     
@@ -270,7 +270,7 @@ summaries = SkillRegistry.get_all_summaries()
 
 ### 运行主工作流
 ```python
-from src.workflows.main_workflow import run_main_workflow_sync
+from workflows.main_workflow import run_main_workflow_sync
 
 result = run_main_workflow_sync("我想6月去巴黎玩5天，预算1-1.5万")
 
@@ -283,7 +283,7 @@ print(result["total_usage"])         # 总 token 用量
 
 ### 使用 Skill Registry
 ```python
-from src.skills.registry import SkillRegistry
+from skills.registry import SkillRegistry
 
 # 列出所有 skills
 skills = SkillRegistry.list_skills()
@@ -295,7 +295,7 @@ result = await skill.execute({"query": "Paris", "limit": 10})
 
 ### 调用 Java API Tools
 ```python
-from src.agents.mcp_client import get_mcp_client
+from agents.mcp_client import get_mcp_client
 
 client = get_mcp_client()
 await client.connect()

@@ -100,7 +100,7 @@
 
 ### 基本推荐
 ```python
-from src.skills.recommend import RecommendSkill
+from skills.recommend import RecommendSkill
 
 skill = RecommendSkill()
 result = await skill.execute({

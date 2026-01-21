@@ -31,8 +31,8 @@ http://localhost:8000/docs
 
 ### Import and Use
 ```python
-from src.mcp import MCPServerV2, MCPProtocolHandler, MCPToolFactory
-from src.mcp.resources import create_default_resources
+from mcp import MCPServerV2, MCPProtocolHandler, MCPToolFactory
+from mcp.resources import create_default_resources
 
 # Create server
 handler = MCPProtocolHandler()
@@ -73,7 +73,7 @@ WS      /ws/mcp-v2
 
 ### Create a Custom Skill
 ```python
-from src.skills import Skill
+from skills import Skill
 
 class MyCustomSkill(Skill):
     def __init__(self):
@@ -94,14 +94,14 @@ class MyCustomSkill(Skill):
         return ["required_field"]
 
 # Register skill
-from src.skills import get_skill_registry
+from skills import get_skill_registry
 registry = get_skill_registry()
 registry.register(MyCustomSkill())
 ```
 
 ### Use Skills
 ```python
-from src.skills import get_skill_registry
+from skills import get_skill_registry
 
 registry = get_skill_registry()
 
@@ -164,7 +164,7 @@ GET    /skills/statistics
 
 ### Connection Pool
 ```python
-from src.concurrency import APIConnectionPool
+from concurrency import APIConnectionPool
 
 pool = APIConnectionPool(
     max_connections=100,
@@ -183,7 +183,7 @@ print(f"Utilization: {stats['utilization']:.2%}")
 
 ### Memory Pool
 ```python
-from src.concurrency import MemoryPool
+from concurrency import MemoryPool
 
 pool = MemoryPool(max_size=100, item_size_limit=10*1024*1024)
 
@@ -200,7 +200,7 @@ print(f"Current: {stats['current']}, Utilization: {stats['utilization']:.2%}")
 
 ### Rate Limiter
 ```python
-from src.concurrency import RateLimiter
+from concurrency import RateLimiter
 
 limiter = RateLimiter(rate=100, burst=200)
 
@@ -219,7 +219,7 @@ print(f"Allow rate: {stats['allow_rate']:.2%}")
 
 ### Streaming
 ```python
-from src.concurrency import StreamingManager
+from concurrency import StreamingManager
 
 async def items_generator():
     for i in range(100):
@@ -275,7 +275,7 @@ STREAMING_ENABLED=true
 
 ### Pattern 1: Execute Multiple Skills
 ```python
-from src.skills import get_skill_registry
+from skills import get_skill_registry
 
 registry = get_skill_registry()
 
@@ -294,7 +294,7 @@ results = await registry.execute_sequence([
 
 ### Pattern 2: Rate-Limited API Calls
 ```python
-from src.concurrency import APIConnectionPool, RateLimiter
+from concurrency import APIConnectionPool, RateLimiter
 
 pool = APIConnectionPool(max_connections=100)
 limiter = RateLimiter(rate=1000, burst=2000)
@@ -306,7 +306,7 @@ async with pool:
 
 ### Pattern 3: Streaming Large Results
 ```python
-from src.concurrency import StreamingManager
+from concurrency import StreamingManager
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -322,7 +322,7 @@ async def stream_large_dataset():
 
 ### Pattern 4: Custom Skill with Cost Tracking
 ```python
-from src.skills import Skill
+from skills import Skill
 
 class ExpensiveSkill(Skill):
     def __init__(self):
@@ -359,7 +359,7 @@ Error: Unknown skill: my_skill
 ```
 **Solution**: Ensure skill is registered:
 ```python
-from src.skills import get_skill_registry
+from skills import get_skill_registry
 registry = get_skill_registry()
 registry.register(MySkill())
 ```

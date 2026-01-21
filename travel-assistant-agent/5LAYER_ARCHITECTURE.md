@@ -32,7 +32,7 @@ lvyou Agent 使用 5 层架构设计，从底层到顶层依次为：
 
 **使用示例**:
 ```python
-from src.utils.token_counter import TokenCounter
+from utils.token_counter import TokenCounter
 
 counter = TokenCounter()
 result = llm.invoke(messages, config={"callbacks": [counter]})
@@ -77,7 +77,7 @@ usage = counter.dump()  # {"prompt": 100, "completion": 50, "total": 150}
 
 **使用示例**:
 ```python
-from src.workflows.subgraphs import build_collect_info_graph
+from workflows.subgraphs import build_collect_info_graph
 
 graph = build_collect_info_graph()
 result = graph.invoke({
@@ -107,7 +107,7 @@ print(result["usage"])  # {"prompt": 100, "completion": 50, "total": 150}
 **4 个 CompiledSubAgent 实例**:
 
 ```python
-from src.workflows.subagents import (
+from workflows.subagents import (
     get_info_collection_agent,  # 信息收集子代理
     get_search_agent,           # 搜索子代理
     get_recommend_agent,        # 推荐子代理
@@ -161,7 +161,7 @@ def call_subagent_node(subagent_name: str):
 
 **使用示例**:
 ```python
-from src.workflows.main_workflow import call_subagent_node
+from workflows.main_workflow import call_subagent_node
 
 # 创建节点函数
 collect_node = call_subagent_node("info_collection")
@@ -218,7 +218,7 @@ main_runnable = graph.compile()
 
 **使用示例**:
 ```python
-from src.workflows.main_workflow import build_main_graph
+from workflows.main_workflow import build_main_graph
 
 main_graph = build_main_graph()
 result = main_graph.invoke({
@@ -253,7 +253,7 @@ print(result["usage"])  # 所有步骤的总 token 用量
 
 ```python
 from deepagents import create_deep_agent
-from src.workflows.main_workflow import get_or_create_main_agent
+from workflows.main_workflow import get_or_create_main_agent
 
 # 方式 1: 直接创建
 main_agent = create_deep_agent(
@@ -302,7 +302,7 @@ result = await main_agent.ainvoke({...})
 **同步运行主工作流**:
 
 ```python
-from src.workflows.main_workflow import run_main_workflow_sync
+from workflows.main_workflow import run_main_workflow_sync
 
 result = run_main_workflow_sync("我想6月去巴黎玩5天，预算1-1.5万")
 
@@ -322,7 +322,7 @@ print(result)
 **异步运行主工作流**:
 
 ```python
-from src.workflows.main_workflow import run_main_workflow
+from workflows.main_workflow import run_main_workflow
 
 result = await run_main_workflow("我想6月去巴黎玩5天，预算1-1.5万")
 ```
@@ -386,7 +386,7 @@ class MainState(TypedDict):
 **使用示例**:
 
 ```python
-from src.agents.mcp_client import get_mcp_client
+from agents.mcp_client import get_mcp_client
 
 client = get_mcp_client()
 await client.connect()
@@ -427,7 +427,7 @@ src/skills/
 **使用示例**:
 
 ```python
-from src.skills.registry import SkillRegistry
+from skills.registry import SkillRegistry
 
 # 列出所有 skills（不加载实现）
 skills = SkillRegistry.list_skills()

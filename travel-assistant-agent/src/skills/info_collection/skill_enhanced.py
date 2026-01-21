@@ -5,8 +5,8 @@ Enhanced Info Collection Skill Implementation with Pydantic Support
 from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime
-from src.skills.base_enhanced import EnhancedSkill
-from src.skills.info_collection.models import (
+from skills.base_enhanced import EnhancedSkill
+from skills.info_collection.models import (
     InfoCollectionInput, InfoCollectionOutput, CollectedInfo,
     MissingField, DateInfo, BudgetInfo, TravelerDetail
 )

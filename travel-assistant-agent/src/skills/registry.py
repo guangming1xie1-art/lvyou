@@ -85,7 +85,7 @@ class SkillRegistry:
         # 动态导入
         try:
             # 导入 skill 模块
-            module_path = f"src.skills.{name}.skill"
+            module_path = f"skills.{name}.skill"
             module = __import__(module_path, fromlist=[""])
             
             # 获取 Skill 类（约定类名为 {Name}Skill）
@@ -311,7 +311,7 @@ class SkillRegistry:
         Returns:
             格式化的 skill 信息文本
         """
-        from src.skills.prompt_generator import SkillPromptGenerator
+        from skills.prompt_generator import SkillPromptGenerator
         return SkillPromptGenerator.generate_system_prompt(cls._skills_dir)
     
     @classmethod

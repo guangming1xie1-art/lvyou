@@ -41,8 +41,8 @@ async def execute(self, origin, destination, departure_date, passengers, ...):
 
 #### 改造后
 ```python
-from src.utils.java_api_client import java_api_client, JavaAPIError
-from src.utils.logger import app_logger
+from utils.java_api_client import java_api_client, JavaAPIError
+from utils.logger import app_logger
 
 async def execute(self, origin, destination, departure_date, passengers, ...):
     app_logger.info(f"Searching flights from {origin} to {destination}")
@@ -99,8 +99,8 @@ async def execute(self, destination, check_in_date, check_out_date, ...):
 
 #### 改造后
 ```python
-from src.utils.java_api_client import java_api_client, JavaAPIError
-from src.utils.logger import app_logger
+from utils.java_api_client import java_api_client, JavaAPIError
+from utils.logger import app_logger
 
 async def execute(self, destination, check_in_date, check_out_date, ...):
     app_logger.info(f"Searching hotels in {destination}")

@@ -417,8 +417,8 @@ curl http://redis:6379                  # Redis
 
 # Test database queries (inside container)
 python -c "
-from src.config import settings
-from src.utils.db import get_db_connection
+from conf import settings
+from utils.db import get_db_connection
 conn = get_db_connection()
 print('Database connection successful')
 "

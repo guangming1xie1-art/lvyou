@@ -171,14 +171,14 @@ Entry → Intent Router → Search/Recommend/Booking → Response → END
 
 ```python
 # 1. 使用对话工作流
-from src.workflows.conversation import ConversationWorkflow
+from workflows.conversation import ConversationWorkflow
 
 workflow = ConversationWorkflow()
 result = await workflow.invoke("搜索北京的景点")
 print(result["response"])
 
 # 2. 使用子智能体
-from src.agents.subagents import SearchAgent
+from agents.subagents import SearchAgent
 
 agent = SearchAgent(llm=None)
 result = await agent.execute({
@@ -187,7 +187,7 @@ result = await agent.execute({
 })
 
 # 3. 使用 LLM 工厂
-from src.llm import LLMFactory
+from llm import LLMFactory
 
 models = LLMFactory.list_available_models()
 cost = LLMFactory.get_model_cost("gpt-4", 1000, 500)
@@ -197,7 +197,7 @@ cost = LLMFactory.get_model_cost("gpt-4", 1000, 500)
 
 ```python
 from fastapi import APIRouter
-from src.workflows.conversation import ConversationWorkflow
+from workflows.conversation import ConversationWorkflow
 
 router = APIRouter(prefix="/api/chat")
 workflow = ConversationWorkflow()

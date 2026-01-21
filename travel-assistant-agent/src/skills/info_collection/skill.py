@@ -5,8 +5,8 @@ Info Collection Skill Implementation
 from typing import Dict, Any, Optional, List
 import logging
 import json
-from src.skills.base import Skill
-from src.llm import LLMFactory
+from skills.base import Skill
+from llm import LLMFactory
 
 logger = logging.getLogger(__name__)
 

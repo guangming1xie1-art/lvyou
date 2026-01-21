@@ -3,7 +3,7 @@
 用于统计 LangChain LLM 调用的 Token 用量
 """
 from typing import Dict, Any, Optional
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.callbacks.base import BaseCallbackHandler
 
 
 class TokenCounter(BaseCallbackHandler):

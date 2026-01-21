@@ -13,7 +13,7 @@ class TestCacheKeyGenerator:
 
     def test_generate_key_basic(self):
         """测试基本键生成"""
-        from src.cache.cache_key import CacheKeyGenerator
+        from cache.cache_key import CacheKeyGenerator
         
         key = CacheKeyGenerator.generate_key("test", "arg1", "arg2", kw="value")
         
@@ -22,7 +22,7 @@ class TestCacheKeyGenerator:
 
     def test_generate_key_consistency(self):
         """测试键生成一致性"""
-        from src.cache.cache_key import CacheKeyGenerator
+        from cache.cache_key import CacheKeyGenerator
         
         key1 = CacheKeyGenerator.generate_key("search", query="Paris", type="hotel")
         key2 = CacheKeyGenerator.generate_key("search", query="Paris", type="hotel")
@@ -31,7 +31,7 @@ class TestCacheKeyGenerator:
 
     def test_generate_search_key(self):
         """测试搜索键生成"""
-        from src.cache.cache_key import CacheKeyGenerator
+        from cache.cache_key import CacheKeyGenerator
         
         key = CacheKeyGenerator.generate_search_key(
             query="Paris hotels",
@@ -44,7 +44,7 @@ class TestCacheKeyGenerator:
 
     def test_generate_conversation_key(self):
         """测试对话键生成"""
-        from src.cache.cache_key import CacheKeyGenerator
+        from cache.cache_key import CacheKeyGenerator
         
         key = CacheKeyGenerator.generate_conversation_key("conv123")
         
@@ -56,7 +56,7 @@ class TestPromptCacheManager:
 
     def test_init(self):
         """测试初始化"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -66,7 +66,7 @@ class TestPromptCacheManager:
 
     def test_cache_system_prompt(self):
         """测试缓存系统提示"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -78,7 +78,7 @@ class TestPromptCacheManager:
 
     def test_cache_rag_context(self):
         """测试缓存RAG上下文"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -91,7 +91,7 @@ class TestPromptCacheManager:
 
     def test_cache_ttl(self):
         """测试缓存过期"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         from datetime import datetime, timedelta
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -116,7 +116,7 @@ class TestPromptCacheManager:
 
     def test_build_cached_messages(self):
         """测试构建缓存消息"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -133,7 +133,7 @@ class TestPromptCacheManager:
 
     def test_calculate_token_savings(self):
         """测试计算Token节省"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -150,7 +150,7 @@ class TestPromptCacheManager:
 
     def test_clear_cache(self):
         """测试清空缓存"""
-        from src.cache.prompt_cache import PromptCacheManager
+        from cache.prompt_cache import PromptCacheManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCacheManager(enable_cache=True, cache_dir=tmpdir)
@@ -169,16 +169,16 @@ class TestCacheStrategy:
 
     def test_init(self):
         """测试初始化"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         strategy = CacheStrategy()
         
         assert strategy.prefix == "travel_assistant"
 
-    @patch('src.cache.cache_strategy.RedisCache')
+    @patch('cache.cache_strategy.RedisCache')
     def test_get_or_compute(self, mock_redis_class):
         """测试Cache-Aside模式"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         mock_redis = MagicMock()
         mock_redis.get.return_value = None  # 模拟缓存未命中
@@ -198,10 +198,10 @@ class TestCacheStrategy:
         assert compute_count[0] == 1
         mock_redis.set.assert_called_once()
 
-    @patch('src.cache.cache_strategy.RedisCache')
+    @patch('cache.cache_strategy.RedisCache')
     def test_get_or_compute_cache_hit(self, mock_redis_class):
         """测试缓存命中"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         mock_redis = MagicMock()
         mock_redis.get.return_value = "cached_value"
@@ -220,10 +220,10 @@ class TestCacheStrategy:
         assert result == "cached_value"
         assert compute_count[0] == 0  # 不应该调用compute_fn
 
-    @patch('src.cache.cache_strategy.RedisCache')
+    @patch('cache.cache_strategy.RedisCache')
     def test_cache_search_results(self, mock_redis_class):
         """测试缓存搜索结果"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         mock_redis = MagicMock()
         mock_redis_class.return_value = mock_redis
@@ -240,10 +240,10 @@ class TestCacheStrategy:
         assert success is True
         mock_redis.set.assert_called_once()
 
-    @patch('src.cache.cache_strategy.RedisCache')
+    @patch('cache.cache_strategy.RedisCache')
     def test_get_search_results(self, mock_redis_class):
         """测试获取搜索结果"""
-        from src.cache.cache_strategy import CacheStrategy
+        from cache.cache_strategy import CacheStrategy
         
         mock_redis = MagicMock()
         mock_redis.get.return_value = {"flights": [], "hotels": []}
@@ -260,10 +260,10 @@ class TestCacheStrategy:
 class TestCacheManager:
     """缓存管理器测试"""
 
-    @patch('src.cache.cache_manager.RedisCache')
+    @patch('cache.cache_manager.RedisCache')
     def test_init(self, mock_redis_class):
         """测试初始化"""
-        from src.cache.cache_manager import CacheManager
+        from cache.cache_manager import CacheManager
         
         mock_redis = MagicMock()
         mock_redis_class.return_value = mock_redis
@@ -272,10 +272,10 @@ class TestCacheManager:
         
         assert manager.prefix == "travel_assistant"
 
-    @patch('src.cache.cache_manager.RedisCache')
+    @patch('cache.cache_manager.RedisCache')
     def test_search_cache(self, mock_redis_class):
         """测试搜索缓存"""
-        from src.cache.cache_manager import CacheManager
+        from cache.cache_manager import CacheManager
         
         mock_redis = MagicMock()
         mock_redis.get.return_value = {"results": "test"}

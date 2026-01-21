@@ -12,7 +12,7 @@ Claude API 连接管理
 - 连接测试
 """
 from typing import Optional
-from config import settings
+from conf import settings
 from utils.logger import app_logger
 
 

@@ -21,10 +21,7 @@ import asyncio
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-try:
-    from config import settings
-except ModuleNotFoundError:
-    from src.config import settings
+from conf import settings
 
 try:
     from utils.logger import app_logger
@@ -35,13 +32,13 @@ try:
     )
     from utils.metrics import metrics
 except ModuleNotFoundError:
-    from src.utils.logger import app_logger
-    from src.utils.exceptions import (
+    from utils.logger import app_logger
+    from utils.exceptions import (
         AgentException, JavaAPIError, JavaAPITimeoutError, 
         JavaAPINotFoundError, JavaAPIValidationError, 
         JavaAPIServerError, JavaAPIAuthError
     )
-    from src.utils.metrics import metrics
+    from utils.metrics import metrics
 
 import time
 

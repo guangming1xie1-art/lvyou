@@ -106,7 +106,7 @@
 
 ### 创建酒店预订
 ```python
-from src.skills.booking import BookingSkill
+from skills.booking import BookingSkill
 
 skill = BookingSkill()
 result = await skill.execute({

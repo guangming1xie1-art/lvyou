@@ -289,8 +289,8 @@ deps = await DependencyResolver.resolve_dependencies(
 ## 📖 Example Usage
 
 ```python
-from src.skills.registry import SkillRegistry
-from src.skills.executor import SkillExecutor
+from skills.registry import SkillRegistry
+from skills.executor import SkillExecutor
 
 # Load and execute with full validation
 async def handle_user_request(user_input):

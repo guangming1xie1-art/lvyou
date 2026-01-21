@@ -12,11 +12,11 @@ class TestEmbeddingFactory:
 
     def test_get_embeddings_singleton(self):
         """测试Embedding单例模式"""
-        from src.rag.embeddings import EmbeddingFactory
+        from rag.embeddings import EmbeddingFactory
         
         # 模拟环境变量
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
-            with patch("src.rag.embeddings.OpenAIEmbeddings") as mock_embeddings:
+            with patch("rag.embeddings.OpenAIEmbeddings") as mock_embeddings:
                 mock_instance = MagicMock()
                 mock_embeddings.return_value = mock_instance
                 
@@ -32,14 +32,14 @@ class TestEmbeddingFactory:
 
     def test_embed_text(self):
         """测试文本嵌入"""
-        from src.rag.embeddings import EmbeddingFactory
+        from rag.embeddings import EmbeddingFactory
         
         EmbeddingFactory.reset_instance()
         
         mock_embeddings = MagicMock()
         mock_embeddings.embed_query.return_value = [0.1, 0.2, 0.3]
         
-        with patch("src.rag.embeddings.OpenAIEmbeddings", return_value=mock_embeddings):
+        with patch("rag.embeddings.OpenAIEmbeddings", return_value=mock_embeddings):
             with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
                 EmbeddingFactory._instance = None
                 result = EmbeddingFactory.embed_text("test text")
@@ -49,14 +49,14 @@ class TestEmbeddingFactory:
 
     def test_embed_texts(self):
         """测试批量文本嵌入"""
-        from src.rag.embeddings import EmbeddingFactory
+        from rag.embeddings import EmbeddingFactory
         
         EmbeddingFactory.reset_instance()
         
         mock_embeddings = MagicMock()
         mock_embeddings.embed_documents.return_value = [[0.1, 0.2], [0.3, 0.4]]
         
-        with patch("src.rag.embeddings.OpenAIEmbeddings", return_value=mock_embeddings):
+        with patch("rag.embeddings.OpenAIEmbeddings", return_value=mock_embeddings):
             with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
                 EmbeddingFactory._instance = None
                 result = EmbeddingFactory.embed_texts(["text1", "text2"])
@@ -70,7 +70,7 @@ class TestVectorStoreManager:
 
     def test_init_creates_vectorstore(self):
         """测试初始化创建向量存储"""
-        from src.rag.vectorstore import VectorStoreManager
+        from rag.vectorstore import VectorStoreManager
         
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = VectorStoreManager(store_path=tmpdir, recreate=True)
@@ -80,7 +80,7 @@ class TestVectorStoreManager:
 
     def test_add_documents(self):
         """测试添加文档"""
-        from src.rag.vectorstore import VectorStoreManager
+        from rag.vectorstore import VectorStoreManager
         from langchain.schema import Document
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -98,7 +98,7 @@ class TestVectorStoreManager:
 
     def test_search(self):
         """测试向量搜索"""
-        from src.rag.vectorstore import VectorStoreManager
+        from rag.vectorstore import VectorStoreManager
         from langchain.schema import Document
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -118,7 +118,7 @@ class TestVectorStoreManager:
 
     def test_search_with_filter(self):
         """测试带过滤条件的搜索"""
-        from src.rag.vectorstore import VectorStoreManager
+        from rag.vectorstore import VectorStoreManager
         from langchain.schema import Document
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -141,7 +141,7 @@ class TestHybridRetriever:
 
     def test_init(self):
         """测试初始化"""
-        from src.rag.retriever import HybridRetriever
+        from rag.retriever import HybridRetriever
         
         with tempfile.TemporaryDirectory() as tmpdir:
             retriever = HybridRetriever(vectorstore=None)
@@ -150,7 +150,7 @@ class TestHybridRetriever:
 
     def test_add_documents(self):
         """测试添加文档"""
-        from src.rag.retriever import HybridRetriever
+        from rag.retriever import HybridRetriever
         from langchain.schema import Document
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -168,7 +168,7 @@ class TestHybridRetriever:
 
     def test_retrieve(self):
         """测试混合检索"""
-        from src.rag.retriever import HybridRetriever
+        from rag.retriever import HybridRetriever
         from langchain.schema import Document
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -193,7 +193,7 @@ class TestKnowledgeBase:
 
     def test_add_knowledge(self):
         """测试添加知识"""
-        from src.rag.knowledge_base import KnowledgeBase
+        from rag.knowledge_base import KnowledgeBase
         
         with tempfile.TemporaryDirectory() as tmpdir:
             kb = KnowledgeBase(store_path=tmpdir)
@@ -209,7 +209,7 @@ class TestKnowledgeBase:
 
     def test_search(self):
         """测试知识搜索"""
-        from src.rag.knowledge_base import KnowledgeBase
+        from rag.knowledge_base import KnowledgeBase
         
         with tempfile.TemporaryDirectory() as tmpdir:
             kb = KnowledgeBase(store_path=tmpdir)
@@ -228,7 +228,7 @@ class TestKnowledgeBase:
 
     def test_get_relevant_context(self):
         """测试获取相关上下文"""
-        from src.rag.knowledge_base import KnowledgeBase
+        from rag.knowledge_base import KnowledgeBase
         
         with tempfile.TemporaryDirectory() as tmpdir:
             kb = KnowledgeBase(store_path=tmpdir)
@@ -251,7 +251,7 @@ class TestTravelKnowledgeBase:
 
     def test_add_category_knowledge(self):
         """测试按类别添加知识"""
-        from src.rag.knowledge_base import TravelKnowledgeBase
+        from rag.knowledge_base import TravelKnowledgeBase
         
         with tempfile.TemporaryDirectory() as tmpdir:
             kb = TravelKnowledgeBase(store_path=tmpdir)

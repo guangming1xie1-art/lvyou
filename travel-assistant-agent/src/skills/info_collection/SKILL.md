@@ -54,7 +54,7 @@
 
 ### 基本信息收集
 ```python
-from src.skills.info_collection import InfoCollectionSkill
+from skills.info_collection import InfoCollectionSkill
 
 skill = InfoCollectionSkill()
 result = await skill.execute({
