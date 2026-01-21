@@ -1,0 +1,18 @@
+npm warn Unknown env config "python". This will stop working in the next major version of npm.
+
+> travel-assistant-mock-api@1.0.0 dev
+> next dev -p 3001
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2s
+ ○ Compiling /api/[[...slug]] ...
+ ✓ Compiled /api/[[...slug]] in 728ms (88 modules)
+[mock-api] GET /api/auth/test
+ GET /api/auth/test 404 in 877ms
+[mock-api] GET /api/v1/travel/hotels
+ GET /api/v1/travel/hotels 401 in 6ms
+[?25h

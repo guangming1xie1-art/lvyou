@@ -52,10 +52,10 @@ export function issueAccessToken(user: PublicUser): { token: string; expires_in:
     email: user.email,
   }
 
-  const token = jwt.sign(claims, JWT_SECRET, {
+  const token = jwt.sign(claims as object, JWT_SECRET, {
     algorithm: 'HS256',
     expiresIn: JWT_EXPIRE_IN,
-  })
+  } as jwt.SignOptions)
 
   return { token, expires_in: parseExpiresInToSeconds(JWT_EXPIRE_IN) }
 }
@@ -68,10 +68,10 @@ export function issueRefreshToken(user: PublicUser): { token: string; jti: strin
     jti,
   }
 
-  const token = jwt.sign(claims, JWT_SECRET, {
+  const token = jwt.sign(claims as object, JWT_SECRET, {
     algorithm: 'HS256',
     expiresIn: JWT_REFRESH_EXPIRE_IN,
-  })
+  } as jwt.SignOptions)
 
   const expiresSeconds = parseExpiresInToSeconds(JWT_REFRESH_EXPIRE_IN)
   const expires_at = new Date(Date.now() + expiresSeconds * 1000).toISOString()
