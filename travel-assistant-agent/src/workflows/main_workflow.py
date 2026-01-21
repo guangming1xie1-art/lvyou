@@ -13,14 +13,14 @@ from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
 
 from deepagents import create_deep_agent
-from .subagents import (
+from src.workflows.subagents import (
     get_info_collection_agent,
     get_search_agent,
     get_recommend_agent,
     get_booking_agent,
 )
-from ..config import settings
-from ..llm.factory import LLMFactory
+from src.config import settings
+from src.llm.factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 

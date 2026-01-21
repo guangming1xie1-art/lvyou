@@ -2,11 +2,11 @@ import time
 import asyncio
 import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from .websocket_manager import ws_manager
-from ..agents.search import SearchAgent
-from ..agents.recommendation import RecommendationAgent
-from ..agents.booking import BookingAgent
-from ..utils.logger import app_logger
+from src.api.websocket_manager import ws_manager
+from src.agents.search import SearchAgent
+from src.agents.recommendation import RecommendationAgent
+from src.agents.booking import BookingAgent
+from src.utils.logger import app_logger
 
 router = APIRouter()
 
