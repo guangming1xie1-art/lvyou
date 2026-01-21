@@ -105,6 +105,23 @@ async def get_current_user(token: str = Depends(get_token)) -> User:
         )
 
 
+async def get_user_token(request: Request) -> Optional[str]:
+    """
+    Extract user JWT token from request headers
+    Used for forwarding to downstream services (e.g., Java API)
+    
+    Args:
+        request: FastAPI request object
+    
+    Returns:
+        JWT token string or None
+    """
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
+    return None
+
+
 async def get_current_active_user(
     current_user: User = Depends(get_current_user)
 ) -> User:

@@ -271,11 +271,28 @@ class JavaAPIClient:
             headers["Authorization"] = f"Bearer {settings.java_api_auth_token}"
         return headers
 
-    def _update_headers(self, headers: Dict[str, str] = None) -> Dict[str, str]:
-        """更新请求头"""
+    def _update_headers(self, headers: Dict[str, str] = None, user_token: str = None) -> Dict[str, str]:
+        """
+        更新请求头 - 支持用户 Token 转发
+        
+        优先级：
+        1. 如果提供 user_token（来自用户请求），使用用户 Token ✅
+        2. 否则使用配置的服务 Token（service-to-service）
+        3. 都没有则只用基础 header
+        """
         default_headers = self._get_headers()
+        
+        if user_token:
+            # ✅ 优先使用用户 Token - 保持用户身份链路
+            default_headers["Authorization"] = f"Bearer {user_token}"
+            app_logger.debug(f"Using user token for request (user auth preserved)")
+        elif settings.java_api_auth_token:
+            # 备选：使用服务级 Token（用于服务间直接调用）
+            default_headers["Authorization"] = f"Bearer {settings.java_api_auth_token}"
+        
         if headers:
             default_headers.update(headers)
+        
         return default_headers
 
     # =============================================================================
@@ -288,7 +305,9 @@ class JavaAPIClient:
         endpoint: str,
         params: Dict = None,
         json: Dict = None,
-        headers: Dict = None
+        headers: Dict = None,
+        user_token: str = None,  # ✅ 新增参数：用户 Token
+        user_id: str = None  # ✅ 新增参数：用户ID（用于日志）
     ) -> Dict[str, Any]:
         """
         内部 HTTP 请求方法
@@ -301,6 +320,8 @@ class JavaAPIClient:
             params: URL 查询参数
             json: 请求体 JSON 数据
             headers: 自定义请求头
+            user_token: 用户 Token（用于转发用户身份）
+            user_id: 用户ID（用于日志记录）
 
         Returns:
             API 响应数据 (字典格式)
@@ -314,11 +335,13 @@ class JavaAPIClient:
             JavaAPIError: 其他 API 错误时
         """
         url = endpoint
-        request_headers = self._update_headers(headers)
+        request_headers = self._update_headers(headers, user_token)  # ✅ 传递 user_token
         start_time = time.time()
         api_name = endpoint.strip("/").replace("/", ".")
 
-        app_logger.debug(f"API Request: {method} {url} params={params}", api=api_name)
+        app_logger.debug(f"API Request: {method} {url} params={params}", 
+                         api=api_name, 
+                         user_id=user_id)  # ✅ 添加用户ID日志
 
         try:
             response = await self._client.request(
@@ -526,7 +549,9 @@ class JavaAPIClient:
         passengers: int,
         return_date: str = None,
         cabin_class: str = "economy",
-        trip_type: str = "roundtrip"  # roundtrip, oneway, multicity
+        trip_type: str = "roundtrip",  # roundtrip, oneway, multicity
+        user_token: str = None,  # ✅ 新增
+        user_id: str = None  # ✅ 新增
     ) -> Dict[str, Any]:
         """
         搜索航班
@@ -536,9 +561,11 @@ class JavaAPIClient:
             destination: 目的地 (城市代码或名称，如 "Tokyo" 或 "NRT")
             departure_date: 出发日期 (YYYY-MM-DD)
             passengers: 乘客数量
-            return_date: 返回日期 (可选，YYYY-MM-DD，单程时可不传)
+            return_date: 返回日期 (可选，YYYY-MM-DD，单程时可不传）
             cabin_class: 舱位等级 (economy, premium_economy, business, first)
             trip_type: 行程类型 (roundtrip, oneway, multicity)
+            user_token: 用户 Token（用于转发用户身份） ✅ 新增
+            user_id: 用户ID（用于日志记录） ✅ 新增
 
         Returns:
             包含以下键的字典:
@@ -561,7 +588,7 @@ class JavaAPIClient:
 
         app_logger.info(f"Searching flights: {origin} -> {destination}")
 
-        response = await self._request("POST", endpoint, json=payload)
+        response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=user_id)
 
         return {
             "outbound_flights": response.get("outboundFlights", response.get("data", [])),
@@ -587,7 +614,9 @@ class JavaAPIClient:
         hotel_class: str = None,
         price_min: float = None,
         price_max: float = None,
-        amenities: List[str] = None
+        amenities: List[str] = None,
+        user_token: str = None,  # ✅ 新增
+        user_id: str = None  # ✅ 新增
     ) -> Dict[str, Any]:
         """
         搜索酒店
@@ -602,6 +631,8 @@ class JavaAPIClient:
             price_min: 最低价格
             price_max: 最高价格
             amenities: 设施要求列表 (如 ["WiFi", "Pool"])
+            user_token: 用户 Token（用于转发用户身份） ✅ 新增
+            user_id: 用户ID（用于日志记录） ✅ 新增
 
         Returns:
             酒店列表和搜索结果信息
@@ -626,7 +657,7 @@ class JavaAPIClient:
 
         app_logger.info(f"Searching hotels in {destination}")
 
-        response = await self._request("POST", endpoint, json=payload)
+        response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=user_id)
 
         return {
             "hotels": response.get("hotels", response.get("data", [])),
@@ -715,12 +746,14 @@ class JavaAPIClient:
     # 推荐相关方法 (RecommendationAgent)
     # =============================================================================
 
-    async def get_destination_info(self, destination: str) -> Dict[str, Any]:
+    async def get_destination_info(self, destination: str, user_token: str = None, user_id: str = None) -> Dict[str, Any]:
         """
         获取目的地详细信息
 
         Args:
             destination: 目的地城市或国家名称
+            user_token: 用户 Token（用于转发用户身份） ✅ 新增
+            user_id: 用户ID（用于日志记录） ✅ 新增
 
         Returns:
             目的地详细信息
@@ -729,7 +762,7 @@ class JavaAPIClient:
 
         app_logger.info(f"Getting destination info for: {destination}")
 
-        response = await self._request("GET", endpoint)
+        response = await self._request("GET", endpoint, user_token=user_token, user_id=user_id)
 
         return {
             "destination": destination,
@@ -740,7 +773,9 @@ class JavaAPIClient:
         self,
         destination: str,
         category: str = None,
-        sort_by: str = "rating"
+        sort_by: str = "rating",
+        user_token: str = None,  # ✅ 新增
+        user_id: str = None  # ✅ 新增
     ) -> Dict[str, Any]:
         """
         获取目的地景点信息
@@ -749,6 +784,8 @@ class JavaAPIClient:
             destination: 目的地城市
             category: 景点类别 (culture, nature, museum, shopping, entertainment)
             sort_by: 排序方式 (rating, price, review_count)
+            user_token: 用户 Token（用于转发用户身份） ✅ 新增
+            user_id: 用户ID（用于日志记录） ✅ 新增
 
         Returns:
             景点列表和相关信息
@@ -761,7 +798,7 @@ class JavaAPIClient:
 
         app_logger.info(f"Getting attractions for: {destination}")
 
-        response = await self._request("GET", endpoint, params=params)
+        response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=user_id)
 
         return {
             "destination": destination,
@@ -775,7 +812,9 @@ class JavaAPIClient:
         destination: str,
         start_date: str,
         end_date: str = None,
-        days: int = 7
+        days: int = 7,
+        user_token: str = None,  # ✅ 新增
+        user_id: str = None  # ✅ 新增
     ) -> Dict[str, Any]:
         """
         获取天气预报
@@ -785,6 +824,8 @@ class JavaAPIClient:
             start_date: 开始日期 (YYYY-MM-DD)
             end_date: 结束日期 (可选)
             days: 预报天数 (默认7天)
+            user_token: 用户 Token（用于转发用户身份） ✅ 新增
+            user_id: 用户ID（用于日志记录） ✅ 新增
 
         Returns:
             天气预报列表
@@ -801,7 +842,7 @@ class JavaAPIClient:
 
         app_logger.info(f"Getting weather forecast for {destination}")
 
-        response = await self._request("POST", endpoint, json=payload)
+        response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=user_id)
 
         return {
             "destination": destination,

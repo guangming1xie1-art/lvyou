@@ -71,12 +71,13 @@ class RateLimiter:
         # Fallback to IP address
         return request.client.host if request.client else "unknown"
     
-    async def check_limit(self, request: Request) -> bool:
+    async def check_limit(self, request: Request, user_id: str = None) -> bool:
         """
         Check if request should be rate limited
         
         Args:
             request: FastAPI request
+            user_id: User ID (优先使用 user_id 做限流标识) ✅ 新增
         
         Returns:
             True if request is allowed, False otherwise
@@ -84,20 +85,22 @@ class RateLimiter:
         Raises:
             HTTPException: If rate limit exceeded
         """
-        user_id = self._get_user_identifier(request)
+        # ✅ 优先使用 user_id，如果没有则使用 IP
+        identifier = user_id if user_id else self._get_user_identifier(request)
+        
         current_time = time.time()
         
         # Check minute limit
-        if user_id not in self._minute_store:
-            self._minute_store[user_id] = []
+        if identifier not in self._minute_store:
+            self._minute_store[identifier] = []
         
         # Filter timestamps from last minute
-        self._minute_store[user_id] = [
-            ts for ts in self._minute_store[user_id] if current_time - ts < 60
+        self._minute_store[identifier] = [
+            ts for ts in self._minute_store[identifier] if current_time - ts < 60
         ]
         
-        if len(self._minute_store[user_id]) >= self.requests_per_minute:
-            app_logger.warning(f"Rate limit exceeded (minute) for user: {user_id}")
+        if len(self._minute_store[identifier]) >= self.requests_per_minute:
+            app_logger.warning(f"Rate limit exceeded (minute) for identifier: {identifier}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Rate limit exceeded: {self.requests_per_minute} requests per minute",
@@ -110,16 +113,16 @@ class RateLimiter:
             )
         
         # Check hour limit
-        if user_id not in self._hour_store:
-            self._hour_store[user_id] = []
+        if identifier not in self._hour_store:
+            self._hour_store[identifier] = []
         
         # Filter timestamps from last hour
-        self._hour_store[user_id] = [
-            ts for ts in self._hour_store[user_id] if current_time - ts < 3600
+        self._hour_store[identifier] = [
+            ts for ts in self._hour_store[identifier] if current_time - ts < 3600
         ]
         
-        if len(self._hour_store[user_id]) >= self.requests_per_hour:
-            app_logger.warning(f"Rate limit exceeded (hour) for user: {user_id}")
+        if len(self._hour_store[identifier]) >= self.requests_per_hour:
+            app_logger.warning(f"Rate limit exceeded (hour) for identifier: {identifier}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Rate limit exceeded: {self.requests_per_hour} requests per hour",
@@ -132,8 +135,8 @@ class RateLimiter:
             )
         
         # Record this request
-        self._minute_store[user_id].append(current_time)
-        self._hour_store[user_id].append(current_time)
+        self._minute_store[identifier].append(current_time)
+        self._hour_store[identifier].append(current_time)
         
         return True
     
