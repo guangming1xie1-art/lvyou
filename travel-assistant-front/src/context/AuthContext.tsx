@@ -3,6 +3,7 @@
  * Provides authentication state and methods to all components
  */
 
+import axios from 'axios';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import authService, { setupAxiosInterceptor } from '@/services/authService';
 import type { User, AuthContextType } from '@/types/auth';
@@ -35,7 +36,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
 
     // Setup axios interceptor for API calls
-    const axios = require('axios');
     setupAxiosInterceptor(axios);
   }, []);
 
