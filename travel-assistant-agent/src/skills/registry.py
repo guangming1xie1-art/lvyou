@@ -85,7 +85,7 @@ class SkillRegistry:
         # 动态导入
         try:
             # 导入 skill 模块
-            module_path = f"src.skills.{name}.skill"
+            module_path = f"skills.{name}.skill"
             module = __import__(module_path, fromlist=[""])
             
             # 获取 Skill 类（约定类名为 {Name}Skill）

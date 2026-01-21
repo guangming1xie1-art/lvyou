@@ -15,7 +15,7 @@ from loguru import logger as loguru_logger
 try:
     from config import settings
 except ModuleNotFoundError:
-    from src.config import settings
+    from config import settings
 
 class StructuredLogger:
     """结构化日志记录器"""

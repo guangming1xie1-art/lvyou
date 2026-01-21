@@ -5,12 +5,12 @@ Enhanced Booking Skill Implementation with Pydantic Support
 from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime
-from src.skills.base_enhanced import EnhancedSkill
-from src.skills.booking.models import (
+from skills.base_enhanced import EnhancedSkill
+from skills.booking.models import (
     BookingInput, BookingOutput, BookingCreateInput, BookingQueryInput,
     BookingDetails, TravelerInfo, ContactInfo, PaymentInfo, HotelDetails
 )
-from src.agents.mcp_client import get_mcp_client
+from agents.mcp_client import get_mcp_client
 
 logger = logging.getLogger(__name__)
 
