@@ -72,7 +72,7 @@ class SkillExecutor:
             # 1. 验证依赖链是否有循环
             if resolve_deps:
                 logger.debug(f"Validating dependencies for '{skill_name}'")
-                from .dependency_resolver import DependencyResolver
+                from src.skills.dependency_resolver import DependencyResolver
                 
                 if not DependencyResolver.validate_dependencies(skill_name, schema_loader):
                     raise ValueError(f"Circular dependency detected in skill '{skill_name}'")

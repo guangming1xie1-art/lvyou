@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import MagicMock, patch
-from ...src.workflows.subgraphs.hybrid_retrieval import hybrid_rank, _calc_price_score
+from src.workflows.subgraphs.hybrid_retrieval import hybrid_rank, _calc_price_score
 
 def test_calc_price_score():
     budget = {"min": 200, "max": 500}

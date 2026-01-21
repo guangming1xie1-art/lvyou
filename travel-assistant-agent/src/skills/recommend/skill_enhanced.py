@@ -5,12 +5,12 @@ Enhanced Recommend Skill Implementation with Pydantic Support
 from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime
-from ....skills.base_enhanced import EnhancedSkill
-from .models import (
+from src.skills.base_enhanced import EnhancedSkill
+from src.skills.recommend.models import (
     RecommendInput, RecommendOutput, RecommendationItem, 
     ItineraryDay, ActivityInfo, TotalCost, CostBreakdown
 )
-from ....agents.mcp_client import get_mcp_client
+from src.agents.mcp_client import get_mcp_client
 
 logger = logging.getLogger(__name__)
 

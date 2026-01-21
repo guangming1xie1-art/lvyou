@@ -4,8 +4,8 @@
 MVP 阶段先保留骨架接口。
 """
 from typing import Any, Dict, Optional, Callable, Awaitable
-from ..utils.logger import app_logger
-from .error_handler import AgentErrorHandler
+from src.utils.logger import app_logger
+from src.agents.error_handler import AgentErrorHandler
 from .base import BaseAgent
 
 class BookingAgent(BaseAgent):

@@ -2,7 +2,7 @@ import json
 import asyncio
 from typing import Dict, Any, Optional
 from fastapi import WebSocket, WebSocketDisconnect
-from ..utils.logger import app_logger
+from src.utils.logger import app_logger
 
 class WebSocketManager:
     def __init__(self):

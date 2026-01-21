@@ -5,7 +5,7 @@
 每个 CompiledSubAgent 提供统一的 invoke() 接口
 """
 from deepagents import CompiledSubAgent
-from .subgraphs import (
+from src.workflows.subgraphs import (
     build_collect_info_graph,
     build_search_graph,
     build_recommend_graph,

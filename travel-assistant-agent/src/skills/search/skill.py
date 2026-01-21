@@ -4,8 +4,8 @@ Search Skill Implementation
 """
 from typing import Dict, Any, Optional
 import logging
-from ...skills.base import Skill
-from ....agents.mcp_client import get_mcp_client
+from src.skills.base import Skill
+from src.agents.mcp_client import get_mcp_client
 
 logger = logging.getLogger(__name__)
 
