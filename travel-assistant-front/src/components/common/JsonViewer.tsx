@@ -83,7 +83,7 @@ function JsonNode({
           <summary className="cursor-pointer select-none list-none inline-flex items-center gap-2 text-gray-800">
             <span className="font-medium text-indigo-700">{summary}</span>
             <span className="text-gray-500">{keys.length}</span>
-            <span className="font-medium text-indigo-700">}</span>
+            <span className="font-medium text-indigo-700"></span>
             <span className="ml-1 text-[11px] text-gray-400 group-open:hidden">点击展开</span>
           </summary>
 
