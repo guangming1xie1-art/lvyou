@@ -45,7 +45,7 @@ async def start_app():
         logger.info("=" * 50)
         
         # 导入应用创建函数
-        from src.gradio_ui.app import create_app
+        from .src.gradio_ui.app import create_app
         
         # 创建Gradio应用
         app = create_app()

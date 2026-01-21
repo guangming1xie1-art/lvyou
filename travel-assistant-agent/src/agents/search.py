@@ -5,8 +5,8 @@ MVP 阶段仅提供骨架，后续接入 MCP 工具/后端服务。
 """
 from typing import Any, Dict, List, Optional, Callable, Awaitable
 
-from src.utils.logger import app_logger
-from src.agents.error_handler import AgentErrorHandler
+from ..utils.logger import app_logger
+from .error_handler import AgentErrorHandler
 from .base import BaseAgent
 
 class SearchAgent(BaseAgent):

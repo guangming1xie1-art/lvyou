@@ -311,7 +311,7 @@ class SkillRegistry:
         Returns:
             格式化的 skill 信息文本
         """
-        from src.skills.prompt_generator import SkillPromptGenerator
+        from .prompt_generator import SkillPromptGenerator
         return SkillPromptGenerator.generate_system_prompt(cls._skills_dir)
     
     @classmethod
