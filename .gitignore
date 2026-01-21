@@ -10,8 +10,10 @@ node_modules
 # Production
 /dist
 /build
+/.next
 /travel-assistant-front/dist
 /travel-assistant-front/build
+/travel-assistant-front/.next
 
 # Misc
 .DS_Store
