@@ -2,8 +2,8 @@
 
 from typing import Dict, Any, Callable
 import traceback
-from src.utils.exceptions import AgentException
-from src.utils.logger import app_logger
+from ..utils.exceptions import AgentException
+from ..utils.logger import app_logger
 
 class AgentErrorHandler:
     """统一处理Agent和skills的错误"""
