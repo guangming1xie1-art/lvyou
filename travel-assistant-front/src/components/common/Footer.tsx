@@ -6,7 +6,7 @@ export const Footer = () => {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="text-2xl font-bold text-primary-500 mb-6 block">
+            <Link to="/" className="text-2xl font-bold text-indigo-400 mb-6 block">
               旅游助手
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
@@ -17,18 +17,18 @@ export const Footer = () => {
           <div>
             <h4 className="font-bold mb-6">快速链接</h4>
             <ul className="space-y-4 text-sm text-gray-400">
-              <li><Link to="/" className="hover:text-primary-500 transition-colors">首页</Link></li>
-              <li><Link to="/info-collection" className="hover:text-primary-500 transition-colors">定制行程</Link></li>
-              <li><Link to="/attractions" className="hover:text-primary-500 transition-colors">景点美食</Link></li>
+              <li><Link to="/" className="hover:text-indigo-400 transition-colors">首页</Link></li>
+              <li><Link to="/info-collection" className="hover:text-indigo-400 transition-colors">定制行程</Link></li>
+              <li><Link to="/attractions" className="hover:text-indigo-400 transition-colors">景点美食</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-bold mb-6">服务支持</h4>
             <ul className="space-y-4 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-primary-500 transition-colors">帮助中心</a></li>
-              <li><a href="#" className="hover:text-primary-500 transition-colors">预订协议</a></li>
-              <li><a href="#" className="hover:text-primary-500 transition-colors">隐私政策</a></li>
+              <li><a href="#" className="hover:text-indigo-400 transition-colors">帮助中心</a></li>
+              <li><a href="#" className="hover:text-indigo-400 transition-colors">预订协议</a></li>
+              <li><a href="#" className="hover:text-indigo-400 transition-colors">隐私政策</a></li>
             </ul>
           </div>
 
