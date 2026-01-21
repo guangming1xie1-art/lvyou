@@ -50,7 +50,7 @@ class AgentBridge:
             self.logger.info(f"Calling workflow with message: {full_message[:100]}...")
             
             # 导入并调用工作流
-            from src.workflows.main_workflow import run_main_workflow_async
+            from workflows.main_workflow import run_main_workflow_async
             
             result = await run_main_workflow_async(full_message)
             

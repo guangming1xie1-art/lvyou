@@ -9,8 +9,8 @@ import json
 from typing import List, Tuple, Dict, Any, Optional
 from loguru import logger
 
-from src.workflows.main_workflow import run_main_workflow_async
-from src.gradio_ui.utils import MediaHandler
+from workflows.main_workflow import run_main_workflow_async
+from gradio_ui.utils import MediaHandler
 
 
 class AgentBridge:

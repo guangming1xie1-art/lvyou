@@ -3,7 +3,7 @@
 from typing import Dict, Any
 import time
 from collections import defaultdict
-from src.utils.logger import app_logger
+from utils.logger import app_logger
 
 class MetricsCollector:
     """收集系统性能指标"""
