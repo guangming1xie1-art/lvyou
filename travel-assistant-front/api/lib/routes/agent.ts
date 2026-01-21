@@ -12,7 +12,6 @@ function normalizeCity(city: string): string {
     shanghai: '上海',
     hangzhou: '杭州',
     xian: '西安',
-    xi’an: '西安',
     chengdu: '成都',
     guangzhou: '广州',
     shenzhen: '深圳',

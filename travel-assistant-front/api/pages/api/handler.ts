@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { applyCors, handlePreflight } from './middlewares/cors'
-import { handleAuthRoute } from './routes/auth'
-import { handleTravelRoute } from './routes/travel'
-import { handleAttractionsRoute } from './routes/attractions'
-import { handleOrdersRoute } from './routes/orders'
-import { handleAgentRoute, handleChatRoute } from './routes/agent'
+import { applyCors, handlePreflight } from '../../lib/middlewares/cors'
+import { handleAuthRoute } from '../../lib/routes/auth'
+import { handleTravelRoute } from '../../lib/routes/travel'
+import { handleAttractionsRoute } from '../../lib/routes/attractions'
+import { handleOrdersRoute } from '../../lib/routes/orders'
+import { handleAgentRoute, handleChatRoute } from '../../lib/routes/agent'
 
 function getSegments(req: NextApiRequest): string[] {
   const slug = req.query.slug
