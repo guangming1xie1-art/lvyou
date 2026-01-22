@@ -78,6 +78,7 @@ class VectorStoreManager:
             metadata={"type": "system", "source": "init"}
         )
         self.vectorstore = FAISS.from_documents([placeholder_doc], embeddings)
+        self.save()
         logger.info(f"Created new vectorstore at {self.store_path}")
     
     def add_documents(

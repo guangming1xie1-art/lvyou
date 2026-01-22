@@ -5,6 +5,7 @@ Embedding适配器工厂模块
 """
 
 from abc import ABC, abstractmethod
+from langchain_core.embeddings import Embeddings 
 from typing import List, Optional, Dict, Any
 import os
 import logging
@@ -16,7 +17,7 @@ load_dotenv(override=True)
 logger = logging.getLogger(__name__)
 
 
-class EmbeddingAdapter(ABC):
+class EmbeddingAdapter(Embeddings):
     """
     嵌入模型适配器抽象基类
     为所有厂商的嵌入模型提供统一接口

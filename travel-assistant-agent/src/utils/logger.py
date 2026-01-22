@@ -32,7 +32,9 @@ class StructuredLogger:
         # 添加文件处理器（JSON格式）
         self._logger.add(
             "logs/agent-{time:YYYY-MM-DD}.log",
-            format=self._format_record,
+            # format=self._serialize_record,
+            # serialize=True,
+            format="{message}",
             level="INFO",
             rotation="00:00",
             retention="7 days",
@@ -52,7 +54,17 @@ class StructuredLogger:
             level=getattr(settings, "log_level", "INFO"),
             colorize=True
         )
-    
+    def _serialize_record(self, record):
+        log_data = {
+            "timestamp": record["time"].isoformat(),
+            "level": record["level"].name,
+            "logger": record["name"],
+            "message": record["message"],
+            "request_id": record["extra"].get("request_id", "unknown"),
+        }
+        # 把 extra 里其他字段也摊平
+        log_data.update({k: v for k, v in record["extra"].items() if k != "request_id"})
+        return json.dumps(log_data, ensure_ascii=False) + "\n"
     def _format_record(self, record):
         """格式化日志记录为JSON"""
         log_data = {
