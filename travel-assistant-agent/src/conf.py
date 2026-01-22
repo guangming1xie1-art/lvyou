@@ -121,11 +121,10 @@ class Settings(BaseSettings):
     )
 
     # CORS
-    # cors_origins: List[str] = Field(
-    #     default=["http://localhost:3000", "http://localhost:5173"],
-    #     alias="CORS_ORIGINS",
-    #     json_loads=True
-    # )
+    cors_origins: List[str] = Field(
+        default=["http://localhost:3000", "http://localhost:5173"],
+        alias="CORS_ORIGINS"
+    )
 
     # MCP (Model Context Protocol)
     mcp_enabled: bool = Field(default=True, alias="MCP_ENABLED")

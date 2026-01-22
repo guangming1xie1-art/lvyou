@@ -2,12 +2,26 @@
 FastAPI 主应用入口
 提供 Agent 服务的 HTTP API 接口
 """
+import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from workflows.main_workflow import run_main_workflow_async
 from api.routes import router, chat_router, rag_router
 
 app = FastAPI(title="Travel Assistant Agent API", version="2.0.0")
+
+# 配置 CORS
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Process-Time", "X-Performance", "Content-Length"],
+)
 
 # Register routers
 app.include_router(router)
