@@ -15,9 +15,9 @@ from .models import (
     RefreshTokenRequest
 )
 from .dependencies import get_current_user
-from ..utils.logger import app_logger
-from ..utils.db import db_manager
-from ..config import settings
+from utils.logger import app_logger
+from utils.db import db_manager
+from conf import settings
 
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])

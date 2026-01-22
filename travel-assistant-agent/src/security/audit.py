@@ -5,8 +5,8 @@ import json
 from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import Request
-from ..utils.logger import app_logger
-from ..utils.db import db_manager
+from utils.logger import app_logger
+from utils.db import db_manager
 
 
 class AuditLogger:

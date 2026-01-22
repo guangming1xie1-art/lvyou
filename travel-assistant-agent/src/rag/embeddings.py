@@ -9,6 +9,9 @@ from typing import List, Optional, Dict, Any
 import os
 import logging
 from functools import lru_cache
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +361,7 @@ class EmbeddingFactory:
             vec = embeddings.embed_query("北京旅游")
         """
         # 获取提供商
-        provider = provider or os.getenv("EMBEDDING_PROVIDER", "openai").lower()
+        provider = provider or os.getenv("EMBEDDING_PROVIDER", "glm").lower()
         
         # 获取模型名称
         if not model:

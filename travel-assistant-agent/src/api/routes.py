@@ -12,17 +12,17 @@ from .schemas import (
     BookRequest, BookResponse,
     StatusResponse, ErrorDetail
 )
-from ..agents import get_mcp_client
-from ..agents.conversation_agent import ConversationAgent
-from ..models.schemas import ChatRequest, ChatResponse
-from ..utils.logger import app_logger
-from ..utils.pagination import paginate_results, sort_flights, sort_hotels
-from ..auth.dependencies import get_current_active_user, get_current_user, get_user_token
-from ..security import rate_limiter, audit_logger
-from ..auth.models import User
-from ..cache import RedisCache, CacheManager
-from ..config import settings
-from ..workflows.subgraphs.common import knowledge_base
+from agents import get_mcp_client
+from agents.conversation_agent import ConversationAgent
+from models.schemas import ChatRequest, ChatResponse
+from utils.logger import app_logger
+from utils.pagination import paginate_results, sort_flights, sort_hotels
+from auth.dependencies import get_current_active_user, get_current_user, get_user_token
+from security import rate_limiter, audit_logger
+from auth.models import User
+from cache import RedisCache, CacheManager
+from conf import settings
+from workflows.subgraphs.common import knowledge_base
 
 
 # Create API routers

@@ -5,7 +5,7 @@ import hmac
 import hashlib
 from typing import Dict, Any
 from fastapi import HTTPException, Request, status
-from ..utils.logger import app_logger
+from utils.logger import app_logger
 
 
 class RequestSigner:

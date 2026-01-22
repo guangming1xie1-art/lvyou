@@ -6,8 +6,8 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .token import jwt_handler
 from .models import User
-from ..utils.logger import app_logger
-from ..utils.db import db_manager
+from utils.logger import app_logger
+from utils.db import db_manager
 
 
 security = HTTPBearer(auto_error=False)

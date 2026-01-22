@@ -5,8 +5,8 @@ import asyncio
 import time
 from typing import Dict, Optional
 from fastapi import Request, HTTPException, status
-from ..utils.logger import app_logger
-from ..config import settings
+from utils.logger import app_logger
+from conf import settings
 
 
 class RateLimiter:

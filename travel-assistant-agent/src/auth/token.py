@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from ..utils.logger import app_logger
-from ..config import settings
+from utils.logger import app_logger
+from conf import settings
 
 
 class JWTHandler:
