@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.sessions import HttpConnection
+# from langchain_mcp_adapters.sessions import HttpConnection
 from conf import settings
 import redis.asyncio as redis
 

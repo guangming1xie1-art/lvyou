@@ -3,7 +3,7 @@
 结合向量检索和BM25关键词检索的混合搜索
 """
 from typing import List, Dict, Any, Optional
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 import logging
 import re

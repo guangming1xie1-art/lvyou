@@ -3,7 +3,7 @@
 提供旅游领域的知识库管理和检索功能
 """
 from typing import List, Dict, Optional, Any
-from langchain.schema import Document
+from langchain_core.documents import Document
 from .retriever import HybridRetriever
 from .vectorstore import VectorStoreManager
 import logging

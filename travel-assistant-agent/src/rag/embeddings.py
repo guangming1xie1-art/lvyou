@@ -3,7 +3,7 @@ Embeddings工厂模块
 提供Embedding模型的统一管理和工厂模式
 """
 from langchain_openai import OpenAIEmbeddings
-from langchain.embeddings.base import Embeddings
+from langchain_core.embeddings import Embeddings
 from typing import List, Optional
 import os
 import logging

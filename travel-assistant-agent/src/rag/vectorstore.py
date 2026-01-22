@@ -3,8 +3,7 @@
 提供FAISS向量存储的创建、加载和搜索功能
 """
 from langchain_community.vectorstores import FAISS
-from langchain.schema import Document
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.documents import Document
 from typing import List, Optional, Union
 import os
 import logging
@@ -30,7 +29,7 @@ class VectorStoreManager:
             embedding_model: Embedding模型名称
             recreate: 是否强制重新创建（删除现有存储）
         """
-        from ..config import settings
+        from conf import settings
         
         self.store_path = store_path or settings.vector_store_path
         self.embedding_model = embedding_model or settings.embedding_model
