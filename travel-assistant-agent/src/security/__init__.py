@@ -1,12 +1,14 @@
 """
 Security module for API protection
 """
-from .rate_limit import RateLimiter
-from .audit import AuditLogger
+from .rate_limit import RateLimiter,rate_limiter
+from .audit import AuditLogger,audit_logger
 from .signing import RequestSigner
 
 __all__ = [
     "RateLimiter",
     "AuditLogger",
-    "RequestSigner"
+    "RequestSigner",
+    rate_limiter,
+    audit_logger
 ]

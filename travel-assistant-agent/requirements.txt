@@ -57,3 +57,5 @@ dashscope>=1.14.0  # Qwen (Alibaba) embedding support
 zhipuai>=2.0.0  # GLM (Zhipu AI) embedding support
 sentence-transformers>=2.2.0  # HuggingFace embedding support
 langchain-huggingface>=0.0.1  # HuggingFace embeddings integration
+
+email-validator>=2.0
