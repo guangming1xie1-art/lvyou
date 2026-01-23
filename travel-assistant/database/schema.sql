@@ -3,10 +3,12 @@
 -- 统一数据库 Schema 与 Java 实体类字段定义（PostgreSQL）
 --
 -- 说明：
--- 1) 本脚本聚焦核心业务实体：users / hotels / flights / attractions
--- 2) 所有表均包含审计字段 created_at/created_by/updated_at/updated_by
--- 3) updated_at 通过触发器在 UPDATE 时自动刷新
--- 4) JSON 字段使用 JSONB，配合应用侧 JsonbConverter 进行序列化/反序列化
+-- 1) 本脚本聚焦核心业务实体：users / hotels / flights / attractions / rag_documents / audit_logs
+-- 2) 所有表均包含审计字段 created_at/updated_at（使用触发器自动刷新）
+-- 3) users 和 audit_logs 表使用 BIGSERIAL 自增 ID
+-- 4) 其他表使用 UUID 主键以匹配对应实体类
+-- 5) JSON 字段使用 JSONB，配合应用侧 JsonbConverter 进行序列化/反序列化
+-- 6) FIX: 2025-01-23 - 修复字段不同步问题，与 Java 实体类保持一致
 -- =============================================================================
 
 -- 启用 gen_random_uuid()（PostgreSQL pgcrypto 扩展）
@@ -26,13 +28,20 @@ $$ LANGUAGE plpgsql;
 -- =============================================================================
 -- 表 1：users - 用户表
 -- 用于登录与个性化推荐（偏好 JSON）
+-- FIXED: 与 Java 实体类保持一致，添加 password_hash, is_active, last_login 字段
+-- FIXED: id 类型从 UUID 改为 BIGSERIAL 以匹配 auth-service User.java（PostgreSQL 语法）
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id BIGSERIAL PRIMARY KEY,
 
   -- 账户信息
   email VARCHAR(255) NOT NULL UNIQUE,
   username VARCHAR(100) NOT NULL UNIQUE,
+
+  -- 认证信息（FIXED: 添加以匹配 User.java）
+  password_hash VARCHAR(255) NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  last_login TIMESTAMP NULL,
 
   -- 用户偏好（用于个性化推荐）
   -- 示例：{"budget_level":"mid","travel_style":"adventure","preferred_destinations":["Paris"],"interests":["beach"]}
@@ -40,23 +49,22 @@ CREATE TABLE IF NOT EXISTS users (
 
   -- 审计字段
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- users 索引（唯一约束已自动生成索引；此处为查询场景补充/显式声明）
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 
-COMMENT ON TABLE users IS '用户表：用于登录与个性化推荐（preferences_json）';
-COMMENT ON COLUMN users.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON TABLE users IS '用户表：用于登录、认证与个性化推荐（preferences_json）';
+COMMENT ON COLUMN users.id IS '主键：BIGINT，自增';
 COMMENT ON COLUMN users.email IS '用户邮箱：唯一且必填，用于登录';
 COMMENT ON COLUMN users.username IS '用户名：唯一且必填（展示/登录标识之一）';
+COMMENT ON COLUMN users.password_hash IS '密码哈希：BCrypt 加密后的密码（FIXED: 新增）';
+COMMENT ON COLUMN users.is_active IS '账户状态：是否激活，默认 TRUE（FIXED: 新增）';
+COMMENT ON COLUMN users.last_login IS '最后登录时间：可为空（FIXED: 新增）';
 COMMENT ON COLUMN users.preferences_json IS '用户偏好 JSON：预算/风格/兴趣/偏好目的地等，用于推荐';
 COMMENT ON COLUMN users.created_at IS '创建时间：记录第一次创建时间';
-COMMENT ON COLUMN users.created_by IS '创建者用户ID：通常为自己或管理员；系统导入可为空；外键到 users.id';
-COMMENT ON COLUMN users.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
-COMMENT ON COLUMN users.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
+COMMENT ON COLUMN users.updated_at IS '更新时间：最后一次修改时间（FIXED: 移除 created_by/updated_by）';
 
 -- =============================================================================
 -- 表 2：hotels - 酒店表
@@ -80,11 +88,9 @@ CREATE TABLE IF NOT EXISTS hotels (
   check_in_date DATE,
   check_out_date DATE,
 
-  -- 审计字段
+  -- 审计字段（FIXED: 移除 created_by/updated_by 以保持一致性）
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
 
   CONSTRAINT chk_hotels_rating_range CHECK (rating >= 0 AND rating <= 5)
 );
@@ -106,9 +112,7 @@ COMMENT ON COLUMN hotels.facilities IS '设施列表：JSON 数组，例如 ["Wi
 COMMENT ON COLUMN hotels.check_in_date IS '入住日期：通常由用户搜索条件产生；可用于缓存/记录最近一次搜索结果';
 COMMENT ON COLUMN hotels.check_out_date IS '退住日期：通常由用户搜索条件产生；可用于缓存/记录最近一次搜索结果';
 COMMENT ON COLUMN hotels.created_at IS '创建时间：记录第一次创建时间';
-COMMENT ON COLUMN hotels.created_by IS '创建者用户ID：系统导入可为空；外键到 users.id';
-COMMENT ON COLUMN hotels.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
-COMMENT ON COLUMN hotels.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
+COMMENT ON COLUMN hotels.updated_at IS '更新时间：最后一次修改时间（FIXED: 移除 created_by/updated_by）';
 
 -- =============================================================================
 -- 表 3：flights - 航班表
@@ -131,11 +135,9 @@ CREATE TABLE IF NOT EXISTS flights (
   -- 飞行时长（分钟）
   duration INTEGER,
 
-  -- 审计字段
+  -- 审计字段（FIXED: 移除 created_by/updated_by 以保持一致性）
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
 
   CONSTRAINT chk_flights_duration_non_negative CHECK (duration IS NULL OR duration >= 0)
 );
@@ -156,9 +158,7 @@ COMMENT ON COLUMN flights.price IS '单人票价：NUMERIC(10,2)，精确到分'
 COMMENT ON COLUMN flights.airline IS '航空公司名称：必填，如 "China Eastern"';
 COMMENT ON COLUMN flights.duration IS '飞行时长：单位分钟，如 120 表示 2 小时；可为空';
 COMMENT ON COLUMN flights.created_at IS '创建时间：记录第一次创建时间';
-COMMENT ON COLUMN flights.created_by IS '创建者用户ID：外键到 users.id，可为空';
-COMMENT ON COLUMN flights.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
-COMMENT ON COLUMN flights.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
+COMMENT ON COLUMN flights.updated_at IS '更新时间：最后一次修改时间（FIXED: 移除 created_by/updated_by）';
 
 -- =============================================================================
 -- 表 4：attractions - 景点表
@@ -182,11 +182,9 @@ CREATE TABLE IF NOT EXISTS attractions (
   --       冬季滑雪 ["winter","skiing","snow","adventure"]
   tags JSONB NOT NULL DEFAULT '[]'::jsonb,
 
-  -- 审计字段
+  -- 审计字段（FIXED: 移除 created_by/updated_by 以保持一致性）
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  created_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_by UUID NULL REFERENCES users(id) ON DELETE SET NULL,
 
   CONSTRAINT chk_attractions_rating_range CHECK (rating >= 0 AND rating <= 5)
 );
@@ -210,9 +208,7 @@ COMMENT ON COLUMN attractions.rating IS '景点评分：0-5；默认 0；可用�
 COMMENT ON COLUMN attractions.opening_hours IS '营业时间：如 "09:00-18:00" 或 "09:00-18:00, 周一休息"';
 COMMENT ON COLUMN attractions.tags IS '核心字段：景点标签数组（JSONB），用于分类、搜索与 RAG/推荐；使用 GIN 索引加速';
 COMMENT ON COLUMN attractions.created_at IS '创建时间：记录第一次创建时间';
-COMMENT ON COLUMN attractions.created_by IS '创建者用户ID：外键到 users.id，可为空';
-COMMENT ON COLUMN attractions.updated_at IS '更新时间：最后一次修改时间；由触发器在更新时自动刷新';
-COMMENT ON COLUMN attractions.updated_by IS '最后更新者用户ID：外键到 users.id，可为空';
+COMMENT ON COLUMN attractions.updated_at IS '更新时间：最后一次修改时间（FIXED: 移除 created_by/updated_by）';
 
 -- =============================================================================
 -- 触发器：维护 updated_at
@@ -240,3 +236,82 @@ CREATE TRIGGER trg_set_updated_at_attractions
 BEFORE UPDATE ON attractions
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_set_updated_at_rag_documents ON rag_documents;
+CREATE TRIGGER trg_set_updated_at_rag_documents
+BEFORE UPDATE ON rag_documents
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+-- =============================================================================
+-- 表 5：rag_documents - RAG 文档表（FIXED: 新增以支持 init-sample-data.sql）
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS rag_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 关联实体
+  entity_type VARCHAR(50) NOT NULL, -- 'hotel', 'attraction', 'flight' 等
+  entity_id UUID NOT NULL,
+
+  -- 文档内容
+  content TEXT NOT NULL,
+  source VARCHAR(100), -- 'review', 'wiki', 'official', 'airline' 等
+  metadata JSONB DEFAULT '{}'::jsonb,
+
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- rag_documents 索引
+CREATE INDEX IF NOT EXISTS idx_rag_documents_entity ON rag_documents(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_rag_documents_source ON rag_documents(source);
+CREATE INDEX IF NOT EXISTS idx_rag_documents_created_at ON rag_documents(created_at);
+
+COMMENT ON TABLE rag_documents IS 'RAG 文档表：存储用于 RAG 检索的文档内容';
+COMMENT ON COLUMN rag_documents.id IS '主键：UUID';
+COMMENT ON COLUMN rag_documents.entity_type IS '实体类型：hotel/attraction/flight 等';
+COMMENT ON COLUMN rag_documents.entity_id IS '实体ID：关联到对应表的 UUID';
+COMMENT ON COLUMN rag_documents.content IS '文档内容：用于语义检索的文本';
+COMMENT ON COLUMN rag_documents.source IS '来源类型：review/wiki/official/airline 等';
+COMMENT ON COLUMN rag_documents.metadata IS '元数据：JSON 格式，如 {"rating": 4.5}';
+
+-- =============================================================================
+-- 表 6：audit_logs - 审计日志表（FIXED: 新增以支持 init-sample-data.sql）
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGSERIAL PRIMARY KEY,
+
+  -- 操作信息
+  user_id BIGINT NULL, -- 关联到 users 表
+  action VARCHAR(100) NOT NULL, -- 'search', 'book', 'recommend' 等
+  resource_type VARCHAR(50), -- 'hotels', 'flights', 'attractions' 等
+  resource_id UUID, -- 资源ID（可为 UUID 或其他类型）
+
+  -- 详细信息
+  details JSONB, -- 操作详细数据
+
+  -- 请求信息
+  ip_address VARCHAR(255),
+  user_agent VARCHAR(512),
+
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- audit_logs 索引
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+
+COMMENT ON TABLE audit_logs IS '审计日志表：记录用户操作和系统事件';
+COMMENT ON COLUMN audit_logs.id IS '主键：BIGSERIAL 自增（PostgreSQL 语法）';
+COMMENT ON COLUMN audit_logs.user_id IS '用户ID：关联到 users.id，可为空';
+COMMENT ON COLUMN audit_logs.action IS '操作类型：search/book/recommend 等';
+COMMENT ON COLUMN audit_logs.resource_type IS '资源类型：hotels/flights/attractions 等';
+COMMENT ON COLUMN audit_logs.resource_id IS '资源ID：关联资源的标识符';
+COMMENT ON COLUMN audit_logs.details IS '操作详情：JSON 格式的详细数据';
+COMMENT ON COLUMN audit_logs.ip_address IS 'IP地址：客户端IP';
+COMMENT ON COLUMN audit_logs.user_agent IS '用户代理：浏览器/客户端信息';
+COMMENT ON COLUMN audit_logs.created_at IS '创建时间：日志记录时间';
