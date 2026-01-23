@@ -6,15 +6,19 @@ spring:
     name: auth-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/travel_assistant}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/travel_assistant?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
-    open-in-view: false
+      ddl-auto: validate  # 使用migration文件，不自动建表
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
 
   config:
     import: optional:nacos:${spring.application.name}.yaml
@@ -33,7 +37,8 @@ management:
       exposure:
         include: health,info
 
-app:
-  jwt:
-    secret: ${APP_JWT_SECRET:dev-secret-key-please-change-32bytes-123456}
-    ttl: ${APP_JWT_TTL:12h}
+jwt:
+  secret: ${JWT_SECRET_KEY:your-super-secret-key-change-in-production-32bytes}
+  algorithm: HS256
+  accessTokenExpiration: 900000    # 15分钟（毫秒）
+  refreshTokenExpiration: 604800000 # 7天（毫秒）

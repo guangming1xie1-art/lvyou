@@ -45,6 +45,15 @@ public final class JwtUtil {
         .getBody();
   }
 
+  public static String getUserIdFromToken(String token, String secret) {
+    Claims claims = parseClaims(token, secret);
+    return claims.getSubject();
+  }
+
+  public static Claims verifyToken(String token, String secret) throws Exception {
+    return parseClaims(token, secret);
+  }
+
   private static SecretKey key(String secret) {
     if (secret == null || secret.isBlank()) {
       throw new IllegalArgumentException("JWT secret must not be blank");
