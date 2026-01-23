@@ -1,4 +1,9 @@
-"""增强的日志系统，支持结构化日志、请求追踪等"""
+"""
+保持向后兼容的日志模块
+
+为了兼容已有代码，这里仍然导出 app_logger 和 logger
+但实际使用新的结构化日志系统
+"""
 
 import json
 import time
@@ -10,16 +15,24 @@ from pathlib import Path
 from contextlib import contextmanager
 from functools import wraps
 from typing import Any, Dict, Optional
-from loguru import logger as loguru_logger
 
-from conf import settings
-class StructuredLogger:
-    """结构化日志记录器"""
+# 导入新的结构化日志系统
+from utils.structured_logger import get_app_logger
+
+# 为了向后兼容，创建一个 legacy logger
+app_logger = get_app_logger('legacy')
+logger = app_logger
+
+
+# 保留旧的 StructuredLogger 类作为向后兼容（但已废弃，建议使用新系统）
+class DeprecatedStructuredLogger:
+    """结构化日志记录器（已废弃，仅用于向后兼容）"""
     
     def __init__(self):
         self._request_id = None
-        self._logger = loguru_logger
-        self._setup_logger()
+        # 使用新的结构化日志
+        self._logger = get_app_logger('deprecated')
+        # 不再调用 _setup_logger，因为已在 main.py 中初始化
     
     def _setup_logger(self):
         """配置日志格式"""
@@ -123,10 +136,6 @@ class StructuredLogger:
         """记录DEBUG级别日志"""
         self._get_logger().bind(**extra).debug(message)
 
-# 全局日志实例
-app_logger = StructuredLogger()
-# 为了兼容之前的代码，可能有些地方直接导入 logger
-logger = app_logger
 
 def log_execution(func):
     """装饰器：自动记录函数执行情况"""

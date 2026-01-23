@@ -15,11 +15,10 @@ from auth.models import (
     LoginResponse
 )
 
-try:
-    from utils.logger import app_logger
-except ModuleNotFoundError:
-    import logging
-    app_logger = logging.getLogger(__name__)
+from utils.structured_logger import get_app_logger, get_error_logger
+
+logger = get_app_logger(__name__)
+error_logger = get_error_logger()
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
@@ -33,7 +32,13 @@ async def register(user_data: UserRegisterRequest):
     Agent转发: POST http://java:8080/api/auth/register
     """
     try:
-        app_logger.info(f"Register request for username: {user_data.username}")
+        logger.info(
+            "User registration attempt",
+            extra={
+                "extra_username": user_data.username,
+                "extra_email": user_data.email
+            }
+        )
         
         # 转发到Java auth-service
         result = await auth_api_client.register(
@@ -43,12 +48,26 @@ async def register(user_data: UserRegisterRequest):
             confirm_password=user_data.confirm_password
         )
         
+        logger.info(
+            "User registration successful",
+            extra={
+                "extra_username": user_data.username
+            }
+        )
+        
         # 处理Java返回的数据结构
         # API客户端已经处理了ApiResponse格式，直接返回结果
         return result
         
     except Exception as e:
-        app_logger.error(f"Register error for {user_data.username}: {e}")
+        error_logger.error(
+            "User registration failed",
+            exc_info=True,
+            extra={
+                "extra_username": user_data.username,
+                "extra_error": str(e)
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -70,7 +89,12 @@ async def login(credentials: TokenRequest):
     Agent返回给前端: { "user": {...}, "tokens": {...} }
     """
     try:
-        app_logger.info(f"User login request: {credentials.username}")
+        logger.info(
+            "User login attempt",
+            extra={
+                "extra_username": credentials.username
+            }
+        )
         
         # 转发到Java auth-service
         result = await auth_api_client.login(
@@ -78,12 +102,26 @@ async def login(credentials: TokenRequest):
             password=credentials.password
         )
         
+        logger.info(
+            "User login successful",
+            extra={
+                "extra_username": credentials.username
+            }
+        )
+        
         # 处理Java返回的数据结构
         # API客户端已经处理了ApiResponse格式，直接返回结果
         return result
         
     except Exception as e:
-        app_logger.error(f"Login error for {credentials.username}: {e}")
+        error_logger.error(
+            "User login failed",
+            exc_info=True,
+            extra={
+                "extra_username": credentials.username,
+                "extra_error": str(e)
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
@@ -103,16 +141,24 @@ async def refresh_token(request: RefreshTokenRequest):
     Java返回token信息
     """
     try:
-        app_logger.info("Token refresh request received")
+        logger.info("Token refresh request received")
         
         result = await auth_api_client.refresh_token(request.refresh_token)
+        
+        logger.info("Token refresh successful")
         
         # 处理Java返回的数据结构
         # API客户端已经处理了ApiResponse格式，直接返回结果
         return result
         
     except Exception as e:
-        app_logger.error(f"Token refresh error: {e}")
+        error_logger.error(
+            "Token refresh failed",
+            exc_info=True,
+            extra={
+                "extra_error": str(e)
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
@@ -140,16 +186,24 @@ async def get_current_user(authorization: str = None):
             )
         
         token = authorization.replace("Bearer ", "")
-        app_logger.info("Get current user request received")
+        logger.info("Get current user request received")
         
         result = await auth_api_client.get_current_user(token)
+        
+        logger.info("Get current user successful")
         
         # 处理Java返回的数据结构
         # API客户端已经处理了ApiResponse格式，直接返回结果
         return result
         
     except Exception as e:
-        app_logger.error(f"Get current user error: {e}")
+        error_logger.error(
+            "Get current user failed",
+            exc_info=True,
+            extra={
+                "extra_error": str(e)
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
@@ -172,14 +226,22 @@ async def logout(authorization: str = None):
             )
         
         token = authorization.replace("Bearer ", "")
-        app_logger.info("Logout request received")
+        logger.info("Logout request received")
         
         result = await auth_api_client.logout(token)
+        
+        logger.info("Logout successful")
         
         return result
         
     except Exception as e:
-        app_logger.error(f"Logout error: {e}")
+        error_logger.error(
+            "Logout failed",
+            exc_info=True,
+            extra={
+                "extra_error": str(e)
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Logout failed"

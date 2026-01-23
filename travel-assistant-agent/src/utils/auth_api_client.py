@@ -4,11 +4,12 @@ Java认证服务API客户端
 用于代理前端认证请求到Java auth-service
 """
 import httpx
-import logging
 from typing import Dict, Any, Optional
 from conf import settings
+from utils.structured_logger import get_app_logger, get_error_logger
 
-logger = logging.getLogger(__name__)
+logger = get_app_logger(__name__)
+error_logger = get_error_logger()
 
 
 class AuthAPIClient:
@@ -27,6 +28,16 @@ class AuthAPIClient:
     ) -> Dict[str, Any]:
         """调用Java auth-service的register端点"""
         try:
+            logger.info(
+                "Calling Java auth-service register",
+                extra={
+                    "extra_username": username,
+                    "extra_email": email,
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/register"
+                }
+            )
+            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/auth/register",
@@ -49,7 +60,13 @@ class AuthAPIClient:
                     raise Exception(error_data.get("detail", error_data.get("message", f"Register failed: {response.text}")))
                 
                 result = response.json()
-                logger.info(f"Register successful for user: {username}")
+                logger.info(
+                    "Java auth-service register successful",
+                    extra={
+                        "extra_username": username,
+                        "extra_status_code": response.status_code
+                    }
+                )
                 
                 # 处理Java ApiResponse格式
                 if isinstance(result, dict) and "data" in result:
@@ -61,12 +78,29 @@ class AuthAPIClient:
                 return result
                 
         except Exception as e:
-            logger.error(f"Register API call failed for {username}: {e}")
+            error_logger.error(
+                "Java auth-service register failed",
+                exc_info=True,
+                extra={
+                    "extra_username": username,
+                    "extra_service": "auth-service",
+                    "extra_error": str(e)
+                }
+            )
             raise
     
     async def login(self, username: str, password: str) -> Dict[str, Any]:
         """调用Java auth-service的login端点"""
         try:
+            logger.info(
+                "Calling Java auth-service login",
+                extra={
+                    "extra_username": username,
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/login"
+                }
+            )
+            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/auth/login",
@@ -90,7 +124,13 @@ class AuthAPIClient:
                     raise Exception(detail)
                 
                 result = response.json()
-                logger.info(f"Login successful for user: {username}")
+                logger.info(
+                    "Java auth-service login successful",
+                    extra={
+                        "extra_username": username,
+                        "extra_status_code": response.status_code
+                    }
+                )
                 
                 # 处理Java ApiResponse格式
                 if isinstance(result, dict) and "data" in result:
@@ -102,12 +142,28 @@ class AuthAPIClient:
                 return result
                 
         except Exception as e:
-            logger.error(f"Login API call failed for {username}: {e}")
+            error_logger.error(
+                "Java auth-service login failed",
+                exc_info=True,
+                extra={
+                    "extra_username": username,
+                    "extra_service": "auth-service",
+                    "extra_error": str(e)
+                }
+            )
             raise
     
     async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
         """调用Java auth-service的refresh端点"""
         try:
+            logger.info(
+                "Calling Java auth-service refresh",
+                extra={
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/refresh"
+                }
+            )
+            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/auth/refresh",
@@ -124,7 +180,12 @@ class AuthAPIClient:
                     raise Exception(error_data.get("detail", f"Refresh failed: {response.text}"))
                 
                 result = response.json()
-                logger.info("Token refresh successful")
+                logger.info(
+                    "Java auth-service refresh successful",
+                    extra={
+                        "extra_status_code": response.status_code
+                    }
+                )
                 
                 # 处理Java ApiResponse格式
                 if isinstance(result, dict) and "data" in result:
@@ -136,12 +197,27 @@ class AuthAPIClient:
                 return result
                 
         except Exception as e:
-            logger.error(f"Refresh token API call failed: {e}")
+            error_logger.error(
+                "Java auth-service refresh failed",
+                exc_info=True,
+                extra={
+                    "extra_service": "auth-service",
+                    "extra_error": str(e)
+                }
+            )
             raise
     
     async def get_current_user(self, token: str) -> Dict[str, Any]:
         """调用Java auth-service的/me端点"""
         try:
+            logger.info(
+                "Calling Java auth-service get current user",
+                extra={
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/me"
+                }
+            )
+            
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.base_url}/auth/me",
@@ -158,6 +234,12 @@ class AuthAPIClient:
                     raise Exception(error_data.get("detail", f"Get user failed: {response.text}"))
                 
                 result = response.json()
+                logger.info(
+                    "Java auth-service get current user successful",
+                    extra={
+                        "extra_status_code": response.status_code
+                    }
+                )
                 
                 # 处理Java ApiResponse格式
                 if isinstance(result, dict) and "data" in result:
@@ -169,12 +251,27 @@ class AuthAPIClient:
                 return result
                 
         except Exception as e:
-            logger.error(f"Get current user API call failed: {e}")
+            error_logger.error(
+                "Java auth-service get current user failed",
+                exc_info=True,
+                extra={
+                    "extra_service": "auth-service",
+                    "extra_error": str(e)
+                }
+            )
             raise
     
     async def logout(self, token: str) -> Dict[str, Any]:
         """调用Java auth-service的logout端点"""
         try:
+            logger.info(
+                "Calling Java auth-service logout",
+                extra={
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/logout"
+                }
+            )
+            
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/auth/logout",
@@ -191,7 +288,12 @@ class AuthAPIClient:
                     raise Exception(error_data.get("detail", f"Logout failed: {response.text}"))
                 
                 result = response.json()
-                logger.info("Logout successful")
+                logger.info(
+                    "Java auth-service logout successful",
+                    extra={
+                        "extra_status_code": response.status_code
+                    }
+                )
                 
                 # 处理Java ApiResponse格式
                 if isinstance(result, dict) and "data" in result:
@@ -203,7 +305,14 @@ class AuthAPIClient:
                 return result
                 
         except Exception as e:
-            logger.error(f"Logout API call failed: {e}")
+            error_logger.error(
+                "Java auth-service logout failed",
+                exc_info=True,
+                extra={
+                    "extra_service": "auth-service",
+                    "extra_error": str(e)
+                }
+            )
             raise
 
 
