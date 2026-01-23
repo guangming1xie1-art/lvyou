@@ -13,7 +13,47 @@ import java.util.Date;
 import java.util.Map;
 
 public final class JwtUtil {
+  private static final String DEFAULT_SECRET_KEY = System.getenv("JWT_SECRET_KEY");
+  private static final String DEFAULT_ALGORITHM = "HS256";
+
   private JwtUtil() {
+  }
+
+  /**
+   * 验证JWT token并返回Claims（使用环境变量JWT_SECRET_KEY）
+   */
+  public static Claims verifyToken(String token) throws Exception {
+    return verifyToken(token, DEFAULT_SECRET_KEY);
+  }
+
+  /**
+   * 检查token是否过期
+   */
+  public static boolean isTokenExpired(Claims claims) {
+    return claims.getExpiration().before(new Date());
+  }
+
+  /**
+   * 提取用户ID（使用环境变量JWT_SECRET_KEY）
+   */
+  public static String getUserIdFromToken(String token) throws Exception {
+    Claims claims = verifyToken(token);
+    return claims.getSubject();
+  }
+
+  /**
+   * 从token中提取用户名（使用环境变量JWT_SECRET_KEY）
+   */
+  public static String getUsernameFromToken(String token) throws Exception {
+    Claims claims = verifyToken(token);
+    return (String) claims.get("username");
+  }
+
+  /**
+   * 从token中提取所有claims（使用环境变量JWT_SECRET_KEY）
+   */
+  public static Claims getClaimsFromToken(String token) throws Exception {
+    return verifyToken(token);
   }
 
   public static String generateToken(
