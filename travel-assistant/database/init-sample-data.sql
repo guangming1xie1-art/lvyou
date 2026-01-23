@@ -5,192 +5,194 @@
 -- 创建时间: 2025-01-20
 -- 版本: v1.0.0
 -- 描述: 为 travel-assistant 项目提供示例测试数据
+-- 修复时间: 2025-01-23
+-- 修复说明: 与 Java 实体类字段保持一致，移除不存在的字段，添加缺失的字段
 -- =============================================================================
 
 -- =============================================================================
 -- 1. 示例用户数据 (users)
+-- FIXED: 移除 full_name, travel_style, budget_level 字段，添加 is_active, last_login 字段
+-- FIXED: 将 travel_style 和 budget_level 合并到 preferences_json 中
 -- =============================================================================
+INSERT INTO users (email, username, password_hash, is_active, last_login, preferences_json) VALUES
+('john.doe@example.com', 'john_doe', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', TRUE, NULL,
+ '{"preferred_airlines": ["China Eastern", "Air China"], "meal_preference": "vegetarian", "accessibility_needs": [], "travel_style": "cultural", "budget_level": "mid"}'),
 
-INSERT INTO users (email, username, password_hash, full_name, preferences_json, travel_style, budget_level) VALUES
-('john.doe@example.com', 'john_doe', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', 'John Doe', 
- '{"preferred_airlines": ["China Eastern", "Air China"], "meal_preference": "vegetarian", "accessibility_needs": []}', 
- 'cultural', 'mid'),
+('jane.smith@example.com', 'jane_smith', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', TRUE, NULL,
+ '{"preferred_hotels": ["Hilton", "Marriott"], "travel_insurance": true, "emergency_contact": "+1234567890", "travel_style": "relaxed", "budget_level": "luxury"}'),
 
-('jane.smith@example.com', 'jane_smith', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', 'Jane Smith',
- '{"preferred_hotels": ["Hilton", "Marriott"], "travel_insurance": true, "emergency_contact": "+1234567890"}',
- 'relaxed', 'luxury'),
+('mike.wilson@example.com', 'mike_wilson', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', TRUE, NULL,
+ '{"budget_range": {"min": 500, "max": 1000}, "group_size": 4, "special_requests": ["quiet_room"], "travel_style": "adventure", "budget_level": "budget"}'),
 
-('mike.wilson@example.com', 'mike_wilson', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', 'Mike Wilson',
- '{"budget_range": {"min": 500, "max": 1000}, "group_size": 4, "special_requests": ["quiet_room"]}',
- 'adventure', 'budget'),
+('sarah.johnson@example.com', 'sarah_j', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', TRUE, NULL,
+ '{"preferred_destinations": ["Europe", "Asia"], "travel_frequency": "monthly", "loyalty_programs": ["Starwood"], "travel_style": "cultural", "budget_level": "luxury"}'),
 
-('sarah.johnson@example.com', 'sarah_j', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', 'Sarah Johnson',
- '{"preferred_destinations": ["Europe", "Asia"], "travel_frequency": "monthly", "loyalty_programs": ["Starwood"]}',
- 'cultural', 'luxury'),
-
-('david.brown@example.com', 'david_b', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', 'David Brown',
- '{"activity_types": ["hiking", "photography"], "accommodation_type": "boutique_hotels", "dietary_restrictions": ["gluten_free"]}',
- 'adventure', 'mid');
+('david.brown@example.com', 'david_b', '$2a$10$rOzK4Z8kB7mV5jA.xxXxAu', TRUE, NULL,
+ '{"activity_types": ["hiking", "photography"], "accommodation_type": "boutique_hotels", "dietary_restrictions": ["gluten_free"], "travel_style": "adventure", "budget_level": "mid"}');
 
 -- =============================================================================
 -- 2. 示例酒店数据 (hotels)
+-- FIXED: 移除 check_in_time 和 check_out_time，使用 check_in_date 和 check_out_date 代替
 -- =============================================================================
 
-INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_time, check_out_time) VALUES
-('The Grand Plaza Hotel', 'Shanghai', 680.00, 4.5, 
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES
+('The Grand Plaza Hotel', 'Shanghai', 680.00, 4.5,
  'Luxurious 5-star hotel in the heart of Shanghai with stunning city views and world-class amenities.',
  '["WiFi", "Pool", "Gym", "Spa", "Restaurant", "Room Service", "Business Center", "Concierge"]',
- '15:00:00', '11:00:00'),
+ '2025-02-15', '2025-02-20'),
 
 ('Beijing Royal Palace', 'Beijing', 1200.00, 4.8,
  'Historic luxury hotel near the Forbidden City, offering traditional Chinese hospitality with modern comfort.',
  '["WiFi", "Pool", "Spa", "Multiple Restaurants", "Tea House", "Cultural Tours", "Airport Shuttle"]',
- '14:00:00', '12:00:00'),
+ '2025-03-01', '2025-03-08'),
 
 ('Shenzhen Bay Resort', 'Shenzhen', 450.00, 4.2,
  'Modern business hotel with panoramic bay views, perfect for both leisure and business travelers.',
  '["WiFi", "Gym", "Business Center", "Meeting Rooms", "Harbor View", "Fine Dining"]',
- '15:00:00', '12:00:00'),
+ '2025-02-28', '2025-03-05'),
 
 ('Guangzhou Pearl Tower Hotel', 'Guangzhou', 320.00, 4.0,
  'Contemporary hotel in the commercial district with easy access to shopping and entertainment.',
  '["WiFi", "Gym", "Restaurant", "Bar", "Laundry Service", "24-hour Front Desk"]',
- '14:00:00', '11:00:00'),
+ '2025-03-10', '2025-03-15'),
 
 ('Chengdu Tea Garden Inn', 'Chengdu', 180.00, 4.6,
  'Charming boutique hotel with traditional Sichuan design, featuring a beautiful tea garden courtyard.',
  '["WiFi", "Traditional Courtyard", "Tea Service", "Cultural Activities", "Local Restaurant"]',
- '15:00:00', '11:00:00'),
+ '2025-02-25', '2025-02-27'),
 
 ('Hangzhou West Lake Villa', 'Hangzhou', 890.00, 4.7,
  'Elegant lakeside hotel with breathtaking views of West Lake, combining traditional architecture with luxury amenities.',
  '["WiFi", "Lake View", "Spa", "Traditional Gardens", "Fine Dining", "Boat Tours", "Cultural Programs"]',
- '15:00:00', '12:00:00'),
+ '2025-04-01', '2025-04-03'),
 
 ('Xi''an Ancient City Hotel', 'Xi''an', 280.00, 4.3,
  'Historic hotel within the ancient city walls, offering authentic Tang Dynasty cultural experience.',
  '["WiFi", "Cultural Shows", "Traditional Architecture", "Local Cuisine", "Historical Tours"]',
- '14:00:00', '11:00:00'),
+ '2025-03-15', '2025-03-20'),
 
 ('Suzhou Classical Gardens Hotel', 'Suzhou', 520.00, 4.4,
  'Luxury hotel featuring classical Suzhou garden design, located near the famous Lingering Garden.',
  '["WiFi", "Traditional Gardens", "Spa", "Cultural Workshops", "Fine Dining", "Private Gardens"]',
- '15:00:00', '11:00:00');
+ '2025-04-10', '2025-04-15');
 
 -- =============================================================================
 -- 3. 示例航班数据 (flights)
+-- FIXED: 移除 departure_time, arrival_time, flight_number, available_seats 字段
+-- FIXED: 将 duration_minutes 改为 duration 以匹配 Flight.java 实体
 -- =============================================================================
 
-INSERT INTO flights (origin, destination, departure_date, return_date, departure_time, arrival_time, price, airline, flight_number, duration_minutes, available_seats) VALUES
-('Beijing', 'Shanghai', '2025-02-15', '2025-02-20', '08:30:00', '10:45:00', 580.00, 'Air China', 'CA1851', 135, 45),
+INSERT INTO flights (origin, destination, departure_date, return_date, price, airline, duration) VALUES
+('Beijing', 'Shanghai', '2025-02-15', '2025-02-20', 580.00, 'Air China', 135),
 
-('Shanghai', 'Beijing', '2025-02-15', '2025-02-20', '14:20:00', '16:35:00', 620.00, 'China Eastern', 'MU5135', 135, 32),
+('Shanghai', 'Beijing', '2025-02-15', '2025-02-20', 620.00, 'China Eastern', 135),
 
-('Beijing', 'Shenzhen', '2025-03-01', '2025-03-08', '09:15:00', '12:30:00', 1280.00, 'Air China', 'CA1315', 195, 28),
+('Beijing', 'Shenzhen', '2025-03-01', '2025-03-08', 1280.00, 'Air China', 195),
 
-('Shanghai', 'Guangzhou', '2025-02-28', '2025-03-05', '16:45:00', '19:20:00', 890.00, 'China Southern', 'CZ3501', 155, 67),
+('Shanghai', 'Guangzhou', '2025-02-28', '2025-03-05', 890.00, 'China Southern', 155),
 
-('Beijing', 'Chengdu', '2025-03-10', NULL, '07:30:00', '10:45:00', 980.00, 'Air China', 'CA1403', 195, 0),
+('Beijing', 'Chengdu', '2025-03-10', NULL, 980.00, 'Air China', 195),
 
-('Shanghai', 'Hangzhou', '2025-02-25', '2025-02-27', '11:30:00', '12:30:00', 280.00, 'Spring Airlines', '9C8883', 60, 23),
+('Shanghai', 'Hangzhou', '2025-02-25', '2025-02-27', 280.00, 'Spring Airlines', 60),
 
-('Beijing', 'Xi''an', '2025-03-15', '2025-03-20', '13:20:00', '15:35:00', 750.00, 'Hainan Airlines', 'HU7885', 135, 41),
+('Beijing', 'Xi''an', '2025-03-15', '2025-03-20', 750.00, 'Hainan Airlines', 135),
 
-('Shanghai', 'Suzhou', '2025-04-01', '2025-04-03', '10:15:00', '11:00:00', 180.00, 'Juneyao Airlines', 'HO1255', 45, 15),
+('Shanghai', 'Suzhou', '2025-04-01', '2025-04-03', 180.00, 'Juneyao Airlines', 45),
 
-('Beijing', 'Shanghai', '2025-04-10', '2025-04-15', '19:50:00', '22:05:00', 680.00, 'Air China', 'CA1889', 135, 89),
+('Beijing', 'Shanghai', '2025-04-10', '2025-04-15', 680.00, 'Air China', 135),
 
-('Shanghai', 'Beijing', '2025-04-10', '2025-04-15', '06:30:00', '08:45:00', 720.00, 'China Eastern', 'MU5101', 135, 56);
+('Shanghai', 'Beijing', '2025-04-10', '2025-04-15', 720.00, 'China Eastern', 135);
 
 -- =============================================================================
 -- 4. 示例景点数据 (attractions)
+-- FIXED: 移除 ticket_price, latitude, longitude, phone, website 字段
+-- FIXED: 添加 tags 字段（核心字段，用于搜索和推荐）
 -- =============================================================================
-
-INSERT INTO attractions (destination, name, category, rating, description, opening_hours, ticket_price, latitude, longitude, phone, website) VALUES
+INSERT INTO attractions (destination, name, category, rating, description, opening_hours, tags) VALUES
 ('Shanghai', 'The Bund', 'historic', 4.6,
  'Iconic waterfront promenade showcasing Shanghai''s colonial architecture and modern skyline.',
- '00:00-24:00', 0.00, 31.2397, 121.4900, '+86-21-6329-6888', 'https://www.thebund-shanghai.com'),
+ '00:00-24:00', '["historic", "landmark", "waterfront", "photography", "architecture"]'),
 
 ('Shanghai', 'Yu Garden', 'historic', 4.4,
  'Traditional Chinese garden featuring classical architecture, pavilions, and traditional shops.',
- '08:30-17:00', 40.00, 31.2276, 121.4919, '+86-21-6355-7938', 'https://www.yuyangarden.com'),
+ '08:30-17:00', '["historic", "garden", "culture", "traditional", "architecture"]'),
 
 ('Shanghai', 'Shanghai Disney Resort', 'entertainment', 4.7,
  'Magic kingdom featuring Disney characters, thrilling rides, and spectacular shows.',
- '08:00-22:00', 499.00, 31.1429, 121.6580, '+86-21-2099-8888', 'https://www.shanghaidisneyresort.com'),
+ '08:00-22:00', '["entertainment", "family", "theme_park", "kids", "adventure"]'),
 
 ('Shanghai', 'French Concession', 'historic', 4.5,
  'Historic area with tree-lined streets, European architecture, and trendy shops.',
- '00:00-24:00', 0.00, 31.2200, 121.4500, NULL, NULL),
+ '00:00-24:00', '["historic", "architecture", "walking", "shopping", "culture"]'),
 
 ('Beijing', 'Forbidden City', 'historic', 4.8,
  'Imperial palace complex showcasing 600 years of Chinese history and architecture.',
- '08:30-17:00', 60.00, 39.9163, 116.3972, '+86-10-8500-7421', 'https://www.dpm.org.cn'),
+ '08:30-17:00', '["historic", "palace", "culture", "unesco", "landmark", "architecture"]'),
 
 ('Beijing', 'Great Wall (Badaling)', 'historic', 4.5,
  'Most visited section of the Great Wall offering spectacular mountain views.',
- '07:30-18:00', 45.00, 40.3597, 116.0144, '+86-10-8973-9886', 'https://www.mutianyugreatwall.com'),
+ '07:30-18:00', '["historic", "landmark", "hiking", "unesco", "adventure", "mountain"]'),
 
 ('Beijing', 'Summer Palace', 'historic', 4.6,
  'Imperial garden featuring lakes, palaces, and traditional Chinese landscaping.',
- '06:30-18:00', 30.00, 39.9994, 116.2752, '+86-10-6288-1144', 'https://www.summerpalace.com.cn'),
+ '06:30-18:00', '["historic", "garden", "lake", "culture", "relaxation", "nature"]'),
 
 ('Beijing', 'Temple of Heaven', 'historic', 4.3,
  'Sacred complex where emperors prayed for good harvests, featuring stunning architecture.',
- '06:00-22:00', 15.00, 39.8838, 116.4074, '+86-10-6702-8866', NULL),
+ '06:00-22:00', '["historic", "culture", "religion", "architecture", "temple"]'),
 
 ('Shenzhen', 'Splendid China Folk Village', 'historic', 4.2,
  'Miniature park showcasing China''s ethnic diversity and historical landmarks.',
- '09:00-21:30', 220.00, 22.5333, 113.9667, '+86-755-2660-2888', 'https://www.szc.cn'),
+ '09:00-21:30', '["historic", "culture", "family", "entertainment", "folk"]'),
 
 ('Shenzhen', 'Window of the World', 'entertainment', 4.1,
  'Theme park featuring replicas of world-famous landmarks and cultural attractions.',
- '09:00-22:00', 200.00, 22.5396, 113.9755, '+86-755-2991-6666', 'https://www.szwworld.com'),
+ '09:00-22:00', '["entertainment", "family", "theme_park", "international", "landmark"]'),
 
 ('Guangzhou', 'Canton Tower', 'historic', 4.0,
  'Iconic 604m television tower offering panoramic city views and entertainment facilities.',
- '09:00-22:30', 50.00, 23.1050, 113.3250, '+86-20-8933-8222', 'https://www.cantontower.com'),
+ '09:00-22:30', '["landmark", "modern", "city_view", "entertainment", "architecture"]'),
 
 ('Guangzhou', 'Chimelong Safari Park', 'entertainment', 4.4,
  'Large safari park featuring diverse wildlife and exciting animal shows.',
- '09:30-17:30', 300.00, 23.0017, 113.3300, '+86-20-3471-9909', 'https://gzgz.gz.chimelong.com'),
+ '09:30-17:30', '["wildlife", "family", "animals", "nature", "adventure"]'),
 
 ('Chengdu', 'Giant Panda Breeding Research Base', 'historic', 4.8,
  'World-renowned panda conservation center where visitors can observe giant pandas.',
- '07:30-18:00', 58.00, 30.7328, 104.1512, '+86-28-8351-6666', 'https://www.panda.org.cn'),
+ '07:30-18:00', '["wildlife", "animals", "nature", "family", "culture", "conservation"]'),
 
 ('Chengdu', 'Jinli Ancient Street', 'food', 4.3,
  'Historic street lined with traditional Sichuan restaurants and cultural shops.',
- '00:00-24:00', 0.00, 30.6586, 104.0633, NULL, NULL),
+ '00:00-24:00', '["food", "historic", "culture", "nightlife", "traditional", "shopping"]'),
 
 ('Hangzhou', 'West Lake', 'historic', 4.9,
  'UNESCO World Heritage site featuring beautiful lakes, gardens, and historic pagodas.',
- '00:00-24:00', 0.00, 30.2741, 120.1551, '+86-571-8717-9637', 'https://www.gotohz.com'),
+ '00:00-24:00', '["nature", "lake", "landscape", "unesco", "relaxation", "garden"]'),
 
 ('Hangzhou', 'Lingyin Temple', 'historic', 4.5,
  'Ancient Buddhist temple complex with impressive rock carvings and peaceful gardens.',
- '07:00-18:15', 30.00, 30.2406, 120.1017, '+86-571-8796-7729', 'https://www.lingyinsi.com'),
+ '07:00-18:15', '["historic", "culture", "religion", "temple", "nature", "architecture"]'),
 
 ('Xi''an', 'Terracotta Army', 'historic', 4.7,
  'Ancient military museum featuring thousands of life-sized terracotta soldiers.',
- '08:30-18:00', 150.00, 34.3848, 109.2734, '+86-29-8139-9127', 'https://www.bmy.com.cn'),
+ '08:30-18:00', '["historic", "archaeology", "culture", "unesco", "museum", "ancient"]'),
 
 ('Xi''an', 'Xi''an City Wall', 'historic', 4.2,
  'Complete Ming Dynasty city wall offering bike riding and city views.',
- '08:00-22:00', 54.00, 34.2658, 108.9542, '+86-29-8727-5786', 'https://www.xacitywall.com'),
+ '08:00-22:00', '["historic", "landmark", "architecture", "cycling", "city_view", "ancient"]'),
 
 ('Suzhou', 'Lingering Garden', 'historic', 4.6,
  'Classical Chinese garden recognized as a UNESCO World Heritage site.',
- '07:30-17:30', 30.00, 31.3237, 120.6258, '+86-512-6753-6666', 'https://www.szlyj.com'),
+ '07:30-17:30', '["historic", "garden", "unesco", "culture", "architecture", "landscape"]'),
 
 ('Suzhou', 'Humble Administrator''s Garden', 'historic', 4.5,
  'Largest classical garden in Suzhou showcasing traditional Chinese garden design.',
- '07:30-17:30', 90.00, 31.3234, 120.6270, '+86-512-6751-0266', NULL);
+ '07:30-17:30', '["historic", "garden", "unesco", "culture", "architecture", "landscape"]');
 
 -- =============================================================================
 -- 5. 示例RAG文档数据 (rag_documents) - 可选
+-- FIXED: 移除对 flight_number 的引用，使用 origin 和 destination 来查询航班
 -- =============================================================================
-
 INSERT INTO rag_documents (entity_type, entity_id, content, source, metadata) VALUES
 ('hotel', (SELECT id FROM hotels WHERE name = 'The Grand Plaza Hotel' LIMIT 1),
  'The Grand Plaza Hotel is a luxury 5-star property located in the heart of Shanghai. It offers world-class amenities including a spa, multiple restaurants, and stunning city views. The hotel is within walking distance of major shopping areas and transportation hubs. Guests praise the exceptional service quality and modern facilities.',
@@ -204,8 +206,8 @@ INSERT INTO rag_documents (entity_type, entity_id, content, source, metadata) VA
  'The Chengdu Research Base of Giant Panda Breeding is located in Chengdu, Sichuan Province, China. It was established in 1987 with the aim of creating a research base for the giant panda breeding program. The base houses over 100 giant pandas and is one of the most popular tourist attractions in China.',
  'official', '{"panda_count": 120, "conservation_status": "vulnerable", "research_focus": "breeding"}'),
 
-('flight', (SELECT id FROM flights WHERE flight_number = 'CA1851' LIMIT 1),
- 'Air China Flight CA1851 operates daily between Beijing Capital International Airport (PEK) and Shanghai Pudong International Airport (PVG). The flight duration is approximately 2 hours and 15 minutes. The airline offers complimentary meals and beverages on this route. Passengers can earn frequent flyer miles on the PhoenixMiles program.',
+('flight', (SELECT id FROM flights WHERE origin = 'Beijing' AND destination = 'Shanghai' AND airline = 'Air China' LIMIT 1),
+ 'Air China flight operates daily between Beijing Capital International Airport (PEK) and Shanghai Pudong International Airport (PVG). The flight duration is approximately 2 hours and 15 minutes. The airline offers complimentary meals and beverages on this route. Passengers can earn frequent flyer miles on the PhoenixMiles program.',
  'airline', '{"aircraft_type": "Boeing 737-800", "frequency": "daily", "meal_service": "complimentary"}');
 
 -- =============================================================================
@@ -252,4 +254,9 @@ SELECT 'audit_logs', COUNT(*) FROM audit_logs;
 
 -- =============================================================================
 -- 示例数据初始化完成
+-- =============================================================================
+-- FIXED: 所有表结构与 Java 实体类保持一致
+-- FIXED: 移除了所有不存在的字段引用
+-- FIXED: 添加了缺失的字段（password_hash, is_active, last_login, tags）
+-- FIXED: 修复了字段命名不一致的问题（duration_minutes -> duration）
 -- =============================================================================
