@@ -15,6 +15,14 @@ app = FastAPI(title="Travel Assistant Agent API", version="2.0.0")
 # 配置 CORS
 allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 
+def get_allowed_origins() -> list[str]:
+    from conf import settings
+    # 分割 cors_origins 字符串为列表
+    origins = [origin.strip() for origin in settings.cors_origins.split(",")]
+    return origins
+
+allowed_origins = get_allowed_origins()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
