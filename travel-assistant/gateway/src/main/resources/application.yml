@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:9000}
 
 spring:
   application:
@@ -10,6 +10,19 @@ spring:
 
   config:
     import: optional:nacos:${spring.application.name}.yaml
+
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
 
   cloud:
     nacos:
@@ -26,50 +39,89 @@ spring:
           lower-case-service-id: true
 
       routes:
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/user/**
-
-        - id: hotel-service
-          uri: lb://hotel-service
-          predicates:
-            - Path=/api/hotel/**
-
-        - id: flight-service
-          uri: lb://flight-service
-          predicates:
-            - Path=/api/flight/**
-
-        - id: attraction-service
-          uri: lb://attraction-service
-          predicates:
-            - Path=/api/attraction/**
-
-        - id: booking-service
-          uri: lb://booking-service
-          predicates:
-            - Path=/api/booking/**
-
-        - id: recommendation-service
-          uri: lb://recommendation-service
-          predicates:
-            - Path=/api/recommendation/**
-
+        # Auth Service - 无需认证（公开路由）
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/api/auth/**
+          filters:
+            - StripPrefix=0
+        
+        # User Service - 需要认证
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=0
+        
+        # Flight Service - 需要认证
+        - id: flight-service
+          uri: lb://flight-service
+          predicates:
+            - Path=/api/flight/**
+          filters:
+            - StripPrefix=0
+
+        # Hotel Service - 需要认证
+        - id: hotel-service
+          uri: lb://hotel-service
+          predicates:
+            - Path=/api/hotel/**
+          filters:
+            - StripPrefix=0
+
+        # Attraction Service - 需要认证
+        - id: attraction-service
+          uri: lb://attraction-service
+          predicates:
+            - Path=/api/attraction/**
+          filters:
+            - StripPrefix=0
+
+        # Booking Service - 需要认证
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/booking/**
+          filters:
+            - StripPrefix=0
+
+        # Recommendation Service - 需要认证
+        - id: recommendation-service
+          uri: lb://recommendation-service
+          predicates:
+            - Path=/api/recommendation/**
+          filters:
+            - StripPrefix=0
 
       globalcors:
         corsConfigurations:
           '[/**]':
-            allowedOrigins: "*"
-            allowedMethods: GET,POST,PUT,DELETE,OPTIONS
-            allowedHeaders: "*"
+            allowedOrigins:
+              - http://localhost:3000
+              - http://localhost:5173
+              - http://localhost:8080
+              - "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: '*'
+            allowCredentials: true
+            maxAge: 3600
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    com.travelassistant.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web.reactive: DEBUG
