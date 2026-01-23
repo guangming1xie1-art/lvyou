@@ -23,15 +23,52 @@ class MCPClient:
     """
     MCP Client 连接 Java API 后端
     支持 HTTP 直接调用，具有重试、超时和缓存机制
+    支持JWT token转发用于用户认证
     """
     
-    def __init__(self, java_api_url: Optional[str] = None):
+    def __init__(
+        self,
+        java_api_url: Optional[str] = None,
+        token: Optional[str] = None,
+        user_id: Optional[str] = None,
+        username: Optional[str] = None
+    ):
         # 默认指向 Java MCP 服务端口 8081
         self.java_api_url = java_api_url or "http://localhost:8081"
         self._client: Optional[MultiServerMCPClient] = None
         self._redis: Optional[redis.Redis] = None
         self.timeout = 10.0
         
+        # JWT token 和用户信息（用于转发到Java服务）
+        self.token = token
+        self.user_id = user_id
+        self.username = username
+        
+    def _get_auth_headers(self) -> Dict[str, str]:
+        """
+        构建包含JWT和用户上下文的请求headers
+        
+        Returns:
+            Headers字典
+        """
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        
+        # 添加JWT Authorization header
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+            logger.debug(f"Added Authorization header with token")
+        
+        # 添加用户上下文headers
+        if self.user_id:
+            headers["X-User-ID"] = str(self.user_id)
+        if self.username:
+            headers["X-Username"] = self.username
+        
+        return headers
+    
     async def _get_redis(self) -> redis.Redis:
         if self._redis is None:
             self._redis = redis.Redis(
@@ -101,13 +138,16 @@ class MCPClient:
         except Exception as e:
             logger.warning(f"Redis cache error: {e}")
 
-        # 2. 发起 HTTP 调用
+        # 2. 发起 HTTP 调用（带JWT认证）
         endpoint = tool_name.replace("_", "-")
         url = f"{self.java_api_url}/mcp/{endpoint}"
         
+        # 构建包含JWT的headers
+        headers = self._get_auth_headers()
+        
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url, json=params)
+                response = await client.post(url, json=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
                 
@@ -117,6 +157,7 @@ class MCPClient:
                 except Exception as e:
                     logger.warning(f"Failed to cache MCP result: {e}")
                 
+                logger.info(f"MCP tool {tool_name} called successfully with JWT auth")
                 return result
         except Exception as e:
             logger.error(f"Failed to call MCP tool {tool_name} at {url}: {e}")
@@ -375,8 +416,34 @@ class MCPClient:
 _mcp_client: Optional[MCPClient] = None
 
 
-def get_mcp_client() -> MCPClient:
-    """获取全局 MCP Client 实例（懒加载）"""
+def get_mcp_client(
+    token: Optional[str] = None,
+    user_id: Optional[str] = None,
+    username: Optional[str] = None
+) -> MCPClient:
+    """
+    获取 MCP Client 实例
+    
+    注意：如果提供了token参数，会创建新的客户端实例而不是使用全局单例
+    这样可以确保每个请求使用正确的JWT token
+    
+    Args:
+        token: JWT access token
+        user_id: 用户ID
+        username: 用户名
+        
+    Returns:
+        MCPClient实例
+    """
+    # 如果提供了token，创建新的实例（每个请求有不同的token）
+    if token:
+        return MCPClient(
+            token=token,
+            user_id=user_id,
+            username=username
+        )
+    
+    # 否则使用全局单例（向后兼容）
     global _mcp_client
     if _mcp_client is None:
         _mcp_client = MCPClient()
