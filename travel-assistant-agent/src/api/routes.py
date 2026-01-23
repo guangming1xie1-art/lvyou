@@ -249,7 +249,12 @@ async def search_travel(
     try:
         await _update_task(task_id, status="processing", progress=0.1)
         
-        mcp_client = get_mcp_client()
+        # 创建带JWT认证的MCP client
+        mcp_client = get_mcp_client(
+            token=user_token,
+            user_id=current_user.id,
+            username=current_user.username
+        )
         
         # Prepare search results
         outbound_flights = []
@@ -513,7 +518,12 @@ async def recommend_travel(
     try:
         await _update_task(task_id, status="processing", progress=0.1)
         
-        mcp_client = get_mcp_client()
+        # 创建带JWT认证的MCP client
+        mcp_client = get_mcp_client(
+            token=user_token,
+            user_id=current_user.id,
+            username=current_user.username
+        )
         
         # Prepare recommendation results
         destination_info = None
@@ -771,7 +781,12 @@ async def create_booking(
     try:
         await _update_task(task_id, status="processing", progress=0.2)
         
-        mcp_client = get_mcp_client()
+        # 创建带JWT认证的MCP client
+        mcp_client = get_mcp_client(
+            token=user_token,
+            user_id=current_user.id,
+            username=current_user.username
+        )
         
         # Prepare booking data for MCP skill
         booking_data = {
