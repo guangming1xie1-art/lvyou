@@ -46,3 +46,13 @@ jwt:
   algorithm: HS256
   accessTokenExpiration: 900000    # 15分钟（毫秒）
   refreshTokenExpiration: 604800000 # 7天（毫秒）
+
+logging:
+  level:
+    root: INFO
+    com.travelassistant.auth: DEBUG
+    com.travelassistant.common: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security.web: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
