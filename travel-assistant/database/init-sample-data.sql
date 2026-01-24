@@ -264,7 +264,125 @@ VALUES(
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 );
 -- =============================================================================
--- 7. 示例查询 - 验证数据完整性
+-- 7. 示例预订数据 (bookings)
+-- =============================================================================
+INSERT INTO bookings (
+  user_id,
+  booking_type,
+  resource_id,
+  booking_date,
+  status,
+  total_price,
+  notes,
+  created_by,
+  updated_by
+) VALUES
+-- PENDING状态的酒店预订
+(
+  (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1),
+  'HOTEL',
+  (SELECT id FROM hotels WHERE name = 'The Grand Plaza Hotel' LIMIT 1),
+  '2025-01-25 10:30:00',
+  'PENDING',
+  3400.00,
+  'Need a room with city view, preferably on higher floors',
+  (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1)
+),
+
+-- CONFIRMED状态的航班预订
+(
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1),
+  'FLIGHT',
+  (SELECT id FROM flights WHERE origin = 'Beijing' AND destination = 'Shanghai' AND airline = 'Air China' LIMIT 1),
+  '2025-01-20 14:15:00',
+  'CONFIRMED',
+  1240.00,
+  'Business class, window seat preferred',
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1)
+),
+
+-- CONFIRMED状态的景点预订
+(
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1),
+  'ATTRACTION',
+  (SELECT id FROM attractions WHERE name = 'Giant Panda Breeding Research Base' LIMIT 1),
+  '2025-01-22 09:45:00',
+  'CONFIRMED',
+  180.00,
+  'Family of 4, need guide service',
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1)
+),
+
+-- PENDING状态的酒店预订
+(
+  (SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1),
+  'HOTEL',
+  (SELECT id FROM hotels WHERE name = 'Beijing Royal Palace' LIMIT 1),
+  '2025-01-26 16:20:00',
+  'PENDING',
+  9600.00,
+  'Executive suite, need airport pickup',
+  (SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1)
+),
+
+-- CANCELLED状态的航班预订
+(
+  (SELECT id FROM users WHERE username = 'david_b' LIMIT 1),
+  'FLIGHT',
+  (SELECT id FROM flights WHERE origin = 'Shanghai' AND destination = 'Hangzhou' AND airline = 'Spring Airlines' LIMIT 1),
+  '2025-01-18 11:30:00',
+  'CANCELLED',
+  280.00,
+  'Cancelled due to schedule conflict',
+  (SELECT id FROM users WHERE username = 'david_b' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'david_b' LIMIT 1)
+),
+
+-- CONFIRMED状态的酒店预订
+(
+  (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1),
+  'HOTEL',
+  (SELECT id FROM hotels WHERE name = 'Chengdu Tea Garden Inn' LIMIT 1),
+  '2025-01-19 13:50:00',
+  'CONFIRMED',
+  360.00,
+  'Traditional room with courtyard view',
+  (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1)
+),
+
+-- PENDING状态的景点预订
+(
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1),
+  'ATTRACTION',
+  (SELECT id FROM attractions WHERE name = 'Forbidden City' LIMIT 1),
+  '2025-01-27 08:00:00',
+  'PENDING',
+  120.00,
+  'Private tour for 2 people, English-speaking guide required',
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1)
+),
+
+-- CONFIRMED状态的航班预订
+(
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1),
+  'FLIGHT',
+  (SELECT id FROM flights WHERE origin = 'Beijing' AND destination = 'Shenzhen' AND airline = 'Air China' LIMIT 1),
+  '2025-01-21 15:40:00',
+  'CONFIRMED',
+  5120.00,
+  'Group booking for 4 people, need seats together',
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1),
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1)
+);
+
+-- =============================================================================
+-- 8. 示例查询 - 验证数据完整性
 -- =============================================================================
 
 -- 检查插入的数据
@@ -278,7 +396,9 @@ SELECT 'attractions', COUNT(*) FROM attractions
 UNION ALL
 SELECT 'rag_documents', COUNT(*) FROM rag_documents
 UNION ALL
-SELECT 'audit_logs', COUNT(*) FROM audit_logs;
+SELECT 'audit_logs', COUNT(*) FROM audit_logs
+UNION ALL
+SELECT 'bookings', COUNT(*) FROM bookings;
 
 -- =============================================================================
 -- 示例数据初始化完成
@@ -287,4 +407,5 @@ SELECT 'audit_logs', COUNT(*) FROM audit_logs;
 -- FIXED: 移除了所有不存在的字段引用
 -- FIXED: 添加了缺失的字段（password_hash, is_active, last_login, tags）
 -- FIXED: 修复了字段命名不一致的问题（duration_minutes -> duration）
+-- FIXED: 添加了bookings表及示例数据
 -- =============================================================================
