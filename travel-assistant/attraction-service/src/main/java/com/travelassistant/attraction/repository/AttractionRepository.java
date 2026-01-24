@@ -31,7 +31,7 @@ public interface AttractionRepository extends JpaRepository<Attraction, java.uti
   /**
    * 根据标签查找景点
    */
-  @Query("SELECT a FROM Attraction a WHERE :tag = ANY(a.tags)")
+  @Query(value="SELECT a FROM Attraction a WHERE :tag = ANY(a.tags)",nativeQuery = true)
   List<Attraction> findByTag(@Param("tag") String tag);
 
   /**
@@ -45,14 +45,27 @@ public interface AttractionRepository extends JpaRepository<Attraction, java.uti
   /**
    * 根据目的地和标签查找景点
    */
-  @Query("SELECT a FROM Attraction a WHERE a.destination = :destination AND :tag = ANY(a.tags)")
-  List<Attraction> findByDestinationAndTag(
-      @Param("destination") String destination,
-      @Param("tag") String tag);
+//  @Query("SELECT a FROM Attraction a WHERE a.destination = :destination AND :tag = ANY(a.tags)")
+//  List<Attraction> findByDestinationAndTag(
+//      @Param("destination") String destination,
+//      @Param("tag") String tag);
 
+  @Query(
+          value = "SELECT * FROM attractions WHERE destination = :destination AND :tag = ANY(tags)",
+          nativeQuery = true
+  )
+  List<Attraction> findByDestinationAndTag(
+          @Param("destination") String destination,
+          @Param("tag") String tag);
   /**
    * 根据多个标签查找景点
    */
-  @Query("SELECT a FROM Attraction a WHERE a.tags && :tags")
+//  @Query("SELECT a FROM Attraction a WHERE a.tags && :tags")
+//  List<Attraction> findByTags(@Param("tags") List<String> tags);
+
+  @Query(
+          value = "SELECT * FROM attractions WHERE tags && CAST(:tags AS text[])",
+          nativeQuery = true
+  )
   List<Attraction> findByTags(@Param("tags") List<String> tags);
 }

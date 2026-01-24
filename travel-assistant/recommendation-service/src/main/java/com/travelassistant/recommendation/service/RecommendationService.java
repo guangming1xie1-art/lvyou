@@ -1,9 +1,11 @@
 package com.travelassistant.recommendation.service;
 
+import com.travelassistant.hotel.entity.Hotel;
 import com.travelassistant.recommendation.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,14 +54,15 @@ public class RecommendationService {
             // 从目的地列表中获取推荐
             if (preferredDestinations != null && !preferredDestinations.isEmpty()) {
                 String destination = preferredDestinations.get(0);
-                return hotelServiceClient.getHotelsByPriceRange(minPrice, maxPrice).getBody()
-                        .stream()
+                List<Hotel> hotels = (List<Hotel>) hotelServiceClient.getHotelsByPriceRange(minPrice, maxPrice).getBody()
+                List<Hotel>  result  = hotels.stream()
                         .filter(hotel -> {
                             // 这里需要根据实际数据结构进行过滤
                             return true; // 简化处理
                         })
                         .limit(limit)
                         .collect(Collectors.toList());
+                return result;
             }
             
             return new ArrayList<>();

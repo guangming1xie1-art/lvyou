@@ -7,11 +7,12 @@ import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-
+import org.springframework.stereotype.Component;
 import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 @Component
 @Slf4j
 public class AuditLogFilter implements GlobalFilter, Ordered {
@@ -35,7 +36,7 @@ public class AuditLogFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange)
             .doFinally(signal -> {
                 long duration = System.currentTimeMillis() - startTime;
-                HttpStatus status = exchange.getResponse().getStatusCode();
+                HttpStatusCode status = exchange.getResponse().getStatusCode();
                 
                 log.info("完成API调用 - 用户ID: {}, 方法: {} {}, 状态: {}, 耗时: {}ms, IP: {}, 时间: {}", 
                     userId, method, path, status, duration, clientIp, LocalDateTime.now().format(DATE_TIME_FORMATTER));

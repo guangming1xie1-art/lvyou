@@ -214,27 +214,55 @@ INSERT INTO rag_documents (entity_type, entity_id, content, source, metadata) VA
 -- 6. 示例审计日志数据 (audit_logs) - 可选
 -- =============================================================================
 
-INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address, user_agent) VALUES
-((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'search', 'hotels', (SELECT id FROM hotels WHERE destination = 'Shanghai' LIMIT 1),
- '{"search_criteria": {"destination": "Shanghai", "check_in": "2025-02-15", "check_out": "2025-02-20", "budget_max": 1000}}',
- '192.168.1.100', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
-
-((SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'book', 'hotel', (SELECT id FROM hotels WHERE name = 'Beijing Royal Palace' LIMIT 1),
- '{"booking_details": {"nights": 5, "room_type": "deluxe", "total_price": 6000, "guests": 2}}',
- '192.168.1.101', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'),
-
-((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), 'search', 'flights', (SELECT id FROM flights WHERE origin = 'Beijing' LIMIT 1),
- '{"search_criteria": {"origin": "Beijing", "destination": "Shanghai", "departure_date": "2025-03-01", "passengers": 1}}',
- '192.168.1.102', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'),
-
-((SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1), 'recommend', 'attractions', (SELECT id FROM attractions WHERE destination = 'Shanghai' LIMIT 1),
- '{"recommendation_reason": "Based on user''s cultural travel style and luxury budget level", "similar_users": 15}',
- '192.168.1.103', 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15'),
-
-((SELECT id FROM users WHERE username = 'david_b' LIMIT 1), 'search', 'attractions', (SELECT id FROM attractions WHERE category = 'historic' LIMIT 1),
- '{"search_criteria": {"category": "historic", "rating_min": 4.0, "destination": "Beijing"}}',
- '192.168.1.104', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-
+-- =============================================================================
+-- 6. 示例审计日志数据 (audit_logs)
+-- =============================================================================
+INSERT INTO audit_logs (user_id, action, endpoint, method, status_code, ip_address, user_agent)
+VALUES(
+(SELECT id FROM users WHERE username = 'john_doe' LIMIT 1),
+    'search',
+    '/api/v1/hotels/search',
+    'GET',
+    200,
+    '192.168.1.100',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    ),
+(
+  (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1),
+  'book',
+  '/api/v1/hotels/book',
+  'POST',
+  201,
+  '192.168.1.101',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+),
+(
+  (SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1),
+  'search',
+  '/api/v1/flights/search',
+  'GET',
+  200,
+  '192.168.1.102',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+),
+(
+  (SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1),
+  'recommend',
+  '/api/v1/attractions/recommend',
+  'GET',
+  200,
+  '192.168.1.103',
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15'
+),
+(
+  (SELECT id FROM users WHERE username = 'david_b' LIMIT 1),
+  'search',
+  '/api/v1/attractions/search',
+  'GET',
+  200,
+  '192.168.1.104',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+);
 -- =============================================================================
 -- 7. 示例查询 - 验证数据完整性
 -- =============================================================================

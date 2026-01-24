@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
 @MappedSuperclass
 public abstract class BaseEntity {
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private java.util.UUID id;
+  @GeneratedValue(strategy = GenerationType.IDENTITY)   // 或 GenerationType.SEQUENCE
+  private Long id;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
@@ -34,7 +34,7 @@ public abstract class BaseEntity {
     this.updatedAt = LocalDateTime.now();
   }
 
-  public java.util.UUID getId() {
+  public Long getId() {
     return id;
   }
 

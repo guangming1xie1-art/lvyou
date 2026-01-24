@@ -93,7 +93,6 @@ public class UserService {
         existingUser.setEmail(updatedUser.getEmail());
         existingUser.setUsername(updatedUser.getUsername());
         existingUser.setPreferencesJson(updatedUser.getPreferencesJson());
-        existingUser.setUpdatedAt(LocalDateTime.now());
 
         return userRepository.save(existingUser);
     }
@@ -115,7 +114,6 @@ public class UserService {
             user.setPreferencesJson(new HashMap<>());
         }
         user.getPreferencesJson().putAll(preferences);
-        user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 
@@ -138,7 +136,6 @@ public class UserService {
             user.setPreferencesJson(preferences);
         }
         preferences.put("budget_level", budgetLevel);
-        user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 
@@ -153,7 +150,6 @@ public class UserService {
             user.setPreferencesJson(preferences);
         }
         preferences.put("travel_style", travelStyle);
-        user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 
@@ -168,7 +164,6 @@ public class UserService {
             user.setPreferencesJson(preferences);
         }
         preferences.put("interests", interests);
-        user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 
@@ -183,7 +178,6 @@ public class UserService {
             user.setPreferencesJson(preferences);
         }
         preferences.put("preferred_destinations", destinations);
-        user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 

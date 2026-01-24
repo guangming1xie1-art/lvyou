@@ -4,6 +4,7 @@ import com.travelassistant.auth.dto.*;
 import com.travelassistant.auth.service.AuthService;
 import com.travelassistant.auth.service.JwtService;
 import com.travelassistant.common.api.ApiResponse;
+import com.travelassistant.common.api.ResultCode;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class AuthController {
       UserResponse user = authService.register(request);
       return ApiResponse.success(user);
     } catch (Exception e) {
-      return ApiResponse.error(e.getMessage());
+      return ApiResponse.error(ResultCode.UNAUTHORIZED.getCode(),e.getMessage());
     }
   }
 
@@ -36,7 +37,7 @@ public class AuthController {
       LoginResponse response = authService.login(request);
       return ApiResponse.success(response);
     } catch (Exception e) {
-      return ApiResponse.error(e.getMessage());
+      return ApiResponse.error(ResultCode.UNAUTHORIZED.getCode(),e.getMessage());
     }
   }
 
@@ -46,7 +47,7 @@ public class AuthController {
       TokenResponse response = authService.refreshToken(request);
       return ApiResponse.success(response);
     } catch (Exception e) {
-      return ApiResponse.error(e.getMessage());
+      return ApiResponse.error(ResultCode.UNAUTHORIZED.getCode(),e.getMessage());
     }
   }
 
@@ -58,7 +59,7 @@ public class AuthController {
       UserResponse user = authService.getCurrentUser(userId);
       return ApiResponse.success(user);
     } catch (Exception e) {
-      return ApiResponse.error("Failed to get current user: " + e.getMessage());
+      return ApiResponse.error(ResultCode.UNAUTHORIZED.getCode(),"Failed to get current user: " + e.getMessage());
     }
   }
 

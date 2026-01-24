@@ -31,8 +31,8 @@ public class GatewayConfig {
         return template;
     }
     
-    @Bean
-    public JwtUtil jwtUtil() {
-        return new JwtUtil();
-    }
+//    @Bean
+//    public JwtUtil jwtUtil() {
+//        return new JwtUtil();
+//    }
 }

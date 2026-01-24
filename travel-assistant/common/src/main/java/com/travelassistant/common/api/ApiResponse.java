@@ -39,10 +39,12 @@ public class ApiResponse<T> {
     return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), null);
   }
 
-  public static ApiResponse<Void> error(int code, String message) {
+  public static <T> ApiResponse<T> error(int code, String message) {
     return new ApiResponse<>(code, message, null);
   }
-
+  public static <T> ApiResponse<T> error(String message) {
+    return new ApiResponse<>(ResultCode.INTERNAL_ERROR.getCode(), message, null);
+  }
   public int getCode() {
     return code;
   }

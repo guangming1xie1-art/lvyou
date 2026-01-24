@@ -50,13 +50,6 @@ public class Attraction extends BaseEntity {
   @Convert(converter = JsonbConverter.class)
   private List<String> tags; // ["summer", "beach", "family"] 或 ["winter", "skiing"]
 
-  // 审计字段
-  @Column(name = "created_by")
-  private UUID createdBy;
-
-  @Column(name = "updated_by")
-  private UUID updatedBy;
-
   // 业务逻辑
   @PrePersist
   protected void onCreate() {

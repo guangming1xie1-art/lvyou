@@ -285,11 +285,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   -- 操作信息
   user_id BIGINT NULL, -- 关联到 users 表
   action VARCHAR(100) NOT NULL, -- 'search', 'book', 'recommend' 等
-  resource_type VARCHAR(50), -- 'hotels', 'flights', 'attractions' 等
-  resource_id UUID, -- 资源ID（可为 UUID 或其他类型）
 
-  -- 详细信息
-  details JSONB, -- 操作详细数据
+  endpoint      VARCHAR(255),                 -- 请求路径
+  method        VARCHAR(10),                  -- GET / POST / PUT / DELETE …
+  status_code   INTEGER,                      -- HTTP 响应码
 
   -- 请求信息
   ip_address VARCHAR(255),
@@ -302,16 +301,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- audit_logs 索引
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
 COMMENT ON TABLE audit_logs IS '审计日志表：记录用户操作和系统事件';
-COMMENT ON COLUMN audit_logs.id IS '主键：BIGSERIAL 自增（PostgreSQL 语法）';
-COMMENT ON COLUMN audit_logs.user_id IS '用户ID：关联到 users.id，可为空';
-COMMENT ON COLUMN audit_logs.action IS '操作类型：search/book/recommend 等';
-COMMENT ON COLUMN audit_logs.resource_type IS '资源类型：hotels/flights/attractions 等';
-COMMENT ON COLUMN audit_logs.resource_id IS '资源ID：关联资源的标识符';
-COMMENT ON COLUMN audit_logs.details IS '操作详情：JSON 格式的详细数据';
-COMMENT ON COLUMN audit_logs.ip_address IS 'IP地址：客户端IP';
-COMMENT ON COLUMN audit_logs.user_agent IS '用户代理：浏览器/客户端信息';
-COMMENT ON COLUMN audit_logs.created_at IS '创建时间：日志记录时间';
+COMMENT ON COLUMN audit_logs.id            IS '主键，自增';
+COMMENT ON COLUMN audit_logs.user_id       IS '用户ID，关联 users.id';
+COMMENT ON COLUMN audit_logs.action        IS '操作类型';
+COMMENT ON COLUMN audit_logs.endpoint      IS '请求接口路径';
+COMMENT ON COLUMN audit_logs.method        IS 'HTTP 方法';
+COMMENT ON COLUMN audit_logs.status_code   IS '响应状态码';
+COMMENT ON COLUMN audit_logs.ip_address    IS '客户端 IP';
+COMMENT ON COLUMN audit_logs.user_agent    IS '客户端 UA';
+COMMENT ON COLUMN audit_logs.created_at    IS '日志创建时间';

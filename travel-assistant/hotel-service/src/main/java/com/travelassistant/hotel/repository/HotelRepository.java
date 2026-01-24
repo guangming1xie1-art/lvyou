@@ -42,7 +42,7 @@ public interface HotelRepository extends JpaRepository<Hotel, UUID> {
   /**
    * 根据设施查找酒店
    */
-  @Query("SELECT h FROM Hotel h WHERE :facility = ANY(h.facilities)")
+  @Query(value="SELECT h FROM Hotel h WHERE :facility = ANY(h.facilities)",nativeQuery = true)
   List<Hotel> findByFacility(@Param("facility") String facility);
 
   /**

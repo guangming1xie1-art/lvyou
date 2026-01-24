@@ -18,6 +18,7 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.travelassistant.user.converter.JsonbConverter;
 
 @Entity
 @Table(name = "users")
@@ -25,7 +26,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User extends BaseEntity {
-  
+
+
+
   // 账户信息
   @Column(unique = true, nullable = false, length = 255)
   private String email;
@@ -37,13 +40,6 @@ public class User extends BaseEntity {
   @Column(name = "preferences_json", columnDefinition = "jsonb", nullable = false)
   @Convert(converter = JsonbConverter.class)
   private Map<String, Object> preferencesJson;
-
-  // 审计字段
-  @Column(name = "created_by")
-  private UUID createdBy;
-
-  @Column(name = "updated_by")
-  private UUID updatedBy;
 
   // 业务逻辑
   @PrePersist
