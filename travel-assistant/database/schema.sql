@@ -3,12 +3,13 @@
 -- 统一数据库 Schema 与 Java 实体类字段定义（PostgreSQL）
 --
 -- 说明：
--- 1) 本脚本聚焦核心业务实体：users / hotels / flights / attractions / rag_documents / audit_logs
+-- 1) 本脚本聚焦核心业务实体：users / hotels / flights / attractions / rag_documents / audit_logs / bookings
 -- 2) 所有表均包含审计字段 created_at/updated_at（使用触发器自动刷新）
 -- 3) users 和 audit_logs 表使用 BIGSERIAL 自增 ID
 -- 4) 其他表使用 UUID 主键以匹配对应实体类
 -- 5) JSON 字段使用 JSONB，配合应用侧 JsonbConverter 进行序列化/反序列化
 -- 6) FIX: 2025-01-23 - 修复字段不同步问题，与 Java 实体类保持一致
+-- 7) FIX: 2025-01-24 - 添加bookings表以支持booking-service
 -- =============================================================================
 
 -- 启用 gen_random_uuid()（PostgreSQL pgcrypto 扩展）
@@ -313,3 +314,58 @@ COMMENT ON COLUMN audit_logs.status_code   IS '响应状态码';
 COMMENT ON COLUMN audit_logs.ip_address    IS '客户端 IP';
 COMMENT ON COLUMN audit_logs.user_agent    IS '客户端 UA';
 COMMENT ON COLUMN audit_logs.created_at    IS '日志创建时间';
+
+-- =============================================================================
+-- 表 7：bookings - 预订表
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 用户和预订信息
+  user_id UUID NOT NULL,
+  booking_type VARCHAR(50) NOT NULL, -- 'HOTEL', 'FLIGHT', 'ATTRACTION'
+  resource_id UUID NOT NULL, -- 对应的酒店/航班/景点 ID
+
+  -- 预订详情
+  booking_date TIMESTAMP NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'CONFIRMED', 'CANCELLED'
+  total_price NUMERIC(10,2),
+  notes TEXT,
+
+  -- 审计字段
+  created_by UUID,
+  updated_by UUID,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- bookings 索引
+CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_booking_type ON bookings(booking_type);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_booking_date ON bookings(booking_date);
+CREATE INDEX IF NOT EXISTS idx_bookings_created_at ON bookings(created_at);
+CREATE INDEX IF NOT EXISTS idx_bookings_resource_type_id ON bookings(booking_type, resource_id);
+
+COMMENT ON TABLE bookings IS '预订表：记录用户对酒店、航班、景点的预订';
+COMMENT ON COLUMN bookings.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON COLUMN bookings.user_id IS '用户ID：关联用户，必填';
+COMMENT ON COLUMN bookings.booking_type IS '预订类型：HOTEL/FLIGHT/ATTRACTION，必填';
+COMMENT ON COLUMN bookings.resource_id IS '资源ID：关联的酒店/航班/景点ID，必填';
+COMMENT ON COLUMN bookings.booking_date IS '预订时间：用户发起预订的时间，必填';
+COMMENT ON COLUMN bookings.status IS '预订状态：PENDING/CONFIRMED/CANCELLED，默认PENDING';
+COMMENT ON COLUMN bookings.total_price IS '总价：预订总金额，精确到分';
+COMMENT ON COLUMN bookings.notes IS '备注：预订备注信息';
+COMMENT ON COLUMN bookings.created_by IS '创建者ID：创建预订的用户ID';
+COMMENT ON COLUMN bookings.updated_by IS '更新者ID：更新预订的用户ID';
+COMMENT ON COLUMN bookings.created_at IS '创建时间：记录第一次创建时间';
+COMMENT ON COLUMN bookings.updated_at IS '更新时间：最后一次修改时间';
+
+-- =============================================================================
+-- 触发器：bookings 表 updated_at 自动更新
+-- =============================================================================
+DROP TRIGGER IF EXISTS trg_set_updated_at_bookings ON bookings;
+CREATE TRIGGER trg_set_updated_at_bookings
+BEFORE UPDATE ON bookings
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
