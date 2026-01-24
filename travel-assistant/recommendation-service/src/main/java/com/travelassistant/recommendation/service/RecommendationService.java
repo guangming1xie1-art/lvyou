@@ -1,5 +1,6 @@
 package com.travelassistant.recommendation.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travelassistant.hotel.entity.Hotel;
 import com.travelassistant.recommendation.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class RecommendationService {
 
     @Autowired
     private AttractionServiceClient attractionServiceClient;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     /**
      * 为用户推荐酒店
@@ -54,15 +58,18 @@ public class RecommendationService {
             // 从目的地列表中获取推荐
             if (preferredDestinations != null && !preferredDestinations.isEmpty()) {
                 String destination = preferredDestinations.get(0);
-                List<Hotel> hotels = (List<Hotel>) hotelServiceClient.getHotelsByPriceRange(minPrice, maxPrice).getBody()
-                List<Hotel>  result  = hotels.stream()
+                List<Hotel> hotels = (List<Hotel>) hotelServiceClient.getHotelsByPriceRange(minPrice, maxPrice).getBody();
+                List<Hotel> result = hotels.stream()
                         .filter(hotel -> {
                             // 这里需要根据实际数据结构进行过滤
                             return true; // 简化处理
                         })
                         .limit(limit)
                         .collect(Collectors.toList());
-                return result;
+                // Convert List<Hotel> to List<Map<String, Object>>
+                return result.stream()
+                        .map(hotel -> objectMapper.convertValue(hotel, Map.class))
+                        .collect(Collectors.toList());
             }
             
             return new ArrayList<>();
@@ -86,11 +93,14 @@ public class RecommendationService {
                 String destination = preferredDestinations.get(0);
                 // 这里可以根据实际需求设定出发地
                 String origin = "Beijing"; // 默认出发地
-                
-                return flightServiceClient.getFlightsByOriginAndDestination(origin, destination).getBody()
-                        .stream()
-                        .limit(limit)
-                        .collect(Collectors.toList());
+
+                List<Object> flights = flightServiceClient.getFlightsByOriginAndDestination(origin, destination).getBody();
+                if (flights != null) {
+                    return flights.stream()
+                            .limit(limit)
+                            .map(flight -> objectMapper.convertValue(flight, Map.class))
+                            .collect(Collectors.toList());
+                }
             }
             
             return new ArrayList<>();
@@ -118,21 +128,27 @@ public class RecommendationService {
                     try {
                         List<Object> attractionsByTag = attractionServiceClient.getAttractionsByTag(interest).getBody();
                         if (attractionsByTag != null) {
-                            recommendations.addAll(attractionsByTag);
+                            // Convert each attraction object to Map
+                            recommendations.addAll(attractionsByTag.stream()
+                                    .map(attraction -> objectMapper.convertValue(attraction, Map.class))
+                                    .collect(Collectors.toList()));
                         }
                     } catch (Exception e) {
                         // 忽略单个标签的错误
                     }
                 }
             }
-            
+
             // 根据目的地推荐景点
             if (preferredDestinations != null && !preferredDestinations.isEmpty()) {
                 String destination = preferredDestinations.get(0);
                 try {
                     List<Object> attractionsByDestination = attractionServiceClient.getAttractionsByDestination(destination).getBody();
                     if (attractionsByDestination != null) {
-                        recommendations.addAll(attractionsByDestination);
+                        // Convert each attraction object to Map
+                        recommendations.addAll(attractionsByDestination.stream()
+                                .map(attraction -> objectMapper.convertValue(attraction, Map.class))
+                                .collect(Collectors.toList()));
                     }
                 } catch (Exception e) {
                     // 忽略错误
@@ -167,10 +183,14 @@ public class RecommendationService {
      */
     public List<Map<String, Object>> recommendAttractionsByTags(List<String> tags, int limit) {
         try {
-            return attractionServiceClient.getAttractionsByTags(tags).getBody()
-                    .stream()
-                    .limit(limit)
-                    .collect(Collectors.toList());
+            List<Object> attractions = attractionServiceClient.getAttractionsByTags(tags).getBody();
+            if (attractions != null) {
+                return attractions.stream()
+                        .limit(limit)
+                        .map(attraction -> objectMapper.convertValue(attraction, Map.class))
+                        .collect(Collectors.toList());
+            }
+            return new ArrayList<>();
         } catch (Exception e) {
             return new ArrayList<>();
         }
@@ -181,10 +201,14 @@ public class RecommendationService {
      */
     public List<Map<String, Object>> recommendAttractionsByDestination(String destination, int limit) {
         try {
-            return attractionServiceClient.getAttractionsByDestination(destination).getBody()
-                    .stream()
-                    .limit(limit)
-                    .collect(Collectors.toList());
+            List<Object> attractions = attractionServiceClient.getAttractionsByDestination(destination).getBody();
+            if (attractions != null) {
+                return attractions.stream()
+                        .limit(limit)
+                        .map(attraction -> objectMapper.convertValue(attraction, Map.class))
+                        .collect(Collectors.toList());
+            }
+            return new ArrayList<>();
         } catch (Exception e) {
             return new ArrayList<>();
         }
