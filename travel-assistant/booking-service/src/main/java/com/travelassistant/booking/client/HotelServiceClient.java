@@ -22,6 +22,6 @@ public interface HotelServiceClient {
     
     @GetMapping("/api/hotel/price-range")
     ResponseEntity<List<Object>> getHotelsByPriceRange(
-        @RequestParam BigDecimal minPrice, 
-        @RequestParam BigDecimal maxPrice);
+        @RequestParam("minPrice") BigDecimal minPrice,
+        @RequestParam("maxPrice") BigDecimal maxPrice);
 }

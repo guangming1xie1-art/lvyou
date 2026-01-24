@@ -27,5 +27,5 @@ public interface AttractionServiceClient {
     ResponseEntity<List<Object>> getAttractionsByTag(@PathVariable("tag") String tag);
     
     @GetMapping("/api/attraction/tags")
-    ResponseEntity<List<Object>> getAttractionsByTags(@RequestParam List<String> tags);
+    ResponseEntity<List<Object>> getAttractionsByTags(@RequestParam("tags") List<String> tags);
 }

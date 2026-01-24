@@ -43,13 +43,6 @@ public class Booking extends BaseEntity {
   @Column(columnDefinition = "TEXT")
   private String notes;
 
-  // 审计字段
-  @Column(name = "created_by")
-  private UUID createdBy;
-
-  @Column(name = "updated_by")
-  private UUID updatedBy;
-
   // 业务逻辑
   @PrePersist
   protected void onCreate() {
