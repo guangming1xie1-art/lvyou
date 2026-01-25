@@ -7,7 +7,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .token import jwt_handler
 from .models import User
 from utils.logger import app_logger
-from utils.db import db_manager
 
 
 security = HTTPBearer(auto_error=False)
@@ -49,19 +48,11 @@ async def get_token(
 
 async def get_current_user(token: str = Depends(get_token)) -> User:
     """
-    Verify token and return current user
-    
-    Args:
-        token: JWT token
-    
-    Returns:
-        Current user object
-    
-    Raises:
-        HTTPException: If token is invalid or user not found
+    Verify JWT and extract user information from token
+    ✅ Only verify signature, no database queries
     """
     try:
-        # Verify and decode token
+        # Only verify JWT signature
         payload = jwt_handler.verify_token(token)
         user_id = payload.get("sub")
         
@@ -72,20 +63,13 @@ async def get_current_user(token: str = Depends(get_token)) -> User:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # Get user from database
-        user_data = await db_manager.get_user_by_id(user_id)
-        if user_data is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # Create User object
-        user = User(**user_data)
-        
-        # Update last login time
-        await db_manager.update_last_login(user_id)
+        # Directly build User object from JWT payload (no database query)
+        user = User(
+            id=user_id,
+            username=payload.get("username"),
+            email=payload.get("email"),
+            is_active=True  # JWT is verified, user must be valid
+        )
         
         app_logger.debug(f"Authenticated user: {user.username}")
         return user
