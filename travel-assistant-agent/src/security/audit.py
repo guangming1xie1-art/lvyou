@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import Request
 from utils.logger import app_logger
-from utils.db import db_manager
 
 
 class AuditLogger:
@@ -25,7 +24,8 @@ class AuditLogger:
         user_agent: Optional[str] = None
     ):
         """
-        Log API call to audit log
+        Log API call to structured log
+        ✅ Changed to log output, no database writes
         
         Args:
             user_id: User ID who made the request
@@ -42,27 +42,31 @@ class AuditLogger:
             # Filter sensitive parameters
             filtered_params = self._filter_sensitive_params(params or {})
             
-            audit_data = {
-                "user_id": user_id,
-                "action": action,
-                "endpoint": endpoint,
-                "method": method,
-                "params": filtered_params,
-                "result": result,
-                "error_message": error_message,
-                "ip_address": ip_address,
-                "user_agent": user_agent,
-                "created_at": datetime.utcnow().isoformat()
+            # Output structured log
+            extra_fields = {
+                "extra_user_id": user_id,
+                "extra_action": action,
+                "extra_endpoint": endpoint,
+                "extra_method": method,
+                "extra_result": result,
             }
             
-            # Log to file (for quick access)
-            app_logger.info(f"AUDIT: {action} by {user_id} - {result}")
+            if ip_address:
+                extra_fields["extra_ip_address"] = ip_address
+            if user_agent:
+                extra_fields["extra_user_agent"] = user_agent
+            if error_message:
+                extra_fields["extra_error_message"] = error_message
+            if filtered_params:
+                extra_fields["extra_params"] = filtered_params
             
-            # Log to database
-            await db_manager.create_audit_log(audit_data)
-            
+            # Log level based on result
+            if result == "success":
+                app_logger.info(f"API: {action} by {user_id}", extra=extra_fields)
+            else:
+                app_logger.warning(f"API: {action} by {user_id} FAILED", extra=extra_fields)
+                
         except Exception as e:
-            # Don't fail the request if audit logging fails
             app_logger.error(f"Audit logging failed: {e}")
     
     async def log_security_event(
@@ -75,7 +79,8 @@ class AuditLogger:
         details: Optional[Dict[str, Any]] = None
     ):
         """
-        Log security event
+        Log security event to structured log
+        ✅ Changed to log output, no database writes
         
         Args:
             event_type: Type of security event (e.g., "auth_failure", "rate_limit_exceeded")
@@ -86,32 +91,25 @@ class AuditLogger:
             details: Additional event details
         """
         try:
-            audit_data = {
-                "user_id": user_id,
-                "action": f"security_{event_type}",
-                "endpoint": "N/A",
-                "method": "SECURITY",
-                "params": details or {},
-                "result": "security_event",
-                "error_message": f"{severity}: {description}",
-                "ip_address": ip_address,
-                "user_agent": None,
-                "created_at": datetime.utcnow().isoformat(),
-                "metadata": {
-                    "event_type": event_type,
-                    "severity": severity
-                }
+            extra_fields = {
+                "extra_event_type": event_type,
+                "extra_severity": severity,
             }
             
-            # Log to file with severity
+            if user_id:
+                extra_fields["extra_user_id"] = user_id
+            if ip_address:
+                extra_fields["extra_ip_address"] = ip_address
+            if details:
+                extra_fields["extra_details"] = details
+            
+            # Log level based on severity
+            log_message = f"SECURITY [{severity}]: {description}"
             if severity in ["high", "critical"]:
-                app_logger.warning(f"SECURITY [{severity}]: {description}")
+                app_logger.error(log_message, extra=extra_fields)
             else:
-                app_logger.info(f"SECURITY [{severity}]: {description}")
-            
-            # Log to database
-            await db_manager.create_audit_log(audit_data)
-            
+                app_logger.warning(log_message, extra=extra_fields)
+                
         except Exception as e:
             app_logger.error(f"Security event logging failed: {e}")
     
@@ -146,44 +144,6 @@ class AuditLogger:
                 filtered[key] = value
         
         return filtered
-    
-    async def get_user_audit_logs(
-        self,
-        user_id: str,
-        limit: int = 100,
-        offset: int = 0
-    ) -> list:
-        """
-        Get audit logs for a user
-        
-        Args:
-            user_id: User ID
-            limit: Maximum number of logs to return
-            offset: Offset for pagination
-        
-        Returns:
-            List of audit logs
-        """
-        return await db_manager.get_user_audit_logs(user_id, limit, offset)
-    
-    async def get_security_events(
-        self,
-        severity: Optional[str] = None,
-        limit: int = 100,
-        offset: int = 0
-    ) -> list:
-        """
-        Get security events
-        
-        Args:
-            severity: Filter by severity
-            limit: Maximum number of events to return
-            offset: Offset for pagination
-        
-        Returns:
-            List of security events
-        """
-        return await db_manager.get_security_events(severity, limit, offset)
 
 
 # Global audit logger instance
