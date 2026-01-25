@@ -131,12 +131,12 @@ class AuthService {
     }
 
     const data = await response.json() as LoginResponse;
-    
+    // const data = { user: { id: '1', username: 'test', email: 'test@example.com' }, tokens: { access_token: 'test', refresh_token: 'test', token_type: 'Bearer', expires_in: 3600 } } as LoginResponse;
     this.saveTokens(
       {
-        accessToken: data.tokens.access_token,
-        refreshToken: data.tokens.refresh_token,
-        expiresIn: data.tokens.expires_in,
+        accessToken: data.tokens.accessToken,
+        refreshToken: data.tokens.refreshToken,
+        expiresIn: data.tokens.expiresIn,
       },
       data.user
     );
@@ -189,9 +189,9 @@ class AuthService {
     
     this.saveTokens(
       {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresIn: data.expires_in,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresIn: data.expiresIn,
       },
       this.user!
     );

@@ -12,10 +12,10 @@ export interface User {
 }
 
 export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  expires_in: number;
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
 }
 
 export interface LoginResponse {
@@ -42,6 +42,7 @@ export interface RefreshTokenRequest {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  expiresIn: number;
 }
 
 export interface AuthContextType {
