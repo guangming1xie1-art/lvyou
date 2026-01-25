@@ -18,7 +18,7 @@ from models.schemas import ChatRequest, ChatResponse
 from utils.logger import app_logger
 from utils.pagination import paginate_results, sort_flights, sort_hotels
 from auth.dependencies import get_current_active_user, get_current_user, get_user_token
-from security import rate_limiter, audit_logger
+from security import rate_limiter
 from auth.models import User
 from cache import RedisCache, CacheManager
 from conf import settings
@@ -236,14 +236,17 @@ async def search_travel(
     app_logger.info(f"[{task_id}] Search request received", request=request.dict())
 
     # Log API call
-    await audit_logger.log_api_call(
-        user_id=current_user.id,
-        action="search",
-        endpoint="/api/agent/search",
-        method="POST",
-        params=request.dict(),
-        ip_address=http_request.client.host if http_request.client else None,
-        user_agent=http_request.headers.get("user-agent")
+    app_logger.info(
+        f"Search API called by {current_user.username}",
+        extra={
+            "extra_user_id": current_user.id,
+            "extra_action": "search",
+            "extra_endpoint": "/api/agent/search",
+            "extra_method": "POST",
+            "extra_ip_address": http_request.client.host if http_request.client else None,
+            "extra_user_agent": http_request.headers.get("user-agent"),
+            "extra_params": request.dict()
+        }
     )
     
     try:
@@ -394,15 +397,17 @@ async def search_travel(
         app_logger.info(f"[{task_id}] Search completed successfully")
 
         # Log successful action
-        await audit_logger.log_api_call(
-            user_id=current_user.id,
-            action="search",
-            endpoint="/api/agent/search",
-            method="POST",
-            params=request.dict(),
-            result="success",
-            ip_address=http_request.client.host if http_request.client else None,
-            user_agent=http_request.headers.get("user-agent")
+        app_logger.info(
+            f"Search API completed successfully by {current_user.username}",
+            extra={
+                "extra_user_id": current_user.id,
+                "extra_action": "search",
+                "extra_endpoint": "/api/agent/search",
+                "extra_method": "POST",
+                "extra_result": "success",
+                "extra_ip_address": http_request.client.host if http_request.client else None,
+                "extra_user_agent": http_request.headers.get("user-agent")
+            }
         )
 
         return {
@@ -432,16 +437,18 @@ async def search_travel(
         )
 
         # Log error action
-        await audit_logger.log_api_call(
-            user_id=current_user.id,
-            action="search",
-            endpoint="/api/agent/search",
-            method="POST",
-            params=request.dict(),
-            result="failure",
-            error_message=str(e),
-            ip_address=http_request.client.host if http_request.client else None,
-            user_agent=http_request.headers.get("user-agent")
+        app_logger.warning(
+            f"Search API failed for {current_user.username}",
+            extra={
+                "extra_user_id": current_user.id,
+                "extra_action": "search",
+                "extra_endpoint": "/api/agent/search",
+                "extra_method": "POST",
+                "extra_result": "failure",
+                "extra_error_message": str(e),
+                "extra_ip_address": http_request.client.host if http_request.client else None,
+                "extra_user_agent": http_request.headers.get("user-agent")
+            }
         )
 
         return {
@@ -505,14 +512,17 @@ async def recommend_travel(
     app_logger.info(f"[{task_id}] Recommend request received for {request.destination}")
 
     # Log API call
-    await audit_logger.log_api_call(
-        user_id=current_user.id,
-        action="recommend",
-        endpoint="/api/agent/recommend",
-        method="POST",
-        params=request.dict(),
-        ip_address=http_request.client.host if http_request.client else None,
-        user_agent=http_request.headers.get("user-agent")
+    app_logger.info(
+        f"Recommend API called by {current_user.username}",
+        extra={
+            "extra_user_id": current_user.id,
+            "extra_action": "recommend",
+            "extra_endpoint": "/api/agent/recommend",
+            "extra_method": "POST",
+            "extra_ip_address": http_request.client.host if http_request.client else None,
+            "extra_user_agent": http_request.headers.get("user-agent"),
+            "extra_params": request.dict()
+        }
     )
     
     try:
@@ -681,15 +691,17 @@ async def recommend_travel(
         app_logger.info(f"[{task_id}] Recommendation completed successfully")
 
         # Log successful action
-        await audit_logger.log_api_call(
-            user_id=current_user.id,
-            action="recommend",
-            endpoint="/api/agent/recommend",
-            method="POST",
-            params=request.dict(),
-            result="success",
-            ip_address=http_request.client.host if http_request.client else None,
-            user_agent=http_request.headers.get("user-agent")
+        app_logger.info(
+            f"Recommend API completed successfully by {current_user.username}",
+            extra={
+                "extra_user_id": current_user.id,
+                "extra_action": "recommend",
+                "extra_endpoint": "/api/agent/recommend",
+                "extra_method": "POST",
+                "extra_result": "success",
+                "extra_ip_address": http_request.client.host if http_request.client else None,
+                "extra_user_agent": http_request.headers.get("user-agent")
+            }
         )
 
         return {
@@ -712,16 +724,18 @@ async def recommend_travel(
         )
 
         # Log error action
-        await audit_logger.log_api_call(
-            user_id=current_user.id,
-            action="recommend",
-            endpoint="/api/agent/recommend",
-            method="POST",
-            params=request.dict(),
-            result="failure",
-            error_message=str(e),
-            ip_address=http_request.client.host if http_request.client else None,
-            user_agent=http_request.headers.get("user-agent")
+        app_logger.warning(
+            f"Recommend API failed for {current_user.username}",
+            extra={
+                "extra_user_id": current_user.id,
+                "extra_action": "recommend",
+                "extra_endpoint": "/api/agent/recommend",
+                "extra_method": "POST",
+                "extra_result": "failure",
+                "extra_error_message": str(e),
+                "extra_ip_address": http_request.client.host if http_request.client else None,
+                "extra_user_agent": http_request.headers.get("user-agent")
+            }
         )
 
         return {
@@ -768,14 +782,17 @@ async def create_booking(
     app_logger.info(f"[{task_id}] Booking request received for {request.trip_details.get('destination')}")
 
     # Log API call
-    await audit_logger.log_api_call(
-        user_id=current_user.id,
-        action="book",
-        endpoint="/api/agent/book",
-        method="POST",
-        params=request.dict(),
-        ip_address=http_request.client.host if http_request.client else None,
-        user_agent=http_request.headers.get("user-agent")
+    app_logger.info(
+        f"Book API called by {current_user.username}",
+        extra={
+            "extra_user_id": current_user.id,
+            "extra_action": "book",
+            "extra_endpoint": "/api/agent/book",
+            "extra_method": "POST",
+            "extra_ip_address": http_request.client.host if http_request.client else None,
+            "extra_user_agent": http_request.headers.get("user-agent"),
+            "extra_params": request.dict()
+        }
     )
     
     try:
@@ -819,15 +836,17 @@ async def create_booking(
             )
 
             # Log successful action
-            await audit_logger.log_api_call(
-                user_id=current_user.id,
-                action="book",
-                endpoint="/api/agent/book",
-                method="POST",
-                params=request.dict(),
-                result="success",
-                ip_address=http_request.client.host if http_request.client else None,
-                user_agent=http_request.headers.get("user-agent")
+            app_logger.info(
+                f"Book API completed successfully by {current_user.username}",
+                extra={
+                    "extra_user_id": current_user.id,
+                    "extra_action": "book",
+                    "extra_endpoint": "/api/agent/book",
+                    "extra_method": "POST",
+                    "extra_result": "success",
+                    "extra_ip_address": http_request.client.host if http_request.client else None,
+                    "extra_user_agent": http_request.headers.get("user-agent")
+                }
             )
 
             return {
@@ -859,16 +878,18 @@ async def create_booking(
             )
 
             # Log error action
-            await audit_logger.log_api_call(
-                user_id=current_user.id,
-                action="book",
-                endpoint="/api/agent/book",
-                method="POST",
-                params=request.dict(),
-                result="failure",
-                error_message=str(error_detail),
-                ip_address=http_request.client.host if http_request.client else None,
-                user_agent=http_request.headers.get("user-agent")
+            app_logger.warning(
+                f"Book API failed for {current_user.username}",
+                extra={
+                    "extra_user_id": current_user.id,
+                    "extra_action": "book",
+                    "extra_endpoint": "/api/agent/book",
+                    "extra_method": "POST",
+                    "extra_result": "failure",
+                    "extra_error_message": str(error_detail),
+                    "extra_ip_address": http_request.client.host if http_request.client else None,
+                    "extra_user_agent": http_request.headers.get("user-agent")
+                }
             )
 
             return {
@@ -895,16 +916,18 @@ async def create_booking(
         )
 
         # Log error action
-        await audit_logger.log_api_call(
-            user_id=current_user.id,
-            action="book",
-            endpoint="/api/agent/book",
-            method="POST",
-            params=request.dict(),
-            result="failure",
-            error_message=str(e),
-            ip_address=http_request.client.host if http_request.client else None,
-            user_agent=http_request.headers.get("user-agent")
+        app_logger.warning(
+            f"Book API failed for {current_user.username}",
+            extra={
+                "extra_user_id": current_user.id,
+                "extra_action": "book",
+                "extra_endpoint": "/api/agent/book",
+                "extra_method": "POST",
+                "extra_result": "failure",
+                "extra_error_message": str(e),
+                "extra_ip_address": http_request.client.host if http_request.client else None,
+                "extra_user_agent": http_request.headers.get("user-agent")
+            }
         )
 
         return {
@@ -943,14 +966,17 @@ async def get_task_status(
     app_logger.info(f"Status request for task {task_id}: {task_data['status']}")
 
     # Log API call
-    await audit_logger.log_api_call(
-        user_id=current_user.id,
-        action="get_status",
-        endpoint=f"/api/agent/status/{task_id}",
-        method="GET",
-        params={"task_id": task_id},
-        ip_address=http_request.client.host if http_request.client else None,
-        user_agent=http_request.headers.get("user-agent")
+    app_logger.info(
+        f"Status API called by {current_user.username}",
+        extra={
+            "extra_user_id": current_user.id,
+            "extra_action": "get_status",
+            "extra_endpoint": f"/api/agent/status/{task_id}",
+            "extra_method": "GET",
+            "extra_ip_address": http_request.client.host if http_request.client else None,
+            "extra_user_agent": http_request.headers.get("user-agent"),
+            "extra_task_id": task_id
+        }
     )
 
     return _format_task_status(task_data)
