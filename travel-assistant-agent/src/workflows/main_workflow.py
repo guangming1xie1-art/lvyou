@@ -11,7 +11,7 @@ import logging
 
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
-
+from workflows.subgraphs.common import merge_dicts
 from deepagents import create_deep_agent
 from workflows.subagents import (
     get_info_collection_agent,
@@ -32,12 +32,12 @@ from llm.factory import LLMFactory
 logger = logging.getLogger(__name__)
 
 # 定义字典合并函数
-def merge_dicts(left: Dict[str, int], right: Dict[str, int]) -> Dict[str, int]:
-    """合并两个字典，相同 key 的值相加"""
-    result = left.copy()
-    for key, value in right.items():
-        result[key] = result.get(key, 0) + value
-    return result
+# def merge_dicts(left: Dict[str, int], right: Dict[str, int]) -> Dict[str, int]:
+#     """合并两个字典，相同 key 的值相加"""
+#     result = left.copy()
+#     for key, value in right.items():
+#         result[key] = result.get(key, 0) + value
+#     return result
 # ============ MainState 定义（第4层）============
 
 class MainState(dict):
