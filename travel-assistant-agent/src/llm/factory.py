@@ -16,7 +16,8 @@ class LLMFactory:
 
     # 默认层级模型配置
     DEFAULT_MODELS = {
-        "cheap": "deepseek-v3",      # 便宜层
+        # "cheap": "deepseek-v3",      # 便宜层
+        "cheap": "glm-4",      # 便宜层
         "standard": "qwen-max",      # 标准层
         "powerful": "gpt-4-turbo",   # 强力层
     }

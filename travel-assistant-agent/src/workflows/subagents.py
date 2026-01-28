@@ -32,7 +32,8 @@ def get_info_collection_agent() -> CompiledSubAgent:
         _info_collection_agent = CompiledSubAgent(
             name="info_collection",
             runnable=build_collect_info_graph(),
-            system_prompt="你是信息收集员，只负责收集用户的旅游需求并总结。"
+            # system_prompt="你是信息收集员，只负责收集用户的旅游需求并总结。"
+            description="你是信息收集员，只负责收集用户的旅游需求并总结。"
         )
     return _info_collection_agent
 
@@ -45,7 +46,8 @@ def get_search_agent() -> CompiledSubAgent:
         _search_agent = CompiledSubAgent(
             name="search",
             runnable=build_search_graph(),
-            system_prompt="你是搜索员，收到需求总结后返回目的地、酒店、航班等信息。"
+            # system_prompt="你是搜索员，收到需求总结后返回目的地、酒店、航班等信息。"
+            description="你是搜索员，收到需求总结后返回目的地、酒店、航班等信息。"
         )
     return _search_agent
 
@@ -58,7 +60,8 @@ def get_recommend_agent() -> CompiledSubAgent:
         _recommend_agent = CompiledSubAgent(
             name="recommend",
             runnable=build_recommend_graph(),
-            system_prompt="你是推荐员，基于用户需求和搜索结果生成个性化旅游方案。"
+            # system_prompt="你是推荐员，基于用户需求和搜索结果生成个性化旅游方案。"
+            description="你是推荐员，基于用户需求和搜索结果生成个性化旅游方案。"
         )
     return _recommend_agent
 
@@ -71,7 +74,8 @@ def get_booking_agent() -> CompiledSubAgent:
         _booking_agent = CompiledSubAgent(
             name="booking",
             runnable=build_booking_graph(),
-            system_prompt="你是预订员，完成用户选定的预订。"
+            # system_prompt="你是预订员，完成用户选定的预订。"
+            description="你是预订员，完成用户选定的预订。"
         )
     return _booking_agent
 

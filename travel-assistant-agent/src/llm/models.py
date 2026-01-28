@@ -122,7 +122,7 @@ MODELS: Dict[str, ModelConfig] = {
     "glm-4": ModelConfig(
         name="GLM-4",
         provider=ModelProvider.GLM,
-        model_id="glm-4",
+        model_id="glm-4-0520",
         base_url="https://open.bigmodel.cn/api/paas/v4",
         api_key_env="ZHIPU_API_KEY",
         max_tokens=8192,

@@ -1019,7 +1019,7 @@ async def list_tasks(
 
 # ============== Unified Chat Endpoint ==============
 
-@chat_router.post("/chat", response_model=ChatResponse)
+# @chat_router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
     request: ChatRequest,
     http_request: Request,

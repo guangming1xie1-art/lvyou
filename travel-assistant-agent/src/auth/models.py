@@ -11,9 +11,9 @@ class User(BaseModel):
     """User model"""
     id: str
     username: str
-    email: EmailStr
+    # email: EmailStr
     is_active: bool = True
-    created_at: datetime
+    # created_at: datetime
     last_login: Optional[datetime] = None
     
     class Config:

@@ -5,12 +5,15 @@ FastAPI 主应用入口
 import os
 import uuid
 import time
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from workflows.main_workflow import run_main_workflow_async
 from api.routes import router, chat_router, rag_router
 from api.auth_routes import router as auth_router
+from auth.dependencies import get_current_active_user, get_user_token
+from auth.models import User
+from security import rate_limiter
 from utils.structured_logger import (
     StructuredLogger, 
     set_request_context, 
@@ -132,8 +135,19 @@ class ChatRequest(BaseModel):
     message: str
 
 @app.post("/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(
+    request: ChatRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)):
     """唯一入口：接收用户消息，调用主代理"""
+
+    if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute."
+        )
+
     result = await run_main_workflow_async(request.message)
     
     return {

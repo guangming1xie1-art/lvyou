@@ -67,7 +67,7 @@ async def get_current_user(token: str = Depends(get_token)) -> User:
         user = User(
             id=user_id,
             username=payload.get("username"),
-            email=payload.get("email"),
+            # email=payload.get("email"),
             is_active=True  # JWT is verified, user must be valid
         )
         

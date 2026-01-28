@@ -22,13 +22,20 @@ from cache.prompt_cache_manager import get_prompt_cache_manager
 
 logger = logging.getLogger(__name__)
 
-
+# 定义字典合并函数
+def merge_dicts(left: Dict[str, int], right: Dict[str, int]) -> Dict[str, int]:
+    """合并两个字典，相同 key 的值相加"""
+    result = left.copy()
+    for key, value in right.items():
+        result[key] = result.get(key, 0) + value
+    return result
 # ============ SubState 定义 ============
 
 class SubState(dict):
     """子图状态（增强版，支持对话历史）"""
     messages: Sequence[BaseMessage]
-    usage: Annotated[Dict[str, int], operator.add]
+    usage: Annotated[Dict[str, int], merge_dicts]
+    # usage: Annotated[Dict[str, int], operator.add]  # ← 自动累加
     output: str
     collected_info: Optional[Dict]
     search_plan: Optional[Dict]
