@@ -25,6 +25,7 @@ from workflows.subgraphs import (
     build_recommend_graph,
     build_booking_graph,
 )
+from workflows.subgraphs.collect import _route_collect_main
 from conf import settings
 from llm.factory import LLMFactory
 
@@ -152,7 +153,7 @@ _build_booking_graph = build_booking_graph()
 def build_main_graph() -> StateGraph:
     """构建主工作流图"""
     graph = StateGraph(MainState)
-    
+
     # 添加4个节点
     graph.add_node("collect", _build_collect_info_graph)
     graph.add_node("search", _build_search_graph)
@@ -162,16 +163,25 @@ def build_main_graph() -> StateGraph:
     # graph.add_node("search", call_subagent_node(get_search_agent, "search_results"))
     # graph.add_node("recommend", call_subagent_node(get_recommend_agent, "recommendations"))
     # graph.add_node("booking", call_subagent_node(get_booking_agent, "booking_confirmation"))
-    
-    # 定义顺序执行
-    graph.add_edge("collect", "search")
+
+    # ✅ 使用条件边替代固定边
+    graph.add_conditional_edges(
+        "collect",
+        _route_collect_main,
+        {
+            "search": "search",
+            "end": END
+        }
+    )
+
+    # 保留原有的边
     graph.add_edge("search", "recommend")
     graph.add_edge("recommend", "booking")
     graph.add_edge("booking", END)
-    
+
     # 设置入口点
     graph.set_entry_point("collect")
-    
+
     return graph.compile()
 
 
