@@ -2,10 +2,9 @@
 FastAPI 主应用入口
 提供 Agent 服务的 HTTP API 接口
 """
-import os
 import uuid
 import time
-from fastapi import FastAPI, Request, HTTPException, Request, Depends
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from workflows.main_workflow import run_main_workflow_async
@@ -15,11 +14,10 @@ from auth.dependencies import get_current_active_user, get_user_token
 from auth.models import User
 from security import rate_limiter
 from utils.structured_logger import (
-    StructuredLogger, 
-    set_request_context, 
+    StructuredLogger,
+    set_request_context,
     clear_request_context,
-    get_request_id,
-    get_app_logger
+    get_app_logger,
 )
 from config.logging_config import LOGGING_CONFIG
 
@@ -38,13 +36,12 @@ logger = get_app_logger(__name__)
 app = FastAPI(title="Travel Assistant Agent API", version="2.0.0")
 
 # 配置 CORS
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 
 def get_allowed_origins() -> list[str]:
     from conf import settings
-    # 分割 cors_origins 字符串为列表
-    origins = [origin.strip() for origin in settings.cors_origins.split(",")]
-    return origins
+
+    return [origin.strip() for origin in settings.cors_origins.split(",")]
+
 
 allowed_origins = get_allowed_origins()
 
@@ -134,32 +131,68 @@ app.include_router(rag_router)   # 现有：rag路由
 class ChatRequest(BaseModel):
     message: str
 
+
+def _extract_response_from_workflow_result(result: dict) -> str:
+    final_response = result.get("final_response")
+    if final_response:
+        return final_response
+
+    messages = result.get("messages") or []
+    if messages:
+        last_msg = messages[-1]
+        content = getattr(last_msg, "content", None)
+        return content if content is not None else str(last_msg)
+
+    return ""
+
+
 @app.post("/chat")
 async def chat_endpoint(
     request: ChatRequest,
     http_request: Request,
     current_user: User = Depends(get_current_active_user),
-    user_token: str = Depends(get_user_token)):
+    user_token: str = Depends(get_user_token),
+):
     """唯一入口：接收用户消息，调用主代理"""
 
     if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
         raise HTTPException(
             status_code=429,
-            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute."
+            detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute.",
         )
 
     result = await run_main_workflow_async(request.message)
-    
+
+    collected_info = result.get("collected_info") or {}
+    is_complete = bool(collected_info.get("complete", False))
+
+    total_usage = result.get("total_usage", {})
+
+    if not is_complete:
+        clarification_message = (
+            collected_info.get("message")
+            or collected_info.get("raw")
+            or "请补充更多信息以便我们为您规划。"
+        )
+        return {
+            "status": "incomplete",
+            "response": clarification_message,
+            "stage": "collect",
+            "total_usage": total_usage,
+            "collected_info": collected_info,
+        }
+
     return {
         "status": "success",
-        "response": result.get("final_response", ""),
-        "total_usage": result.get("total_usage", {}),
+        "response": _extract_response_from_workflow_result(result),
+        "stage": "completed",
+        "total_usage": total_usage,
         "details": {
-            "collected_info": result.get("collected_info", {}),
-            "search_results": result.get("search_results", {}),
-            "recommendations": result.get("recommendations", {}),
-            "booking": result.get("booking_confirmation", {})
-        }
+            "collected_info": collected_info,
+            "search_results": result.get("search_results") or {},
+            "recommendations": result.get("recommendations") or {},
+            "booking": result.get("booking_confirmation") or {},
+        },
     }
 
 if __name__ == "__main__":

@@ -270,14 +270,20 @@ async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
 
     result = await main_agent.ainvoke(initial_state)
 
+    messages = result.get("messages") or []
+    final_response = result.get("final_response")
+    if not final_response and messages:
+        last_msg = messages[-1]
+        final_response = getattr(last_msg, "content", None)
+
     return {
-        "collected_info": result.get("collected_info"),
-        "search_results": result.get("search_results"),
-        "recommendations": result.get("recommendations"),
-        "booking_confirmation": result.get("booking_confirmation"),
+        "collected_info": result.get("collected_info") or {},
+        "search_results": result.get("search_results") or {},
+        "recommendations": result.get("recommendations") or {},
+        "booking_confirmation": result.get("booking_confirmation") or {},
         "total_usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0}),
-        "messages": result.get("messages", []),
-        "final_response": result.get("final_response"),
+        "messages": messages,
+        "final_response": final_response,
         "conversation_history": result.get("conversation_history", []),  # ← 返回对话历史
     }
 
