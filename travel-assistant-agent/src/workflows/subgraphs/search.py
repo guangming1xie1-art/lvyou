@@ -38,7 +38,7 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     if cached:
         import logging
         logger = logging.getLogger(__name__)
-        logger.info("🎯 业务缓存命中（search_plan）")
+        logger.info("🎯 业务缓存命中(search_plan)")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "cached": 0, "total": 0},
@@ -52,45 +52,45 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     # 3️⃣ 定义系统 prompt（固定内容，用于创建缓存）
     system_prompt = """你是旅游搜索规划专家。
 
-## 职责
-1. 分析用户的旅游需求（从信息收集中提取）
-2. 识别关键信息：目的地、出行日期、预算、偏好
-3. 制定搜索策略和优先级
-4. 生成用于 RAG 检索的关键词
+    ## 职责
+    1. 根据以提取到的信息(出发地、目的地、出行日期、预算、偏好等)制定搜索策略和优先级
+    2. 生成用于 RAG 检索的关键词
 
-## 输出格式（必须是有效的 JSON）
-{
-    "search_plan": {
-        "destination": "目的地",
-        "check_in": "入住日期",
-        "check_out": "退房日期",
-        "duration_days": 天数,
-        "budget_range": "预算范围",
-        "preferences": ["偏好1", "偏好2"],
-        "search_priorities": ["hotel", "flight", "attraction"],
-        "rag_search_keywords": ["关键词1", "关键词2"]
-    },
-    "output": "搜索计划描述"
-}"""
+    ## 输出格式（必须是有效的 JSON)
+    {
+        "search_plan": {
+            "origin": "出发地",
+            "destination": "目的地",
+            "check_in": "入住日期",
+            "check_out": "退房日期",
+            "duration_days": 天数,
+            "budget_range": "预算范围",
+            "preferences": ["偏好1", "偏好2"],
+            "search_priorities": ["hotel", "flight", "attraction"],
+            "rag_search_keywords": ["关键词1", "关键词2"]
+        },
+        "output": "搜索计划描述"
+    }"""
     
     # 4️⃣ Few-shot 示例（固定内容，用于创建缓存）
-    few_shots = """## 示例 1：国内旅游
-用户：我想去杭州，3天，预算5000元，喜欢自然和文化
+    few_shots = """## 示例 1:国内旅游
+    用户:我想2025-02-01,从上海出发去杭州的西湖,3天,预算5000元,喜欢自然和文化
 
-输出：
-{
-    "search_plan": {
-        "destination": "杭州",
-        "check_in": "2025-02-01",
-        "check_out": "2025-02-04",
-        "duration_days": 3,
-        "budget_range": "5000元",
-        "preferences": ["自然景观", "文化遗产"],
-        "search_priorities": ["hotel", "attraction", "restaurant"],
-        "rag_search_keywords": ["杭州西湖", "灵隐寺", "杭州美食"]
-    },
-    "output": "为您制定了杭州3日游搜索计划，重点搜索西湖周边酒店和文化景点。"
-}"""
+    输出：
+    {
+        "search_plan": {
+            "origin": "上海",
+            "destination": "杭州",
+            "check_in": "2025-02-01",
+            "check_out": "2025-02-04",
+            "duration_days": 3,
+            "budget_range": "5000元",
+            "preferences": ["自然景观", "文化遗产"],
+            "search_priorities": ["hotel", "attraction", "restaurant"],
+            "rag_search_keywords": ["杭州西湖", "灵隐寺", "杭州美食"]
+        },
+        "output": "为您制定了杭州3日游搜索计划,重点搜索西湖周边酒店和文化景点。"
+    }"""
     
     # 5️⃣ 工具和技能文本
     tools_text = await get_tools_and_skills_text()
@@ -107,24 +107,25 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     
     user_query = f"""请根据以下已收集的用户信息，生成搜索计划：
 
-## 用户信息
-- 目的地：{collected_info.get('destination')}
-- 出发日：{collected_info.get('dates')}
-- 周期：{collected_info.get('duration')}
-- 预算：{collected_info.get('budget', '未指定')}
-- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+    ## 用户信息
+    - 出发地：{collected_info.get('origin')}
+    - 目的地：{collected_info.get('destination')}
+    - 出发日：{collected_info.get('dates')}
+    - 周期：{collected_info.get('duration')}
+    - 预算：{collected_info.get('budget', '未指定')}
+    - 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
 
-## 原始消息
-{user_content}
+    ## 原始消息
+    {user_content}
 
-返回 JSON 格式的搜索计划。"""
+    返回 JSON 格式的搜索计划。"""
 
     if not prompt_cache_id:
         import logging
         logger = logging.getLogger(__name__)
         logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
         messages = [
-            SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表：\n{tools_text}"),
+            SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表:\n{tools_text}"),
             HumanMessage(content=user_query)
         ]
         result = await llm.ainvoke(messages, config={"callbacks": [counter]})
