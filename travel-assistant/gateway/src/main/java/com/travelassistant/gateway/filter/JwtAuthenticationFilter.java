@@ -26,8 +26,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final List<String> PUBLIC_ROUTES = Arrays.asList(
             "/api/auth/login",
-            "/api/auth/register", 
+            "/api/auth/register",
             "/api/auth/refresh",
+            "/mcp",
+            "/mcp/",
+            "/mcp/initialize",
+            "/mcp/health",
+            "/mcp/tools",
             "/health",
             "/health/ready",
             "/actuator/health"

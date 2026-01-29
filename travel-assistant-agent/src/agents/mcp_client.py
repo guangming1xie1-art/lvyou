@@ -80,12 +80,12 @@ class MCPClient:
         user_id: Optional[str] = None,
         username: Optional[str] = None
     ):
-        # 默认指向 Java MCP 服务端口 8081（网关入口）
+        # 默认指向 Gateway MCP 服务端口 9000（MCP 统一入口）
         # 注意：实际调用时会根据工具名路由到具体服务
-        self.java_api_url = java_api_url or "http://localhost:8081"
+        self.java_api_url = java_api_url or "http://localhost:9000"
         self._client: Optional[MultiServerMCPClient] = None
         self._redis: Optional[redis.Redis] = None
-        self.timeout = 10.0
+        self.timeout = 30.0  # 增加超时时间到30秒
 
         # JWT token 和用户信息（用于转发到Java服务）
         self.token = token
@@ -167,9 +167,9 @@ class MCPClient:
         """
         调用 Java API 工具
         支持重试机制（3次重试，指数退避）
-        超时控制（10秒）
+        超时控制（30秒）
         结果缓存（Redis，1小时）
-        自动路由到对应的服务端口
+        调用 Gateway 的 MCP 统一端点，由 Gateway 路由到具体服务
         """
         # 合并参数
         params = parameters or {}
@@ -187,35 +187,36 @@ class MCPClient:
         except Exception as e:
             logger.warning(f"Redis cache error: {e}")
 
-        # 2. 确定目标服务（路由逻辑）
-        service_name = self.TOOL_SERVICE_MAP.get(tool_name, "hotel-service")  # 默认路由到酒店服务
-        service_host_port = self.SERVICE_PORTS.get(service_name, "localhost:8081")
+        # 2. 构建 Gateway MCP 端点 URL
+        # 新的架构：所有工具调用都通过 Gateway MCP 端点
+        url = f"{self.java_api_url}/mcp/tools/{tool_name}/call"
 
-        # 3. 发起 HTTP 调用（带JWT认证）
-        endpoint = tool_name.replace("_", "-")
-        url = f"http://{service_host_port}/mcp/{endpoint}"
+        # 构建请求体（Gateway MCP 端点期望的格式）
+        request_body = {
+            "parameters": params
+        }
 
         # 构建包含JWT的headers
         headers = self._get_auth_headers()
 
-        logger.info(f"Routing MCP tool '{tool_name}' to service '{service_name}' at {url}")
+        logger.info(f"Calling MCP tool '{tool_name}' via Gateway at {url}")
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url, json=params, headers=headers)
+                response = await client.post(url, json=request_body, headers=headers)
                 response.raise_for_status()
                 result = response.json()
 
-                # 4. 存入缓存 (1小时)
+                # 3. 存入缓存 (1小时)
                 try:
                     await r.setex(cache_key, 3600, json.dumps(result))
                 except Exception as e:
                     logger.warning(f"Failed to cache MCP result: {e}")
 
-                logger.info(f"MCP tool {tool_name} called successfully with JWT auth")
+                logger.info(f"MCP tool {tool_name} called successfully via Gateway with JWT auth")
                 return result
         except Exception as e:
-            logger.error(f"Failed to call MCP tool {tool_name} at {url}: {e}")
+            logger.error(f"Failed to call MCP tool {tool_name} via Gateway at {url}: {e}")
             # 如果是 search 相关工具失败，尝试使用 mock 数据
             if "search" in tool_name:
                 return self._mock_response(tool_name, params)
