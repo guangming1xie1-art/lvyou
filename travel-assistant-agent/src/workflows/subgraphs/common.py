@@ -38,6 +38,7 @@ class SubState(dict):
     # usage: Annotated[Dict[str, int], operator.add]  # ← 自动累加
     output: str
     collected_info: Optional[Dict]
+    collection_message: Optional[str]  # ← 新增：信息收集节点的对话消息（不传递给下游）
     search_plan: Optional[Dict]
     search_results: Optional[Dict]
     recommend_plan: Optional[Dict]
@@ -219,28 +220,24 @@ async def build_recommend_tools(recommend_plan: Dict) -> List:
 
 
 async def get_tools_and_skills_text() -> str:
-    """获取所有工具和技能的文本摘要"""
+    """
+    获取 Java API 工具的文本摘要
+
+    注意：只返回 Java API 工具，不包含 Agent Skills
+    - Skills 是 Agent 内部流程管理，不应该作为"工具"展示给 LLM
+    - Java API 工具与 Skills 存在概念重叠（如 search, recommend）
+    - 这样避免 LLM 混淆应该调用哪个接口
+    """
     try:
-        # 异步获取工具
+        # 异步获取 Java API 工具
         tools_summaries = await mcp_client.get_tool_summaries()
-        tools_text = "\n".join([f"- {tool['name']}: {tool['description']}" for tool in tools_summaries])
+        if tools_summaries:
+            tools_text = "\n".join([f"- {tool['name']}: {tool['description']}" for tool in tools_summaries])
+            return f"**Java API 工具**:\n{tools_text}"
+        return "暂无可用工具"
     except Exception as e:
         logger.warning(f"Failed to get MCP tools: {e}")
-        tools_text = ""
-
-    try:
-        skills_text = SkillRegistry.get_all_summaries_text()
-    except Exception as e:
-        logger.warning(f"Failed to get skills: {e}")
-        skills_text = ""
-
-    combined = []
-    if tools_text:
-        combined.append(f"**Java API 工具**:\n{tools_text}")
-    if skills_text:
-        combined.append(f"**Agent Skills**:\n{skills_text}")
-
-    return "\n\n".join(combined) if combined else "暂无可用工具"
+        return "暂无可用工具"
 
 
 def get_rag_context(query: str, use_cache: bool = True) -> str:

@@ -108,7 +108,11 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     user_query = f"""请根据以下已收集的用户信息，生成搜索计划：
 
 ## 用户信息
-{json.dumps(collected_info, ensure_ascii=False, indent=2)}
+- 目的地：{collected_info.get('destination')}
+- 出发日：{collected_info.get('dates')}
+- 周期：{collected_info.get('duration')}
+- 预算：{collected_info.get('budget', '未指定')}
+- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
 
 ## 原始消息
 {user_content}
@@ -258,12 +262,26 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     ranked_hotels = hybrid_rank(raw_hotels, rag_docs, search_plan)
 
     user_query = f"""请执行以下搜索任务：
-搜索计划：{json.dumps(search_plan, ensure_ascii=False)}
-用户信息：{json.dumps(collected_info, ensure_ascii=False)}
-用户原始请求：{user_content}
 
-## 已获取的优质酒店（经过混合排序）：
-{json.dumps(ranked_hotels[:5], ensure_ascii=False, indent=2)}
+## 搜索计划
+- 目的地：{search_plan.get('destination')}
+- 入住日期：{search_plan.get('check_in')}
+- 退房日期：{search_plan.get('check_out')}
+- 住宿天数：{search_plan.get('duration_days')}
+- 搜索优先级：{', '.join(search_plan.get('search_priorities', []))}
+
+## 用户信息
+- 目的地：{collected_info.get('destination')}
+- 出发日：{collected_info.get('dates')}
+- 周期：{collected_info.get('duration')}
+- 预算：{collected_info.get('budget', '未指定')}
+- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+
+## 用户原始请求
+{user_content}
+
+## 已获取的优质酒店（经过混合排序）
+{json.dumps(ranked_hotels[:5], ensure_ascii=False)}
 """
 
     try:
