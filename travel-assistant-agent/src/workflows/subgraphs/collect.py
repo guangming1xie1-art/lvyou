@@ -38,7 +38,8 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "total": 0},
             "output": cached.get("output", ""),
-            "collected_info": cached.get("collected_info", {})
+            "collected_info": cached.get("collected_info", {}),
+            "collection_message": cached.get("collection_message", "")
         }
 
     # 系统提示词
@@ -76,6 +77,8 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
     "complete": true or false,
     "message": "你对用户的回复（澄清问题或确认信息）"
 }}
+
+注意：message 字段将单独存储用于对话展示，不会传递给下游搜索和推荐流程。
 
 【规则 1】设置 complete=true 的条件：
   ✅ 目的地明确
@@ -115,6 +118,8 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
     "complete": false,
     "message": "我注意到您提供的信息中有一个小问题需要澄清。2026年2月30日这个日期是不存在的，因为2月份最多只有29天（闰年）。\\n\\n请问您是想在以下哪个日期出发呢？\\n- 2026年2月29日\\n- 2026年3月1日\\n- 或其他时间？"
 }}
+
+说明：以上返回中的 message 字段将被提取并单独存储为 collection_message，用于对话展示；其他字段作为 collected_info 传递给下游流程。
 """
 
     # 调用 LLM（便宜层）
@@ -140,17 +145,22 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
         except:
             collected_info = {"raw": output_text, "complete": False}
 
+        # 提取 collection_message（对话消息）和 collected_info（结构化数据）
+        collection_message = collected_info.pop("message", "") if isinstance(collected_info, dict) else ""
+
         # 缓存结果
         cache_strategy.cache_user_preferences(cache_key, {
             "output": output_text,
-            "collected_info": collected_info
+            "collected_info": collected_info,
+            "collection_message": collection_message
         })
 
         return {
             "messages": [result],
             "usage": counter.dump(),
             "output": output_text,
-            "collected_info": collected_info
+            "collected_info": collected_info,
+            "collection_message": collection_message
         }
 
     except Exception as e:

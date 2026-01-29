@@ -97,9 +97,19 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     )
     
     user_query = f"""请制定推荐计划：
-用户信息：{json.dumps(collected_info, ensure_ascii=False)}
-搜索结果摘要：{str(search_results)[:1000]}
-用户原始请求：{user_content}"""
+
+## 用户信息
+- 目的地：{collected_info.get('destination')}
+- 出发日：{collected_info.get('dates')}
+- 周期：{collected_info.get('duration')}
+- 预算：{collected_info.get('budget', '未指定')}
+- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+
+## 搜索结果摘要
+{str(search_results)[:1000]}
+
+## 用户原始请求
+{user_content}"""
 
     if not prompt_cache_id:
         import logging
@@ -232,15 +242,28 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
     tools = await build_recommend_tools(recommend_plan)
     
     user_query = f"""请生成个性化旅游推荐方案：
-推荐计划：{json.dumps(recommend_plan, ensure_ascii=False)}
-用户信息：{json.dumps(collected_info, ensure_ascii=False)}
-搜索结果摘要：{str(search_results)[:1000]}
 
-## 基础推荐数据（Java MCP）:
+## 推荐计划
+- 主题：{', '.join(recommend_plan.get('themes', []))}
+- 方案数量：{recommend_plan.get('num_plans', 3)}
+- 侧重点：{', '.join(recommend_plan.get('focus_points', []))}
+- 权重：{recommend_plan.get('weights', {})}
+
+## 用户信息
+- 目的地：{collected_info.get('destination')}
+- 出发日：{collected_info.get('dates')}
+- 周期：{collected_info.get('duration')}
+- 预算：{collected_info.get('budget', '未指定')}
+- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+
+## 搜索结果摘要
+{str(search_results)[:1000]}
+
+## 基础推荐数据（Java MCP）
 {json.dumps(rec_base.get('user', {}), ensure_ascii=False)}
 
-## 优质备选酒店（RAG 混合排序）:
-{json.dumps(ranked_hotels[:5], ensure_ascii=False, indent=2)}
+## 优质备选酒店（RAG 混合排序）
+{json.dumps(ranked_hotels[:5], ensure_ascii=False)}
 """
 
     try:

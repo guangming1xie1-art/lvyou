@@ -45,6 +45,7 @@ class MainState(dict):
     messages: Sequence[BaseMessage]
     user_message: str
     collected_info: Optional[Dict]
+    collection_message: Optional[str]  # ← 新增：信息收集节点的对话消息（不传递给下游）
     search_results: Optional[Dict]
     recommendations: Optional[Dict]
     booking_confirmation: Optional[Dict]
@@ -83,6 +84,7 @@ def call_subagent_node(subagent_getter, output_key: str):
                 "messages": [HumanMessage(content=user_content)],
                 "usage": {"prompt": 0, "completion": 0, "total": 0},
                 "collected_info": state.get("collected_info"),
+                "collection_message": state.get("collection_message"),
                 "search_results": state.get("search_results"),
                 "recommendations": state.get("recommendations"),
                 "conversation_history": conversation_history,  # ← 传递对话历史

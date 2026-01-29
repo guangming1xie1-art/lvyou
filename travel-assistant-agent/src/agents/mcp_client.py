@@ -25,7 +25,54 @@ class MCPClient:
     支持 HTTP 直接调用，具有重试、超时和缓存机制
     支持JWT token转发用于用户认证
     """
-    
+
+    # 服务端口映射表
+    # Java 微服务架构 - 每个服务运行在不同端口
+    SERVICE_PORTS = {
+        # 基础服务地址
+        "base": "localhost:8080",
+
+        # 酒店服务 - port 8081
+        # 功能：搜索酒店、获取酒店详情、价格查询
+        "hotel-service": "localhost:8081",
+        # 相关工具：search_hotels, get_hotel_details
+
+        # 航班服务 - port 8082
+        # 功能：搜索航班、获取航班详情、价格查询
+        "flight-service": "localhost:8082",
+        # 相关工具：search_flights, get_flight_details
+
+        # 景点服务 - port 8084
+        # 功能：搜索景点、获取景点详情、门票预订
+        "attractions-service": "localhost:8084",
+        # 相关工具：search_attractions, get_attraction_details
+
+        # 预订服务 - port 8085
+        # 功能：创建预订、查询预订状态、取消预订
+        "booking-service": "localhost:8085",
+        # 相关工具：create_booking, get_booking_status, cancel_booking
+
+        # 推荐服务 - port 8086
+        # 功能：生成个性化推荐、基于用户偏好的推荐
+        "recommendation-service": "localhost:8086",
+        # 相关工具：get_recommendations, get_personalized_recommendations
+    }
+
+    # 工具名到服务的映射
+    TOOL_SERVICE_MAP = {
+        "search_hotels": "hotel-service",
+        "get_hotel_details": "hotel-service",
+        "search_flights": "flight-service",
+        "get_flight_details": "flight-service",
+        "search_attractions": "attractions-service",
+        "get_attraction_details": "attractions-service",
+        "create_booking": "booking-service",
+        "get_booking_status": "booking-service",
+        "cancel_booking": "booking-service",
+        "get_recommendations": "recommendation-service",
+        "get_personalized_recommendations": "recommendation-service",
+    }
+
     def __init__(
         self,
         java_api_url: Optional[str] = None,
@@ -33,12 +80,13 @@ class MCPClient:
         user_id: Optional[str] = None,
         username: Optional[str] = None
     ):
-        # 默认指向 Java MCP 服务端口 8081
+        # 默认指向 Java MCP 服务端口 8081（网关入口）
+        # 注意：实际调用时会根据工具名路由到具体服务
         self.java_api_url = java_api_url or "http://localhost:8081"
         self._client: Optional[MultiServerMCPClient] = None
         self._redis: Optional[redis.Redis] = None
         self.timeout = 10.0
-        
+
         # JWT token 和用户信息（用于转发到Java服务）
         self.token = token
         self.user_id = user_id
@@ -121,13 +169,14 @@ class MCPClient:
         支持重试机制（3次重试，指数退避）
         超时控制（10秒）
         结果缓存（Redis，1小时）
+        自动路由到对应的服务端口
         """
         # 合并参数
         params = parameters or {}
         params.update(kwargs)
-        
+
         cache_key = f"mcp_cache:{tool_name}:{hash(json.dumps(params, sort_keys=True))}"
-        
+
         # 1. 尝试从缓存获取
         try:
             r = await self._get_redis()
@@ -138,25 +187,31 @@ class MCPClient:
         except Exception as e:
             logger.warning(f"Redis cache error: {e}")
 
-        # 2. 发起 HTTP 调用（带JWT认证）
+        # 2. 确定目标服务（路由逻辑）
+        service_name = self.TOOL_SERVICE_MAP.get(tool_name, "hotel-service")  # 默认路由到酒店服务
+        service_host_port = self.SERVICE_PORTS.get(service_name, "localhost:8081")
+
+        # 3. 发起 HTTP 调用（带JWT认证）
         endpoint = tool_name.replace("_", "-")
-        url = f"{self.java_api_url}/mcp/{endpoint}"
-        
+        url = f"http://{service_host_port}/mcp/{endpoint}"
+
         # 构建包含JWT的headers
         headers = self._get_auth_headers()
-        
+
+        logger.info(f"Routing MCP tool '{tool_name}' to service '{service_name}' at {url}")
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(url, json=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
-                
-                # 3. 存入缓存 (1小时)
+
+                # 4. 存入缓存 (1小时)
                 try:
                     await r.setex(cache_key, 3600, json.dumps(result))
                 except Exception as e:
                     logger.warning(f"Failed to cache MCP result: {e}")
-                
+
                 logger.info(f"MCP tool {tool_name} called successfully with JWT auth")
                 return result
         except Exception as e:
