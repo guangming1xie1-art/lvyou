@@ -141,7 +141,20 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
 
         # 尝试解析为 JSON
         try:
-            collected_info = json.loads(output_text)
+            # collected_info = json.loads(output_text)
+            # 去除可能的 Markdown 代码块标记
+            cleaned_text = output_text.strip()
+            if cleaned_text.startswith("```json"):
+                cleaned_text = cleaned_text[7:]  # 去掉 ```json
+            elif cleaned_text.startswith("```"):
+                cleaned_text = cleaned_text[3:]  # 去掉 ```
+            
+            if cleaned_text.endswith("```"):
+                cleaned_text = cleaned_text[:-3]  # 去掉结尾的 ```
+            
+            cleaned_text = cleaned_text.strip()
+            
+            collected_info = json.loads(cleaned_text)
         except:
             collected_info = {"raw": output_text, "complete": False}
 

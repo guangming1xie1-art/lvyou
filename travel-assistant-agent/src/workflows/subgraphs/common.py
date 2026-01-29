@@ -285,4 +285,5 @@ __all__ = [
     "build_recommend_tools",
     "get_tools_and_skills_text",
     "get_rag_context",
+    "merge_dicts"
 ]
