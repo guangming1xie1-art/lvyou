@@ -273,48 +273,7 @@ class MCPClient:
         except Exception as e:
             logger.warning(f"Failed to get tool summaries text: {e}")
             return "暂无可用工具"
-    
-    async def call_tool(
-        self,
-        tool_name: str,
-        parameters: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """调用 Java API 工具"""
-        try:
-            client = await self._get_client()
-            
-            # 直接调用 MCP 工具
-            # 注意：实际的工具调用可能需要不同的方法
-            tools = await client.get_tools()
-            
-            # 查找匹配的工具
-            target_tool = None
-            for tool in tools:
-                if tool.name == tool_name:
-                    target_tool = tool
-                    break
-            
-            if target_tool:
-                # 调用工具
-                if hasattr(target_tool, 'ainvoke'):
-                    result = await target_tool.ainvoke(parameters)
-                else:
-                    result = target_tool.invoke(parameters)
-                
-                return {
-                    "result": result,
-                    "error": None
-                }
-            else:
-                return {
-                    "result": None,
-                    "error": f"Tool '{tool_name}' not found"
-                }
-        
-        except Exception as e:
-            logger.warning(f"Failed to call tool {tool_name}: {e}")
-            return self._mock_response(tool_name, parameters)
-    
+
     def _get_mock_tools(self) -> List[Dict[str, Any]]:
         """返回 Mock 工具定义"""
         return [

@@ -40,6 +40,7 @@ public class MCPToolRegistry {
         // 预订服务工具
         registerTool(createBookingTool());
         registerTool(getBookingStatusTool());
+        registerTool(cancelBookingTool());
 
         // 推荐服务工具
         registerTool(getRecommendationsTool());
@@ -412,6 +413,35 @@ public class MCPToolRegistry {
                 .inputSchema(schema)
                 .serviceName("booking-service")
                 .httpMethod("GET")
+                .endpoint("/api/booking/{id}")
+                .build();
+    }
+
+    /**
+     * 取消预订工具
+     */
+    private ToolDefinition cancelBookingTool() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        schema.put("description", "Cancel a booking");
+
+        Map<String, Object> properties = new HashMap<>();
+
+        Map<String, Object> id = new HashMap<>();
+        id.put("type", "string");
+        id.put("description", "Booking ID");
+        properties.put("id", id);
+
+        schema.put("properties", properties);
+        schema.put("required", List.of("id"));
+
+        return ToolDefinition.builder()
+                .id("cancel_booking")
+                .name("cancel_booking")
+                .description("Cancel a booking by ID")
+                .inputSchema(schema)
+                .serviceName("booking-service")
+                .httpMethod("DELETE")
                 .endpoint("/api/booking/{id}")
                 .build();
     }
