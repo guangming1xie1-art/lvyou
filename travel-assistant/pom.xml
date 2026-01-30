@@ -27,6 +27,7 @@
     <spring-cloud.version>2023.0.2</spring-cloud.version>
     <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
     <springdoc-openapi.version>2.1.0</springdoc-openapi.version>
+    <spring-ai.version>1.0.0-M6</spring-ai.version>
 
     <maven.compiler.release>${java.version}</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -57,6 +58,15 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+
+      <!-- Spring AI BOM -->
+      <dependency>
+        <groupId>org.springframework.ai</groupId>
+        <artifactId>spring-ai-bom</artifactId>
+        <version>${spring-ai.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -80,4 +90,15 @@
       </plugins>
     </pluginManagement>
   </build>
+
+  <repositories>
+    <repository>
+      <id>spring-milestones</id>
+      <name>Spring Milestones</name>
+      <url>https://repo.spring.io/milestone</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>
