@@ -139,7 +139,7 @@ public class MCPController {
                                 .body(result);
                     }
                 })
-                .onErrorResume(Exception e -> {
+                .onErrorResume(e -> {
                     log.error("Error calling tool: {}", toolName, e);
                     Map<String, Object> errorResponse = new HashMap<>();
                     errorResponse.put("success", false);

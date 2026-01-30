@@ -134,12 +134,13 @@ public class MCPToolRouter {
                 }
             }
         }
-
+        // 增加这行：赋值给 final 变量
+        final String finalEndpoint = processedEndpoint;
         // 构建请求
         WebClient.RequestHeadersSpec<?> request = webClient
                 .get()
                 .uri(uriBuilder -> {
-                    uriBuilder.path(serviceUrl + processedEndpoint);
+                    uriBuilder.path(serviceUrl + finalEndpoint);
                     queryParams.forEach(uriBuilder::queryParam);
                     return uriBuilder.build();
                 })
@@ -196,8 +197,7 @@ public class MCPToolRouter {
                 .post()
                 .uri(serviceUrl + processedEndpoint)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(bodyParams));
+                .accept(MediaType.APPLICATION_JSON);
 
         // 添加 Authorization header
         if (authHeader != null && !authHeader.isEmpty()) {
@@ -205,6 +205,7 @@ public class MCPToolRouter {
         }
 
         return request
+                .body(BodyInserters.fromValue(bodyParams))
                 .retrieve()
                 .bodyToMono(Object.class)
                 .map(response -> createSuccessResponse(response))
@@ -250,8 +251,7 @@ public class MCPToolRouter {
                 .put()
                 .uri(serviceUrl + processedEndpoint)
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(bodyParams));
+                .accept(MediaType.APPLICATION_JSON);
 
         // 添加 Authorization header
         if (authHeader != null && !authHeader.isEmpty()) {
@@ -259,6 +259,7 @@ public class MCPToolRouter {
         }
 
         return request
+                .body(BodyInserters.fromValue(bodyParams))
                 .retrieve()
                 .bodyToMono(Object.class)
                 .map(response -> createSuccessResponse(response))
