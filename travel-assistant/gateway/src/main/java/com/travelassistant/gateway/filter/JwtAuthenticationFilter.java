@@ -25,14 +25,24 @@ import java.util.List;
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final List<String> PUBLIC_ROUTES = Arrays.asList(
+            // 认证相关
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",
-            "/mcp",
-            "/mcp/",
-            "/mcp/initialize",
-            "/mcp/health",
+            
+            // Spring AI MCP Server 标准端点 (v1.0.0-M6)
+            "/mcp",                    // MCP 根路径 (SSE/HTTP 传输)
+            "/mcp/",                   // MCP 根路径 (带斜杠)
+            "/mcp/initialize",         // MCP 初始化
+            "/mcp/tools/list",         // 获取工具列表
+            "/mcp/tools/call",         // 调用工具
+            "/mcp/health",             // MCP 健康检查
+            
+            // 向后兼容的旧版 MCP 端点 (已废弃)
             "/mcp/tools",
+            "/mcp/tools/",
+            
+            // 系统健康检查
             "/health",
             "/health/ready",
             "/actuator/health"

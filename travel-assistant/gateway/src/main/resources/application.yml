@@ -8,6 +8,13 @@ spring:
   main:
     web-application-type: reactive
 
+  ai:
+    mcp:
+      server:
+        enabled: true
+        name: travel-gateway-mcp
+        version: 1.0.0
+
   config:
     import: optional:nacos:${spring.application.name}.yaml
 
