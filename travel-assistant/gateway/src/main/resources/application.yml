@@ -14,7 +14,14 @@ spring:
         enabled: true
         name: travel-gateway-mcp
         version: 1.0.0
-
+        protocol: STREAMABLE
+        type: ASYNC  # 同步模式
+        streamable-http:
+          mcp-endpoint: /mcp  # 默认端点，可以自定义
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
   config:
     import: optional:nacos:${spring.application.name}.yaml
 
@@ -132,3 +139,5 @@ logging:
     com.travelassistant.gateway: DEBUG
     org.springframework.cloud.gateway: INFO
     org.springframework.web.reactive: DEBUG
+    io.modelcontextprotocol.server: DEBUG
+    org.springframework.ai.mcp.server: DEBUG
