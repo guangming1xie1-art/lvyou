@@ -1,0 +1,77 @@
+MCP 工具绑定问题修复 - 变更摘要
+
+=== 问题描述 ===
+System Prompt中，LLM无法真正调用Java后端的MCP服务工具。
+
+=== 核心修复 ===
+
+1. 新增 ToolAdapter 类 (tool_adapter.py)
+   - 将MCP工具元数据转换为LangChain Tool对象
+   - 支持异步调用Java后端
+   - 记录工具调用日志和性能指标
+
+2. 新增工具调用追踪器 (tools_invocation_logger.py)
+   - 记录所有工具调用详情
+   - 统计成功率、缓存命中率
+   - 生成调用报告
+
+3. 重构 MCPClient.get_tools()
+   - 返回真正的Tool对象而不是字典
+   - 新增 get_tools_metadata() 用于文本描述
+   - 新增降级机制 _create_adapted_tools()
+
+4. 优化工具构建函数
+   - build_search_tools() 返回真正的工具对象
+   - build_recommend_tools() 返回真正的工具对象
+   - 添加详细的日志输出
+
+5. 增强工作流日志
+   - search.py: 添加工具调用追踪日志
+   - recommend.py: 添加工具调用追踪日志
+
+=== 新增文件 ===
+- travel-assistant-agent/src/agents/tool_adapter.py
+- travel-assistant-agent/src/utils/tools_invocation_logger.py
+- travel-assistant-agent/tests/test_tool_adapter.py
+- travel-assistant-agent/tests/test_search_tools_binding.py
+- MCP_TOOL_BINDING_FIX.md (技术文档)
+- IMPLEMENTATION_SUMMARY.md (实施总结)
+- TOOL_BINDING_QUICK_REFERENCE.md (快速参考)
+
+=== 修改文件 ===
+- travel-assistant-agent/src/agents/mcp_client.py
+- travel-assistant-agent/src/workflows/subgraphs/common.py
+- travel-assistant-agent/src/workflows/subgraphs/search.py
+- travel-assistant-agent/src/workflows/subgraphs/recommend.py
+
+=== 预期效果 ===
+(cd '/home/engine/project' && git reset --hard); echo "__EXIT_1769849451478_qalpcl__$?"
+  ❌ 工具仅在prompt中出现
+  ❌ LLM无法真正调用工具
+  ❌ 没有工具调用日志
+  ❌ 依赖LLM内部知识
+
+(cd '/home/engine/project' && git reset --hard); echo "__EXIT_1769849451478_qalpcl__$?"
+  ✅ 工具作为对象绑定到Agent
+  ✅ LLM可以真正调用Java服务
+  ✅ 完整的工具调用日志
+  ✅ 基于实时数据生成答案
+
+=== 验收标准 ===
+ get_tools() 返回真正的工具对象
+ build_search_tools() 返回可调用工具
+ build_recommend_tools() 返回可调用工具
+ 工具可以被 create_react_agent() 使用
+ 工具调用日志完整记录
+ 错误处理和降级机制正常
+ 添加单元测试和集成测试
+ 完整的技术文档
+
+=== 下一步 ===
+1. 在测试环境部署和验证
+2. 监控工具调用性能指标
+3. 收集工具使用数据
+4. 根据实际使用优化工具选择
+
+: 2026-01-31
+: ✅ 开发完成，准备测试

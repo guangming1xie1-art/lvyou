@@ -4,6 +4,7 @@
 
 from typing import Dict, Any
 import json
+import logging
 
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import create_react_agent
@@ -20,6 +21,8 @@ from .common import (
 from agents.mcp_client import get_mcp_client
 from rag.retriever import HybridRetriever
 from .hybrid_retrieval import hybrid_rank
+
+logger = logging.getLogger(__name__)
 
 
 async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
@@ -241,6 +244,10 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
 
     tools = await build_recommend_tools(recommend_plan)
     
+    # 记录工具信息
+    tool_names = [getattr(t, 'name', str(t)) for t in tools]
+    logger.info(f"[Recommend Execute] 🔧 Tools available: {tool_names}")
+    
     user_query = f"""请生成个性化旅游推荐方案：
 
 ## 推荐计划
@@ -267,16 +274,20 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
 """
 
     try:
+        # 创建 ReAct Agent（绑定真正的工具）
+        logger.info(f"[Recommend Execute] 🤖 Creating ReAct agent with {len(tools)} tools")
         agent = create_react_agent(llm, tools)
         
         invoke_kwargs = {"callbacks": [counter]}
         if prompt_cache_id:
             invoke_kwargs["extra_body"] = {"cache_id": prompt_cache_id}
-            
+        
+        logger.info(f"[Recommend Execute] 🚀 Starting agent execution...")
         result = await agent.ainvoke(
             {"messages": [HumanMessage(content=user_query)]},
             config=invoke_kwargs
         )
+        logger.info(f"[Recommend Execute] ✅ Agent execution completed")
         
         last_msg = result["messages"][-1]
         output_text = last_msg.content

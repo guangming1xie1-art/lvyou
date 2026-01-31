@@ -222,8 +222,34 @@ class MCPClient:
                 return self._mock_response(tool_name, params)
             raise e
 
-    async def get_tools(self) -> List[Dict[str, Any]]:
-        """获取所有工具定义（LangChain Tool 格式）"""
+    async def get_tools(self) -> List[Any]:
+        """
+        获取所有工具对象（LangChain Tool 对象，可调用）
+        
+        Returns:
+            List[BaseTool]: LangChain Tool 对象列表（可被 create_react_agent 使用）
+        """
+        try:
+            client = await self._get_client()
+            tools = await client.get_tools()
+            
+            # ✅ 直接返回 LangChain Tool 对象（来自 langchain_mcp_adapters）
+            # 这些是真正可调用的工具，不是字典
+            logger.info(f"Successfully loaded {len(tools)} MCP tools from Java backend")
+            return tools
+        
+        except Exception as e:
+            logger.warning(f"Failed to get tools from MCP: {e}, using tool adapter fallback")
+            # 降级：返回基于字典的工具适配器
+            return self._create_adapted_tools()
+    
+    async def get_tools_metadata(self) -> List[Dict[str, Any]]:
+        """
+        获取工具元数据（字典格式，用于显示和缓存）
+        
+        Returns:
+            List[Dict]: 工具定义字典列表
+        """
         try:
             client = await self._get_client()
             tools = await client.get_tools()
@@ -241,20 +267,43 @@ class MCPClient:
             return tool_dicts
         
         except Exception as e:
-            logger.warning(f"Failed to get tools from MCP: {e}")
+            logger.warning(f"Failed to get tools metadata from MCP: {e}")
             return self._get_mock_tools()
     
+    def _create_adapted_tools(self) -> List[Any]:
+        """
+        创建基于 ToolAdapter 的工具列表（降级方案）
+        
+        Returns:
+            List[BaseTool]: 适配后的工具对象列表
+        """
+        from agents.tool_adapter import wrap_mcp_tools
+        
+        # 获取 mock 工具定义
+        mock_tool_dicts = self._get_mock_tools()
+        
+        # 使用 ToolAdapter 包装成真正的工具
+        adapted_tools = wrap_mcp_tools(mock_tool_dicts, self)
+        
+        logger.info(f"Created {len(adapted_tools)} adapted tools (fallback mode)")
+        return adapted_tools
+    
     async def get_tool_summaries(self) -> List[Dict[str, str]]:
-        """获取工具摘要（名称 + 描述）"""
+        """
+        获取工具摘要（名称 + 描述，用于 prompt）
+        
+        Returns:
+            List[Dict]: 工具摘要列表
+        """
         try:
-            client = await self._get_client()
-            tools = await client.get_tools()
+            # 使用 get_tools_metadata 获取工具元数据
+            tool_metadata = await self.get_tools_metadata()
             
             summaries = []
-            for tool in tools:
+            for tool in tool_metadata:
                 summaries.append({
-                    "name": tool.name,
-                    "description": getattr(tool, 'description', str(tool))
+                    "name": tool.get("name", "unknown"),
+                    "description": tool.get("description", "No description")
                 })
             return summaries
         
