@@ -37,30 +37,85 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     # 1️⃣ 检查业务缓存（快速路径）
     destination = collected_info.get("destination", "unknown")
     cache_key_biz = f"search_plan:{user_content[:50]}:{destination}"
-    cached = cache_strategy.get_search_results(query=f"plan_{cache_key_biz}", destination=destination)
+    cached = cache_strategy.get_search_results(query=cache_key_biz, destination=destination)
     if cached:
         import logging
         logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中(search_plan)")
+        need_clarification = cached.get("need_clarification", False)
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "cached": 0, "total": 0},
             "output": cached.get("output", ""),
-            "search_plan": cached.get("search_plan", {})
+            "search_plan": cached.get("search_plan", {}),
+            "need_clarification": need_clarification,
+            "clarification_questions": cached.get("clarification_questions", []),
+            "stage": cached.get("stage")
         }
     
     # 2️⃣ 获取 LLM（便宜层）
     llm = LLMFactory.create_model_by_tier(tier="cheap")
     
     # 3️⃣ 定义系统 prompt（固定内容，用于创建缓存）
-    system_prompt = """你是旅游搜索规划专家。
+    system_prompt = """你是旅游搜索战略专家。你的工作不仅是重复用户信息，而是：
 
-    ## 职责
-    1. 根据以提取到的信息(出发地、目的地、出行日期、预算、偏好等)制定搜索策略和优先级
-    2. 生成用于 RAG 检索的关键词
+    1. 深度理解用户的真实需求
+       - 识别用户的核心诉求和隐含偏好
+       - 判断时间与预算的限制条件
+    2. 识别信息缺口
+       - 标注缺失的关键字段以及影响
+       - 需要时提出澄清问题
+    3. 制定清晰的搜索战略
+       - 分阶段搜索策略
+       - 优先级配置
+       - RAG关键词优化
+    4. 指导执行阶段
+       - 输出可直接用于执行阶段的搜索指导
 
     ## 输出格式（必须是有效的 JSON)
     {
+        "user_intent_analysis": {
+            "core_needs": "核心需求描述",
+            "user_interpretation": {
+                "possible_focus": ["可能类型1", "可能类型2"],
+                "time_pressure": "时间紧张度判断",
+                "budget_flexibility": "预算弹性判断"
+            },
+            "potential_concerns": ["潜在问题1", "潜在问题2"]
+        },
+        "search_strategy": {
+            "phase1_hot_spots": {
+                "priority": "高/中/低",
+                "focus": "阶段目标",
+                "keywords": ["关键词1", "关键词2"]
+            },
+            "phase2_special_interests": {
+                "priority": "高/中/低",
+                "focus": "阶段目标",
+                "keywords": ["关键词1", "关键词2"]
+            },
+            "phase3_accommodation": {
+                "priority": "高/中/低",
+                "focus": "阶段目标",
+                "recommendations": "住宿策略"
+            },
+            "phase4_logistics": {
+                "priority": "高/中/低",
+                "focus": "阶段目标",
+                "recommendations": "交通策略"
+            }
+        },
+        "clarification_questions": ["问题1", "问题2"],
+        "information_gaps": {
+            "budget": "缺口说明",
+            "travel_style": "缺口说明"
+        },
+        "search_configuration": {
+            "priorities": {"attractions": 0.5, "hotels": 0.3, "flights": 0.2},
+            "rag_search_keywords": ["关键词1", "关键词2"],
+            "hotel_strategy": "住宿策略",
+            "flight_strategy": "交通策略"
+        },
         "search_plan": {
             "origin": "出发地",
             "destination": "目的地",
@@ -68,31 +123,122 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
             "check_out": "退房日期",
             "duration_days": 天数,
             "budget_range": "预算范围",
-            "preferences": ["偏好1", "偏好2"],
-            "search_priorities": ["hotel", "flight", "attraction"],
-            "rag_search_keywords": ["关键词1", "关键词2"]
+            "preferences": ["偏好1", "偏好2"]
         },
-        "output": "搜索计划描述"
+        "output": "搜索战略说明"
     }"""
-    
-    # 4️⃣ Few-shot 示例（固定内容，用于创建缓存）
-    few_shots = """## 示例 1:国内旅游
-    用户:我想2025-02-01,从上海出发去杭州的西湖,3天,预算5000元,喜欢自然和文化
 
-    输出：
+    # 4️⃣ Few-shot 示例（固定内容，用于创建缓存）
+    few_shots = """## 示例1: 信息相对完整
+    输入: 杭州3天游，预算5000元，喜欢自然风景
+
+    规划输出:
     {
+        "user_intent_analysis": {
+            "core_needs": "3天内体验杭州自然风景",
+            "user_interpretation": {
+                "possible_focus": ["自然景观", "湖景", "轻徒步"],
+                "time_pressure": "时间较紧，需要优先排序",
+                "budget_flexibility": "预算有限，需要控制成本"
+            },
+            "potential_concerns": []
+        },
+        "search_strategy": {
+            "phase1_hot_spots": {
+                "priority": "高",
+                "focus": "西湖与灵隐寺等高评价景点",
+                "keywords": ["杭州必去景点", "西湖游玩攻略"]
+            },
+            "phase2_special_interests": {
+                "priority": "中",
+                "focus": "西溪湿地等自然景观",
+                "keywords": ["西溪湿地门票", "杭州自然景点推荐"]
+            },
+            "phase3_accommodation": {
+                "priority": "中",
+                "focus": "西湖周边经济型酒店",
+                "recommendations": "优先西湖或黄龙附近酒店"
+            },
+            "phase4_logistics": {
+                "priority": "低",
+                "focus": "高铁与市内交通",
+                "recommendations": "建议早到晚走，提升游玩时间"
+            }
+        },
+        "clarification_questions": [],
+        "information_gaps": {},
+        "search_configuration": {
+            "priorities": {"attractions": 0.5, "hotels": 0.3, "flights": 0.2},
+            "rag_search_keywords": ["杭州自然景点推荐", "西湖3日游路线"],
+            "hotel_strategy": "优先西湖周边",
+            "flight_strategy": "高铁优先"
+        },
         "search_plan": {
-            "origin": "上海",
+            "origin": "",
             "destination": "杭州",
-            "check_in": "2025-02-01",
-            "check_out": "2025-02-04",
+            "check_in": "",
+            "check_out": "",
             "duration_days": 3,
             "budget_range": "5000元",
-            "preferences": ["自然景观", "文化遗产"],
-            "search_priorities": ["hotel", "attraction", "restaurant"],
-            "rag_search_keywords": ["杭州西湖", "灵隐寺", "杭州美食"]
+            "preferences": ["自然风景"]
         },
-        "output": "为您制定了杭州3日游搜索计划,重点搜索西湖周边酒店和文化景点。"
+        "output": "已制定杭州3日游搜索战略，优先景点与住宿，并控制预算。"
+    }
+
+    ## 示例2: 信息不完整
+    输入: 北京游，偏好好玩的场所
+
+    规划输出:
+    {
+        "user_intent_analysis": {
+            "core_needs": "探索北京好玩的场所",
+            "user_interpretation": {
+                "possible_focus": ["景点景区", "主题乐园", "美食街区", "文化场所"],
+                "time_pressure": "时间未知，需确认",
+                "budget_flexibility": "预算未指定，范围较宽"
+            },
+            "potential_concerns": ["信息不足，需要补充预算和时间"]
+        },
+        "search_strategy": {
+            "phase1_hot_spots": {
+                "priority": "高",
+                "focus": "北京必游景点",
+                "keywords": ["北京热门景点排行", "北京必去"]
+            },
+            "phase2_special_interests": {
+                "priority": "高",
+                "focus": "娱乐场所与特色体验",
+                "keywords": ["北京主题乐园", "北京娱乐景点"]
+            },
+            "phase3_accommodation": {
+                "priority": "中",
+                "focus": "市中心便捷酒店",
+                "recommendations": "优先朝阳区或东城区"
+            },
+            "phase4_logistics": {
+                "priority": "低",
+                "focus": "交通时间优化",
+                "recommendations": "需确认出发日期"
+            }
+        },
+        "clarification_questions": ["请提供预算范围", "计划出行几天"],
+        "information_gaps": {"budget": "未提供", "duration": "未提供"},
+        "search_configuration": {
+            "priorities": {"attractions": 0.5, "hotels": 0.3, "flights": 0.2},
+            "rag_search_keywords": ["北京好玩景点排行", "北京主题乐园推荐"],
+            "hotel_strategy": "优先朝阳区与东城区",
+            "flight_strategy": "确认出发时间后优化"
+        },
+        "search_plan": {
+            "origin": "",
+            "destination": "北京",
+            "check_in": "",
+            "check_out": "",
+            "duration_days": 0,
+            "budget_range": "未指定",
+            "preferences": ["好玩的场所"]
+        },
+        "output": "信息不足，需要补充预算与出行时长后再执行搜索。"
     }"""
     
     # 5️⃣ 工具和技能文本
@@ -108,7 +254,7 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     #     tools_text=tools_text
     # )
     
-    user_query = f"""请根据以下已收集的用户信息，生成搜索计划：
+    user_query = f"""请根据以下已收集的用户信息，生成搜索战略：
 
     ## 用户信息
     - 出发地：{collected_info.get('origin')}
@@ -121,7 +267,7 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     ## 原始消息
     {user_content}
 
-    返回 JSON 格式的搜索计划。"""
+    返回 JSON 格式的搜索战略。"""
 
     # if not prompt_cache_id:
     if True:
@@ -155,34 +301,57 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     try:
         cleaned_text = output_text.strip()
         if cleaned_text.startswith("```json"):
-            cleaned_text = cleaned_text[7:]  # 去掉 ```json
+            cleaned_text = cleaned_text[7:]
         elif cleaned_text.startswith("```"):
-            cleaned_text = cleaned_text[3:]  # 去掉 ```
-        
+            cleaned_text = cleaned_text[3:]
+
         if cleaned_text.endswith("```"):
-            cleaned_text = cleaned_text[:-3]  # 去掉结尾的 ```
-        
+            cleaned_text = cleaned_text[:-3]
+
         cleaned_text = cleaned_text.strip()
-        # data = json.loads(output_text)
-        data = cleaned_text
-        search_plan = data.get("search_plan", {})
+        data = json.loads(cleaned_text)
+        search_plan = data
         desc = data.get("output", output_text)
-    except:
-        search_plan = {"raw": output_text, "destination": destination}
+        clarification_questions = data.get("clarification_questions", []) or []
+        need_clarification = len(clarification_questions) > 0
+    except Exception:
+        search_plan = {"raw": output_text, "search_plan": {"destination": destination}}
         desc = output_text
-    
+        clarification_questions = []
+        need_clarification = False
+
     # 缓存结果到业务缓存
     cache_strategy.cache_search_results(
-        query=f"plan_{cache_key_biz}",
-        results={"search_plan": search_plan, "output": desc},
+        query=cache_key_biz,
+        results={
+            "search_plan": search_plan,
+            "output": desc,
+            "need_clarification": need_clarification,
+            "clarification_questions": clarification_questions,
+            "stage": "awaiting_clarification" if need_clarification else "ready_for_execution"
+        },
         destination=destination
     )
-    
+
+    if need_clarification:
+        return {
+            "messages": [AIMessage(content=desc)],
+            "usage": counter.dump(),
+            "output": desc,
+            "need_clarification": True,
+            "clarification_questions": clarification_questions,
+            "search_plan": None,
+            "stage": "awaiting_clarification"
+        }
+
     return {
-        "messages": [AIMessage(content=output_text)],
+        "messages": [AIMessage(content=desc)],
         "usage": counter.dump(),
         "output": desc,
-        "search_plan": search_plan
+        "search_plan": search_plan,
+        "need_clarification": False,
+        "clarification_questions": [],
+        "stage": "ready_for_execution"
     }
 
 
@@ -194,12 +363,13 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     collected_info = state.get("collected_info", {})
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
     user_content = last_msg.content if last_msg else ""
-    
-    destination = search_plan.get("destination", "unknown")
+
+    plan_payload = search_plan.get("search_plan", {}) if isinstance(search_plan, dict) else {}
+    destination = plan_payload.get("destination", search_plan.get("destination", "unknown"))
     cache_key_biz = f"search_exec:{user_content[:50]}:{destination}"
     
     # 1️⃣ 业务缓存
-    cached = cache_strategy.get_search_results(query=user_content, destination=destination)
+    cached = cache_strategy.get_search_results(query=cache_key_biz, destination=destination)
     if cached:
         import logging
         logger = logging.getLogger(__name__)
@@ -262,11 +432,16 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     logger.info(f"[Search Execute] 🔧 Tools available: {tool_names}")
 
     # 6️⃣ 执行逻辑
+    strategy = search_plan.get("search_strategy", {})
+    search_config = search_plan.get("search_configuration", {})
+    rag_keywords = search_config.get("rag_search_keywords", []) or search_plan.get("rag_search_keywords", [])
+    priorities = search_config.get("priorities", {})
+
     # Step 1: Java MCP 查询原始数据
     mcp_client = get_mcp_client()
     raw_hotels_resp = await mcp_client.call_tool(
         "search_hotels",
-        destination=search_plan.get("destination"),
+        destination=plan_payload.get("destination"),
         price_min=collected_info.get("budget_min", 0),
         price_max=collected_info.get("budget_max", 1000000),
         rating_min=4.0
@@ -275,20 +450,32 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
 
     # Step 2: RAG 混合检索
     hybrid_retriever = HybridRetriever()
-    rag_query = f"{search_plan.get('destination')} {', '.join(search_plan.get('rag_search_keywords', []))}"
+    rag_query = f"{plan_payload.get('destination')} {', '.join(rag_keywords)}"
     rag_docs = await hybrid_retriever.aretrieve(rag_query, k=50)
 
     # Step 3: 混合排序
     ranked_hotels = hybrid_rank(raw_hotels, rag_docs, search_plan)
 
-    user_query = f"""请执行以下搜索任务：
+    user_query = f"""请根据以下搜索战略执行搜索任务：
+
+    ## 搜索战略
+    - 第1阶段(热门景点)：{strategy.get('phase1_hot_spots')}
+    - 第2阶段(特殊兴趣)：{strategy.get('phase2_special_interests')}
+    - 第3阶段(住宿)：{strategy.get('phase3_accommodation')}
+    - 第4阶段(交通)：{strategy.get('phase4_logistics')}
+
+    ## 搜索配置
+    - RAG关键词：{rag_keywords}
+    - 优先级配置：{priorities}
+    - 酒店策略：{search_config.get('hotel_strategy')}
+    - 航班策略：{search_config.get('flight_strategy')}
 
     ## 搜索计划
-    - 目的地：{search_plan.get('destination')}
-    - 入住日期：{search_plan.get('check_in')}
-    - 退房日期：{search_plan.get('check_out')}
-    - 住宿天数：{search_plan.get('duration_days')}
-    - 搜索优先级：{', '.join(search_plan.get('search_priorities', []))}
+    - 目的地：{plan_payload.get('destination')}
+    - 入住日期：{plan_payload.get('check_in')}
+    - 退房日期：{plan_payload.get('check_out')}
+    - 住宿天数：{plan_payload.get('duration_days')}
+    - 搜索优先级：{', '.join(plan_payload.get('search_priorities', []))}
 
     ## 用户信息
     - 目的地：{collected_info.get('destination')}
@@ -342,7 +529,7 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
             
         # 缓存结果到业务缓存
         cache_strategy.cache_search_results(
-            query=user_content,
+            query=cache_key_biz,
             results={"search_results": search_results, "output": desc},
             destination=destination
         )
@@ -374,8 +561,15 @@ def build_search_graph() -> StateGraph:
     graph.add_node("search_plan", search_plan_node)
     graph.add_node("search_execute", search_execute_agent_node)
     
-    # 设置边：规划 -> 执行 -> 结束
-    graph.add_edge("search_plan", "search_execute")
+    # 设置边：规划 -> 执行/结束
+    graph.add_conditional_edges(
+        "search_plan",
+        lambda state: "end" if state.get("need_clarification") else "search_execute",
+        {
+            "search_execute": "search_execute",
+            "end": END
+        }
+    )
     graph.add_edge("search_execute", END)
     
     # 设置入口点
