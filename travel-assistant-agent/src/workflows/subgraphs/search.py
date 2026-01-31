@@ -99,14 +99,14 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     tools_text = await get_tools_and_skills_text()
     
     # 6️⃣ 获取或创建 Prompt Cache
-    cache_mgr = get_prompt_cache_manager()
-    prompt_cache_id = await cache_mgr.get_or_create_cache(
-        cache_key="search_plan",
-        llm=llm,
-        system_prompt=system_prompt,
-        few_shots=few_shots,
-        tools_text=tools_text
-    )
+    # cache_mgr = get_prompt_cache_manager()
+    # prompt_cache_id = await cache_mgr.get_or_create_cache(
+    #     cache_key="search_plan",
+    #     llm=llm,
+    #     system_prompt=system_prompt,
+    #     few_shots=few_shots,
+    #     tools_text=tools_text
+    # )
     
     user_query = f"""请根据以下已收集的用户信息，生成搜索计划：
 
@@ -123,7 +123,8 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
 
     返回 JSON 格式的搜索计划。"""
 
-    if not prompt_cache_id:
+    # if not prompt_cache_id:
+    if True:
         import logging
         logger = logging.getLogger(__name__)
         logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
@@ -152,7 +153,18 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
         
     # 解析搜索计划
     try:
-        data = json.loads(output_text)
+        cleaned_text = output_text.strip()
+        if cleaned_text.startswith("```json"):
+            cleaned_text = cleaned_text[7:]  # 去掉 ```json
+        elif cleaned_text.startswith("```"):
+            cleaned_text = cleaned_text[3:]  # 去掉 ```
+        
+        if cleaned_text.endswith("```"):
+            cleaned_text = cleaned_text[:-3]  # 去掉结尾的 ```
+        
+        cleaned_text = cleaned_text.strip()
+        # data = json.loads(output_text)
+        data = cleaned_text
         search_plan = data.get("search_plan", {})
         desc = data.get("output", output_text)
     except:
@@ -205,29 +217,29 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     # 3️⃣ 系统 Prompt (ReAct)
     system_prompt = """你是旅游搜索执行专家，负责利用各种工具获取详细的旅游信息。
 
-## 职责
-1. 根据搜索计划，调用 RAG、Java API 或其他工具进行深度搜索
-2. 获取具体的酒店、航班、景点和价格信息
-3. 综合多方数据，形成完整的搜索结果报告
-4. 必须输出有效的 JSON 结构
+    ## 职责
+    1. 根据搜索计划，调用 RAG、Java API 或其他工具进行深度搜索
+    2. 获取具体的酒店、航班、景点和价格信息
+    3. 综合多方数据，形成完整的搜索结果报告
+    4. 必须输出有效的 JSON 结构
 
-## 工具使用策略
-- 优先使用 RAG 检索知识库中的旅游攻略和常识
-- 使用 Java API (MCP) 获取实时的酒店、航班数据
-- 使用 Agent Skills 进行特定的搜索任务
+    ## 工具使用策略
+    - 优先使用 RAG 检索知识库中的旅游攻略和常识
+    - 使用 Java API (MCP) 获取实时的酒店、航班数据
+    - 使用 Agent Skills 进行特定的搜索任务
 
-## 输出格式（JSON）
-{
-    "output": "综合搜索结果文本描述",
-    "search_results": {
-        "destinations": [...],
-        "hotels": [...],
-        "flights": [...],
-        "attractions": [...],
-        "rag_sources_used": [...],
-        "tools_used": [...]
-    }
-}"""
+    ## 输出格式(JSON)
+    {
+        "output": "综合搜索结果文本描述",
+        "search_results": {
+            "destinations": [...],
+            "hotels": [...],
+            "flights": [...],
+            "attractions": [...],
+            "rag_sources_used": [...],
+            "tools_used": [...]
+        }
+    }"""
 
     few_shots = "## 示例：请通过调用工具获取杭州的酒店和景点信息，并返回 JSON。"
     tools_text = await get_tools_and_skills_text()
@@ -271,26 +283,26 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
 
     user_query = f"""请执行以下搜索任务：
 
-## 搜索计划
-- 目的地：{search_plan.get('destination')}
-- 入住日期：{search_plan.get('check_in')}
-- 退房日期：{search_plan.get('check_out')}
-- 住宿天数：{search_plan.get('duration_days')}
-- 搜索优先级：{', '.join(search_plan.get('search_priorities', []))}
+    ## 搜索计划
+    - 目的地：{search_plan.get('destination')}
+    - 入住日期：{search_plan.get('check_in')}
+    - 退房日期：{search_plan.get('check_out')}
+    - 住宿天数：{search_plan.get('duration_days')}
+    - 搜索优先级：{', '.join(search_plan.get('search_priorities', []))}
 
-## 用户信息
-- 目的地：{collected_info.get('destination')}
-- 出发日：{collected_info.get('dates')}
-- 周期：{collected_info.get('duration')}
-- 预算：{collected_info.get('budget', '未指定')}
-- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+    ## 用户信息
+    - 目的地：{collected_info.get('destination')}
+    - 出发日：{collected_info.get('dates')}
+    - 周期：{collected_info.get('duration')}
+    - 预算：{collected_info.get('budget', '未指定')}
+    - 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
 
-## 用户原始请求
-{user_content}
+    ## 用户原始请求
+    {user_content}
 
-## 已获取的优质酒店（经过混合排序）
-{json.dumps(ranked_hotels[:5], ensure_ascii=False)}
-"""
+    ## 已获取的优质酒店（经过混合排序）
+    {json.dumps(ranked_hotels[:5], ensure_ascii=False)}
+    """
 
     try:
         # 创建 ReAct Agent（绑定真正的工具）
