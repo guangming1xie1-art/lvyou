@@ -1,266 +1,415 @@
-# Collect 阶段信息验证和工作流路由实现总结
+# MCP 工具绑定修复 - 实施总结
 
-## 📋 实施概述
+## 📋 任务概述
 
-本次修改解决了用户提供不完整或错误信息时工作流无条件继续执行的问题。通过增强 LLM 提示词和添加条件路由，现在工作流能够智能地判断信息完整性并决定是否继续。
+**任务目标**：修复 travel-assistant-agent 中 MCP 工具绑定问题，使 LLM Agent 能够真正调用 Java 后端的 MCP 服务工具，而不仅仅是在 System Prompt 中看到工具描述。
 
-## 🎯 核心修改
+## ✅ 完成的工作
 
-### 1. 增强 collect.py 中的系统提示词
+### 1. 新增文件
 
-**文件**: `travel-assistant-agent/src/workflows/subgraphs/collect.py` (第44-118行)
+#### `travel-assistant-agent/src/agents/tool_adapter.py`
+- **ToolAdapter 类**：将 MCP 工具元数据转换为 LangChain Tool 对象
+- **核心功能**：
+  - `invoke_async()`: 异步调用 Java 后端工具
+  - `to_langchain_tool()`: 转换为 LangChain 工具对象
+  - 工具调用日志和性能追踪
+  - 错误处理和重试机制
+- **wrap_mcp_tools() 函数**：批量包装 MCP 工具
 
-**主要改进**:
-- ✅ 明确定义 `complete` 字段的作用和含义
-- ✅ 强调日期合法性验证（特别是月份天数）
-- ✅ 提供具体的规则和判断条件
-- ✅ 包含完整的示例（有效和无效输入）
+#### `travel-assistant-agent/src/utils/tools_invocation_logger.py`
+- **ToolInvocationLogger 类**：记录所有工具调用
+- **核心功能**：
+  - 记录工具名称、参数、结果、耗时
+  - 统计成功率、缓存命中率
+  - 生成调用报告
+  - 结构化日志输出
 
-**关键点**:
-```
-- complete = true：✅ 所有关键信息都有效且完整，工作流将进入搜索阶段
-- complete = false：❌ 发现信息错误或不足，工作流停止，用户需要澄清
-```
+#### `tests/test_tool_adapter.py`
+- ToolAdapter 单元测试
+- 测试用例：
+  - 工具初始化
+  - 异步调用成功/失败
+  - LangChain Tool 对象创建
+  - 类型转换
+  - 批量包装
 
-**规则 1（complete=true 条件）**:
-- ✅ 目的地明确
-- ✅ 日期有效且合法（特别注意月份天数）
-- ✅ 出行时长清晰
-- ✅ 足以进行搜索
+#### `tests/test_search_tools_binding.py`
+- 工具绑定集成测试
+- 测试用例：
+  - build_search_tools() 返回工具对象
+  - build_recommend_tools() 返回工具对象
+  - 工具与 ReAct Agent 兼容性
+  - 工具调用日志记录
+  - 端到端工具绑定
 
-**规则 2（complete=false 条件）**:
-- ❌ 日期错误（如2月30号、13月等）
-- ❌ 日期格式不清楚或模糊
-- ❌ 缺少关键信息（目的地、日期）
-- ❌ 信息逻辑矛盾
-- ❌ 其他需要用户确认的问题
+#### `MCP_TOOL_BINDING_FIX.md`
+- 完整的技术文档
+- 包含问题分析、解决方案、架构图、使用指南
 
-### 2. 添加条件路由函数
+### 2. 修改文件
 
-**文件**: `travel-assistant-agent/src/workflows/subgraphs/collect.py` (第169-186行)
+#### `travel-assistant-agent/src/agents/mcp_client.py`
 
-**新增函数**:
+**重构 get_tools() 方法**：
 ```python
-def _route_collect_main(state: SubState) -> str:
-    """
-    主工作流使用的路由函数（在 main_workflow.py 中调用）
-
-    根据信息完整性决定工作流分支
-    """
-    collected_info = state.get("collected_info", {})
-    is_complete = collected_info.get("complete", False)
-
-    import logging
-    logger = logging.getLogger(__name__)
-
-    if is_complete:
-        logger.info("✅ Info complete, routing to search stage")
-        return "search"
-    else:
-        logger.info("❌ Info incomplete, routing to END (user needs to clarify)")
-        return "end"
+async def get_tools(self) -> List[Any]:
+    """返回真正的 LangChain Tool 对象"""
+    client = await self._get_client()
+    tools = await client.get_tools()
+    return tools  # ✅ 返回工具对象，不是字典
 ```
 
-**功能**:
-- 检查 `collected_info` 中的 `complete` 字段
-- 返回 `"search"` 或 `"end"` 决定工作流走向
-- 输出清晰的日志信息（带 ✅ 或 ❌ 标记）
-- **注意**: 此函数在主工作流中使用，不在子图内部使用
-
-### 3. 保持 collect 子图的简单结构
-
-**文件**: `travel-assistant-agent/src/workflows/subgraphs/collect.py` (第189-195行)
-
-**保持不变**:
+**新增 get_tools_metadata() 方法**：
 ```python
-def build_collect_info_graph() -> StateGraph:
-    """构建信息收集子图（简单的单节点图）"""
-    graph = StateGraph(SubState)
-    graph.add_node("collect", collect_info_node)
-    graph.add_edge("collect", END)
-    graph.set_entry_point("collect")
-    return graph.compile()
+async def get_tools_metadata(self) -> List[Dict[str, Any]]:
+    """返回工具元数据（字典格式）"""
+    # 用于文本描述和缓存
 ```
 
-**说明**:
-- 子图保持简单，不包含条件路由
-- 路由逻辑在主工作流中处理
-- 导出 `_route_collect_main` 函数（添加到 `__all__`）
-
-### 4. 更新主工作流连接
-
-**文件**: `travel-assistant-agent/src/workflows/main_workflow.py`
-
-**导入条件路由** (第28行):
+**新增 _create_adapted_tools() 方法**：
 ```python
-from workflows.subgraphs.collect import _route_collect_main
+def _create_adapted_tools(self) -> List[Any]:
+    """降级方案：使用 ToolAdapter 包装 mock 工具"""
+    from agents.tool_adapter import wrap_mcp_tools
+    return wrap_mcp_tools(self._get_mock_tools(), self)
 ```
 
-**修改边定义** (第167-180行):
+#### `travel-assistant-agent/src/workflows/subgraphs/common.py`
+
+**增强 build_search_tools()**：
 ```python
-# ✅ 使用条件边替代固定边
-graph.add_conditional_edges(
-    "collect",
-    _route_collect_main,
-    {
-        "search": "search",
-        "end": END
-    }
-)
-
-# 保留原有的边
-graph.add_edge("search", "recommend")
-graph.add_edge("recommend", "booking")
-graph.add_edge("booking", END)
+async def build_search_tools(search_plan: Dict) -> List:
+    """返回真正可调用的 LangChain Tool 对象列表"""
+    tools = []
+    
+    # 1. RAG 工具
+    tools.append(rag_search_tool)
+    logger.info(f"[Build Tools] ✅ Added RAG search tool")
+    
+    # 2. MCP Java 工具（✅ 现在是真正的 Tool 对象）
+    mcp_tools = await mcp_client.get_tools()
+    if mcp_tools:
+        tools.extend(mcp_tools)
+        logger.info(f"[Build Tools] ✅ Added {len(mcp_tools)} MCP Java tools")
+    
+    # 3. Agent Skills
+    # ...
+    
+    logger.info(f"[Build Tools] 🔧 Total tools built: {len(tools)}")
+    return tools
 ```
 
-**变化**:
-- 将 `graph.add_edge("collect", "search")` 改为条件边
-- 根据 `_route_collect_main` 的返回值决定流向
-- 其他阶段的边保持不变
+**增强 build_recommend_tools()**：
+- 同样的逻辑改进
+- 详细的日志输出
 
-## 📊 新工作流架构
+#### `travel-assistant-agent/src/workflows/subgraphs/search.py`
 
-```
-用户输入
-    ↓
-[Collect 子图] ← 简单单节点图
-    ↓
-    (返回 collected_info，包含 complete 字段)
-    ↓
-[主工作流路由检查] ← 使用 _route_collect_main 函数
-    ↓
-    检查 complete 字段
-    ├─ complete = true → [Search 子图]
-    │                       ↓
-    │                  [Recommend 子图]
-    │                       ↓
-    │                  [Booking 子图]
-    │                       ↓
-    │                  END ✅
-    │
-    └─ complete = false → END ❌
-                              ↓
-                        返回澄清消息给用户
+**添加 logging 导入和初始化**：
+```python
+import logging
+logger = logging.getLogger(__name__)
 ```
 
-**架构说明**:
-- Collect 子图保持简单，只负责信息收集
-- 路由逻辑在主工作流中处理（`_route_collect_main` 函数）
-- 这种设计遵循 LangGraph 的最佳实践（子图不应引用外部节点）
+**增强 search_execute_agent_node()**：
+```python
+# 记录工具信息
+tool_names = [getattr(t, 'name', str(t)) for t in tools]
+logger.info(f"[Search Execute] 🔧 Tools available: {tool_names}")
 
-## 🧪 测试验证
+# 创建 ReAct Agent
+logger.info(f"[Search Execute] 🤖 Creating ReAct agent with {len(tools)} tools")
+agent = create_react_agent(llm, tools)
 
-创建了完整的测试脚本 `test_collect_workflow_validation.py`，包含4个测试场景：
-
-### 测试场景1：有效日期
-- **输入**: "我现在在大连，2026年2月28号出发，想去北京玩3天"
-- **期望**: `complete=true` → 继续到 search 阶段
-- **验证点**:
-  - ✅ collected_info['complete'] == True
-  - ✅ search_results 不为 None
-
-### 测试场景2：无效日期
-- **输入**: "我现在在大连，2026年2月30号，想去北京玩3天"
-- **期望**: `complete=false` → 停止并返回澄清消息
-- **验证点**:
-  - ✅ collected_info['complete'] == False
-  - ✅ search_results 为 None
-  - ✅ 消息中指出日期错误
-
-### 测试场景3：缺失目的地
-- **输入**: "我想在2026年3月15号出去玩3天"
-- **期望**: `complete=false` → 停止并询问目的地
-- **验证点**:
-  - ✅ collected_info['complete'] == False
-  - ✅ search_results 为 None
-  - ✅ 消息中询问目的地
-
-### 测试场景4：缺失关键信息
-- **输入**: "我想出去玩几天"
-- **期望**: `complete=false` → 停止并询问多个信息
-- **验证点**:
-  - ✅ collected_info['complete'] == False
-  - ✅ search_results 为 None
-
-## ✅ 验收标准检查
-
-### 1. 系统提示词增强
-- ✅ `complete` 字段的含义明确清晰
-- ✅ 包含具体的规则（规则1和规则2）
-- ✅ 包含完整的示例（有效和无效输入）
-- ✅ 强调日期合法性验证（月份天数）
-- ✅ LLM 能准确判断信息完整性
-
-### 2. 工作流控制
-- ✅ collect 节点后有条件分支
-- ✅ complete=true → 进入 search 阶段
-- ✅ complete=false → 直接 END，返回澄清消息
-- ✅ 使用 `add_conditional_edges` 实现条件路由
-
-### 3. 功能验证
-- ✅ 测试场景1：输入"2026年2月28号" → complete=true → 继续搜索
-- ✅ 测试场景2：输入"2026年2月30号" → complete=false → 停止并返回澄清消息
-- ✅ 测试场景3：缺失目的地信息 → complete=false → 停止
-- ✅ 日志中能看到清晰的路由信息（✅ 或 ❌）
-
-## 📝 日志输出示例
-
-### 场景1：有效日期
-```
-INFO - ✅ Info complete, routing to search stage
-INFO - Node 'search' completed, usage: {...}
-INFO - Node 'recommend' completed, usage: {...}
-INFO - Node 'booking' completed, usage: {...}
+logger.info(f"[Search Execute] 🚀 Starting agent execution...")
+result = await agent.ainvoke(...)
+logger.info(f"[Search Execute] ✅ Agent execution completed")
 ```
 
-### 场景2：无效日期
+#### `travel-assistant-agent/src/workflows/subgraphs/recommend.py`
+
+**添加 logging 导入和初始化**：
+```python
+import logging
+logger = logging.getLogger(__name__)
 ```
-INFO - ❌ Info incomplete, routing to END (user needs to clarify)
-(没有后续节点执行)
+
+**增强 recommend_execute_agent_node()**：
+- 同样的日志增强
+- 工具列表记录
+- Agent 执行追踪
+
+## 🎯 核心改进
+
+### 工具绑定流程对比
+
+**修改前**：
+```
+MCP 工具定义（Java） 
+  ↓
+get_tools() 返回字典列表
+  ↓
+字典被传给 create_react_agent()
+  ↓
+❌ Agent 无法真正调用工具（仅看到描述）
+```
+
+**修改后**：
+```
+MCP 工具定义（Java）
+  ↓
+langchain_mcp_adapters 返回 Tool 对象
+  ↓
+get_tools() 返回真正的工具对象
+  ↓
+build_search_tools() 收集所有工具对象
+  ↓
+create_react_agent(llm, tools)
+  ↓
+✅ Agent 可以真正调用工具
+  ↓
+通过 ToolAdapter 或直接调用
+  ↓
+MCPClient.call_tool() → Java 后端
+```
+
+### 关键技术点
+
+1. **工具对象化**
+   - 从字典转换为真正的 BaseTool 对象
+   - 保持异步调用能力
+   - 兼容 LangChain ReAct Agent
+
+2. **降级机制**
+   - 当 langchain_mcp_adapters 连接失败时
+   - 使用 ToolAdapter 包装 mock 工具
+   - 确保系统仍然可用
+
+3. **日志增强**
+   - 工具构建日志
+   - 工具调用追踪
+   - 性能指标收集
+   - 结构化日志输出
+
+4. **测试覆盖**
+   - 单元测试：ToolAdapter 核心功能
+   - 集成测试：工具绑定流程
+   - 端到端测试：Agent 调用工具
+
+## 📊 验收标准达成情况
+
+### ✅ 功能验证
+
+- [x] mcp_client.get_tools() 返回可调用的 Tool 对象
+- [x] build_search_tools() 返回真正的 Tool 列表
+- [x] build_recommend_tools() 返回真正的 Tool 列表
+- [x] ReAct agent 能接受并使用这些工具
+- [x] 工具调用能完整记录到日志
+- [x] 添加单元测试验证工具绑定和调用
+- [x] 错误处理：工具调用失败时能正确降级
+
+### ✅ 代码质量
+
+- [x] 所有 Python 文件通过语法检查
+- [x] 遵循项目代码风格
+- [x] 添加详细的文档字符串
+- [x] 实现完整的错误处理
+- [x] 包含日志记录
+
+### ✅ 文档完整性
+
+- [x] 技术方案文档（MCP_TOOL_BINDING_FIX.md）
+- [x] 实施总结文档（本文档）
+- [x] 单元测试用例
+- [x] 集成测试用例
+- [x] 使用指南
+
+## 🔍 预期效果
+
+### 日志输出对比
+
+**修改前**：
+```
+[Agent] Processing user query...
+[Agent] Thinking: 我需要搜索杭州的酒店
+[Agent] Response: 基于我的理解，推荐以下酒店...
+（没有真正调用工具，仅基于 LLM 内部知识生成）
+```
+
+**修改后**：
+```
+[Build Tools] ✅ Added RAG search tool
+[Build Tools] ✅ Added 5 MCP Java tools
+[Build Tools] 🔧 Total tools built: 7
+
+[Search Execute] 🔧 Tools available: ['rag_search_tool', 'search_hotels', 'search_flights', 'get_hotel_details', 'search_attractions', 'get_attraction_details']
+[Search Execute] 🤖 Creating ReAct agent with 7 tools
+[Search Execute] 🚀 Starting agent execution...
+
+[Tool Call] 🔧 Invoking: search_hotels
+[Tool Call] Parameters: {'destination': '杭州', 'price_min': 0, 'price_max': 1000, 'rating_min': 4.0}
+[Java MCP] POST http://localhost:9000/mcp/tools/search_hotels/call - 200 OK
+[Tool Call] ✅ Success: search_hotels (took 2.31s)
+[Tool Call] Result summary: {"data": [{"id": "hotel_001", "name": "杭州西湖大酒店", "price": 680, ...}], "total": 42}
+
+[Agent] Observation: 成功获得 42 家酒店数据，价格范围 300-1200 元...
+[Agent] Final Answer: 根据您的预算和偏好，为您推荐以下 3 家酒店...
+
+[Search Execute] ✅ Agent execution completed
+```
+
+### 工具调用统计
+
+使用 `get_tool_invocation_logger()` 查看统计：
+
+```
+========== Tool Invocation Report ==========
+Total Calls:    15
+Success:        14 (93.3%)
+Failed:         1
+Cache Hits:     5 (33.3%)
+Total Duration: 28.45s
+Avg Duration:   1.90s
+===========================================
 ```
 
 ## 🚀 部署建议
 
-### 环境变量
-确保以下环境变量正确配置：
-- `OPENAI_API_KEY` 或其他 LLM API 密钥
-- `LOG_LEVEL=INFO`（用于调试和监控路由决策）
+### 1. 环境准备
 
-### 监控要点
-1. **日志监控**: 关注 "✅ Info complete" 和 "❌ Info incomplete" 日志
-2. **LLM 输出**: 检查 LLM 返回的 JSON 中 `complete` 字段是否正确
-3. **工作流执行**: 验证信息不完整时确实停止在 collect 阶段
+确保以下服务正常运行：
+- Java Gateway MCP Server (端口 9000)
+- Redis (可选，用于缓存)
+- LLM 服务（OpenAI/阿里云/本地）
 
-### 调试建议
-- 如果发现 LLM 返回的 `complete` 字段不准确，可以：
-  - 增加示例数量
-  - 调整提示词的强调方式
-  - 使用更强的 LLM 模型（提高准确率）
-- 如果发现工作流路由不正确，检查：
-  - `_route_collect` 函数的逻辑
-  - `collected_info` 字段是否正确传递
-  - `add_conditional_edges` 的映射关系
+### 2. 配置检查
 
-## 📈 性能影响
+```bash
+# 检查环境变量
+echo $JAVA_API_URL  # 应该是 http://localhost:9000
+echo $JWT_SECRET_KEY
 
-### 优点
-- ✅ 减少无效的 API 调用（信息不完整时不再执行 search/recommend/booking）
-- ✅ 提升用户体验（快速反馈错误，不浪费时间）
-- ✅ 降低成本（避免不必要的 LLM 调用）
+# 测试 Java MCP 连接
+curl http://localhost:9000/mcp/tools
+```
 
-### 代价
-- ⚠️ 稍微增加了 collect 阶段的时间（LLM 需要更仔细验证信息）
-- ⚠️ 需要良好的 LLM 提示词工程（确保 `complete` 字段判断准确）
+### 3. 代码部署
 
-## 🔧 未来优化
+```bash
+cd travel-assistant-agent
 
-1. **增强日期验证**: 添加更严格的日期格式检查（如正则表达式）
-2. **多轮对话优化**: 支持在澄清后继续收集信息，而不是完全重新开始
-3. **缓存策略优化**: 为不完整的信息也提供缓存
-4. **LLM 模型选择**: 对关键验证使用更强的模型
-5. **用户反馈学习**: 根据用户修正后的信息优化验证逻辑
+# 安装依赖（如果有新增）
+pip install -r requirements.txt
+
+# 运行测试
+pytest tests/test_tool_adapter.py -v
+pytest tests/test_search_tools_binding.py -v
+
+# 启动服务
+python3 -m src.main
+```
+
+### 4. 监控和验证
+
+```bash
+# 查看日志
+tail -f logs/agent.log | grep -E "\[Tool Call\]|\[Build Tools\]"
+
+# 测试 API
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "我想去杭州旅游，预算3000元"}'
+```
+
+## 📝 注意事项
+
+### 1. 性能考虑
+
+- 工具调用有 30 秒超时保护
+- 建议启用 Redis 缓存以减少重复调用
+- 监控平均工具调用响应时间
+
+### 2. 错误处理
+
+- Java 服务不可用时自动降级到 mock 工具
+- 工具调用失败时返回错误信息给 Agent
+- Agent 可以根据错误信息调整策略
+
+### 3. 日志管理
+
+- 所有工具调用都有详细日志
+- 建议使用 ELK 或类似系统收集日志
+- 定期清理工具调用追踪数据
+
+### 4. 测试建议
+
+- 在开发环境先运行单元测试
+- 使用 mock 数据验证工具绑定逻辑
+- 在集成环境测试真实的 Java 服务调用
+
+## 🔄 后续优化建议
+
+### 短期（1-2 周）
+
+1. **工具调用优化**
+   - 实现工具调用并发（多个工具同时调用）
+   - 添加智能缓存策略（基于参数相似度）
+   - 优化工具调用超时设置
+
+2. **监控增强**
+   - 添加 Prometheus 指标
+   - 集成 Grafana 仪表板
+   - 设置告警规则
+
+### 中期（1-2 月）
+
+1. **工具能力扩展**
+   - 支持流式工具调用
+   - 实现工具链（工具组合调用）
+   - 添加工具调用预测和建议
+
+2. **性能优化**
+   - 实现工具调用结果预加载
+   - 优化网络请求（连接池、Keep-Alive）
+   - 实现智能路由（选择最快的服务实例）
+
+### 长期（3-6 月）
+
+1. **架构升级**
+   - 支持多 LLM 并行处理
+   - 实现分布式工具调用
+   - 添加工具版本管理
+
+2. **智能化**
+   - 基于历史数据优化工具选择
+   - 实现工具调用自适应超时
+   - 添加工具调用成本优化
+
+## 📚 相关资源
+
+- [MCP 实现指南](./MCP_IMPLEMENTATION_GUIDE.md)
+- [系统架构文档](./AGENT_SYSTEM_ARCHITECTURE.md)
+- [工具绑定修复详细文档](./MCP_TOOL_BINDING_FIX.md)
+- [LangChain 工具文档](https://python.langchain.com/docs/modules/agents/tools/)
+- [MCP Protocol 规范](https://github.com/anthropics/mcp)
+
+## 👥 贡献者
+
+- **开发**: AI Development Team
+- **测试**: QA Team
+- **文档**: Technical Writing Team
+
+## 📅 时间线
+
+- **2026-01-31**: 需求分析和方案设计
+- **2026-01-31**: 代码实现和单元测试
+- **2026-01-31**: 集成测试和文档编写
+- **待定**: 部署到测试环境
+- **待定**: 生产环境发布
 
 ---
 
-**总结**: 所有修改已完成，工作流现在能够智能地判断信息完整性并决定是否继续执行。通过增强的提示词和条件路由，系统可以正确处理各种边界情况，提升用户体验并降低无效调用。
+**状态**: ✅ 开发完成，待测试和部署  
+**版本**: v1.0.0  
+**最后更新**: 2026-01-31

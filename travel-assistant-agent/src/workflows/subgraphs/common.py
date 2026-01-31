@@ -150,7 +150,17 @@ def create_recommend_plan_prompt(collected_info: Dict, search_results: Dict, con
 
 
 async def build_search_tools(search_plan: Dict) -> List:
-    """根据搜索计划构建搜索工具"""
+    """
+    根据搜索计划构建搜索工具
+    
+    返回真正可调用的 LangChain Tool 对象列表
+    
+    Args:
+        search_plan: 搜索计划字典
+        
+    Returns:
+        List[BaseTool]: 真正的 LangChain Tool 对象列表
+    """
     tools = []
     
     try:
@@ -164,10 +174,15 @@ async def build_search_tools(search_plan: Dict) -> List:
             return f"RAG搜索结果：\n{rag_context}"
         
         tools.append(rag_search_tool)
+        logger.info(f"[Build Tools] ✅ Added RAG search tool")
         
-        # 2. MCP Java 工具
+        # 2. MCP Java 工具（✅ 现在返回真正的 Tool 对象）
         mcp_tools = await mcp_client.get_tools()
-        tools.extend(mcp_tools)
+        if mcp_tools:
+            tools.extend(mcp_tools)
+            logger.info(f"[Build Tools] ✅ Added {len(mcp_tools)} MCP Java tools")
+        else:
+            logger.warning(f"[Build Tools] ⚠️ No MCP tools available")
         
         # 3. SKILLS 搜索技能
         try:
@@ -175,17 +190,30 @@ async def build_search_tools(search_plan: Dict) -> List:
             if search_skill:
                 # 使用适配器转换为工具
                 tools.append(skill_to_tool(search_skill))
+                logger.info(f"[Build Tools] ✅ Added search skill tool")
         except Exception as e:
-            logger.warning(f"Failed to load search skill: {e}")
+            logger.warning(f"[Build Tools] ⚠️ Failed to load search skill: {e}")
+        
+        logger.info(f"[Build Tools] 🔧 Total tools built: {len(tools)}")
         
     except Exception as e:
-        logger.warning(f"Failed to build search tools: {e}")
+        logger.error(f"[Build Tools] ❌ Failed to build search tools: {e}")
     
     return tools
 
 
 async def build_recommend_tools(recommend_plan: Dict) -> List:
-    """根据推荐策略构建推荐工具"""
+    """
+    根据推荐策略构建推荐工具
+    
+    返回真正可调用的 LangChain Tool 对象列表
+    
+    Args:
+        recommend_plan: 推荐计划字典
+        
+    Returns:
+        List[BaseTool]: 真正的 LangChain Tool 对象列表
+    """
     tools = []
     
     try:
@@ -199,10 +227,15 @@ async def build_recommend_tools(recommend_plan: Dict) -> List:
             return f"RAG推荐建议：\n{rag_context}"
         
         tools.append(rag_recommend_tool)
+        logger.info(f"[Build Tools] ✅ Added RAG recommend tool")
         
-        # 2. MCP Java 工具
+        # 2. MCP Java 工具（✅ 现在返回真正的 Tool 对象）
         mcp_tools = await mcp_client.get_tools()
-        tools.extend(mcp_tools)
+        if mcp_tools:
+            tools.extend(mcp_tools)
+            logger.info(f"[Build Tools] ✅ Added {len(mcp_tools)} MCP Java tools")
+        else:
+            logger.warning(f"[Build Tools] ⚠️ No MCP tools available")
         
         # 3. SKILLS 推荐技能
         try:
@@ -210,11 +243,14 @@ async def build_recommend_tools(recommend_plan: Dict) -> List:
             if recommend_skill:
                 # 使用适配器转换为工具
                 tools.append(skill_to_tool(recommend_skill))
+                logger.info(f"[Build Tools] ✅ Added recommend skill tool")
         except Exception as e:
-            logger.warning(f"Failed to load recommend skill: {e}")
+            logger.warning(f"[Build Tools] ⚠️ Failed to load recommend skill: {e}")
+        
+        logger.info(f"[Build Tools] 🔧 Total tools built: {len(tools)}")
         
     except Exception as e:
-        logger.warning(f"Failed to build recommend tools: {e}")
+        logger.error(f"[Build Tools] ❌ Failed to build recommend tools: {e}")
     
     return tools
 
