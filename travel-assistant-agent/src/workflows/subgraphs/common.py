@@ -44,6 +44,9 @@ class SubState(dict):
     recommend_plan: Optional[Dict]
     recommendations: Optional[Dict]
     booking_confirmation: Optional[Dict]
+    need_clarification: Optional[bool]
+    clarification_questions: Optional[List[str]]
+    stage: Optional[str]
     conversation_history: Optional[list]  # ← 新增：对话历史支持
 
 
@@ -89,64 +92,114 @@ def skill_to_tool(skill):
 def create_search_plan_prompt(collected_info: Dict, conversation_history: List[Dict]) -> str:
     """生成搜索规划提示词"""
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history[-6:]])
-    
-    return f"""你是搜索规划师，负责分析用户需求并制定结构化的搜索计划。
 
-你的任务：
-1. 分析用户需求和已收集的信息
-2. 提取关键搜索要素：目的地、时间、预算、偏好
-3. 生成JSON格式的搜索策略
+    return f"""你是搜索战略专家，负责从用户需求中提炼可执行的搜索策略。
 
-已收集的用户需求：
-{collected_info}
+    你的任务：
+    1. 深度理解用户的核心需求与隐含偏好
+    2. 识别信息缺口并提出澄清问题
+    3. 输出分阶段搜索策略与RAG关键词
+    4. 生成可直接用于执行阶段的搜索指导
 
-对话历史：
-{history_text if history_text else "（无历史记录）"}
+    已收集的用户需求：
+    {collected_info}
 
-返回格式（JSON）：
-{{
-    "search_plan": {{
-        "destination": "目的地",
-        "check_in": "入住日期", 
-        "check_out": "退房日期",
-        "budget_range": "预算范围",
-        "search_priorities": ["酒店", "航班", "景点"],
-        "rag_search_keywords": ["关键词1", "关键词2"]
-    }},
-    "output": "搜索计划描述"
-}}"""
+    对话历史：
+    {history_text if history_text else "（无历史记录）"}
+
+    返回格式（JSON）：
+    {{
+        "user_intent_analysis": {{
+            "core_needs": "核心需求",
+            "user_interpretation": {{
+                "possible_focus": ["类型1", "类型2"],
+                "time_pressure": "时间紧张度判断",
+                "budget_flexibility": "预算弹性判断"
+            }},
+            "potential_concerns": ["潜在问题1"]
+        }},
+        "search_strategy": {{
+            "phase1_hot_spots": {{
+                "priority": "高/中/低",
+                "focus": "阶段目标",
+                "keywords": ["关键词1", "关键词2"]
+            }},
+            "phase2_special_interests": {{
+                "priority": "高/中/低",
+                "focus": "阶段目标",
+                "keywords": ["关键词1", "关键词2"]
+            }}
+        }},
+        "clarification_questions": ["问题1", "问题2"],
+        "information_gaps": {{"budget": "缺口说明"}},
+        "search_configuration": {{
+            "priorities": {{"attractions": 0.5, "hotels": 0.3, "flights": 0.2}},
+            "rag_search_keywords": ["关键词1", "关键词2"]
+        }},
+        "search_plan": {{
+            "destination": "目的地",
+            "check_in": "入住日期",
+            "check_out": "退房日期",
+            "budget_range": "预算范围"
+        }},
+        "output": "搜索战略说明"
+    }}"""
 
 
 def create_recommend_plan_prompt(collected_info: Dict, search_results: Dict, conversation_history: List[Dict]) -> str:
     """生成推荐规划提示词"""
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history[-6:]])
-    
-    return f"""你是推荐规划师，负责分析用户需求和搜索结果，制定个性化推荐策略。
 
-你的任务：
-1. 综合分析用户需求和搜索结果
-2. 确定推荐主题和重点
-3. 生成推荐策略
+    return f"""你是推荐规划专家，负责从用户需求与搜索结果中提炼可执行的推荐框架。
 
-用户需求：
-{collected_info}
+    你的任务：
+    1. 分析用户画像与行程节奏
+    2. 构建多方案推荐框架并给出满意度预估
+    3. 识别信息缺口并提出澄清问题
+    4. 输出执行阶段可直接使用的推荐策略
 
-搜索结果摘要：
-{str(search_results)[:500]}...
+    用户需求：
+    {collected_info}
 
-对话历史：
-{history_text if history_text else "（无历史记录）"}
+    搜索结果摘要：
+    {str(search_results)[:500]}...
 
-返回格式（JSON）：
-{{
-    "recommend_plan": {{
-        "themes": ["主题1", "主题2", "主题3"],
-        "num_plans": 3,
-        "focus_points": ["重点1", "重点2"],
-        "weights": {{"预算": 0.3, "体验": 0.4, "安全": 0.3}}
-    }},
-    "output": "推荐策略描述"
-}}"""
+    对话历史：
+    {history_text if history_text else "（无历史记录）"}
+
+    返回格式（JSON）：
+    {{
+        "user_profile_analysis": {{
+            "trip_characteristics": {{
+                "duration": "行程时长",
+                "destination_type": "目的地类型",
+                "travel_pace": "行程节奏",
+                "interest_focus": "兴趣焦点"
+            }},
+            "recommendation_considerations": ["考虑点1"]
+        }},
+        "recommendation_framework": {{
+            "plan_1": {{
+                "name": "方案名称",
+                "target": "目标人群",
+                "focus": ["景点1", "景点2"],
+                "characteristics": "方案特点",
+                "estimated_satisfaction": 0.8
+            }}
+        }},
+        "information_gaps": {{
+            "missing_inputs": ["缺失信息1"],
+            "impact": "缺失影响"
+        }},
+        "clarification_questions": ["问题1", "问题2"],
+        "recommend_plan": {{
+            "themes": ["主题1", "主题2", "主题3"],
+            "num_plans": 3,
+            "focus_points": ["重点1", "重点2"],
+            "weights": {{"预算": 0.3, "体验": 0.4, "安全": 0.3}}
+        }},
+        "output": "推荐策略描述"
+    }}"""
 
 
 async def build_search_tools(search_plan: Dict) -> List:

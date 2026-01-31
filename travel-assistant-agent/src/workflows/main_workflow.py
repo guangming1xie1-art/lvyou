@@ -52,6 +52,9 @@ class MainState(dict):
     usage: Annotated[Dict[str, int], merge_dicts]
     # usage: Annotated[Dict[str, int], operator.add]  # ← 自动累加
     final_response: Optional[str]
+    need_clarification: Optional[bool]
+    clarification_questions: Optional[List[str]]
+    stage: Optional[str]
     conversation_history: Annotated[List[Dict], operator.add]  # ← 新增：对话历史
 
 
@@ -176,9 +179,25 @@ def build_main_graph() -> StateGraph:
         }
     )
 
-    # 保留原有的边
-    graph.add_edge("search", "recommend")
-    graph.add_edge("recommend", "booking")
+    # 搜索阶段可能需要澄清
+    graph.add_conditional_edges(
+        "search",
+        lambda state: "end" if state.get("need_clarification") else "recommend",
+        {
+            "recommend": "recommend",
+            "end": END
+        }
+    )
+
+    # 推荐阶段可能需要澄清
+    graph.add_conditional_edges(
+        "recommend",
+        lambda state: "end" if state.get("need_clarification") else "booking",
+        {
+            "booking": "booking",
+            "end": END
+        }
+    )
     graph.add_edge("booking", END)
 
     # 设置入口点
@@ -265,6 +284,9 @@ async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
         "search_results": None,
         "recommendations": None,
         "booking_confirmation": None,
+        "need_clarification": False,
+        "clarification_questions": [],
+        "stage": None,
         "usage": {"prompt": 0, "completion": 0, "total": 0},
         "final_response": None,
         "conversation_history": [],  # ← 初始化对话历史
@@ -283,6 +305,9 @@ async def run_main_workflow_async(user_message: str) -> Dict[str, Any]:
         "search_results": result.get("search_results") or {},
         "recommendations": result.get("recommendations") or {},
         "booking_confirmation": result.get("booking_confirmation") or {},
+        "need_clarification": result.get("need_clarification", False),
+        "clarification_questions": result.get("clarification_questions", []),
+        "stage": result.get("stage"),
         "total_usage": result.get("usage", {"prompt": 0, "completion": 0, "total": 0}),
         "messages": messages,
         "final_response": final_response,
