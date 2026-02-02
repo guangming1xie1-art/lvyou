@@ -76,6 +76,22 @@ INSERT INTO hotels (name, destination, price, rating, description, facilities, c
  '["WiFi", "Traditional Gardens", "Spa", "Cultural Workshops", "Fine Dining", "Private Gardens"]',
  '2025-04-10', '2025-04-15');
 
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('上海广场大酒店', '上海', 680.00, 4.5,'位于上海市中心的豪华五星级酒店，享有壮丽的城市景观和世界级设施。','["无线网络", "游泳池", "健身房", "水疗中心", "餐厅", "客房服务", "商务中心", "礼宾服务"]','2025-02-15', '2025-02-20');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('北京皇家宫殿酒店', '北京', 1200.00, 4.8,'毗邻故宫的历史豪华酒店，提供传统中式待客之道与现代舒适体验。', '["无线网络", "游泳池", "水疗中心", "多家餐厅", "茶室", "文化之旅", "机场班车"]','2025-03-01', '2025-03-08');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('深圳湾度假村', '深圳', 450.00, 4.2,'现代化商务酒店，享有海湾全景，是休闲和商务旅客的理想之选。','["无线网络", "健身房", "商务中心", "会议室", "海景", "精致餐饮"]','2025-02-28', '2025-03-05');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('广州明珠塔酒店', '广州', 320.00, 4.0,'位于商业区的现代酒店，交通便利，靠近购物和娱乐场所。','["无线网络", "健身房", "餐厅", "酒吧", "洗衣服务", "24小时前台"]','2025-03-10', '2025-03-15');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('成都茶园客栈', '成都', 180.00, 4.6,'迷人的精品酒店，采用传统川式设计，设有美丽的茶园庭院。','["无线网络", "传统庭院", "茶艺服务", "文化活动", "本地餐厅"]','2025-02-25', '2025-02-27');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('杭州西湖别墅', '杭州', 890.00, 4.7, '优雅的湖畔酒店，可饱览西湖美景，融合传统建筑与豪华设施。','["无线网络", "湖景", "水疗中心", "传统园林", "精致餐饮", "游船", "文化项目"]','2025-04-01', '2025-04-03');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('西安古城酒店', '西安', 280.00, 4.3,'位于古城墙内的历史酒店，提供正宗的唐代文化体验。','["无线网络", "文化表演", "传统建筑", "本地美食", "历史游览"]','2025-03-15', '2025-03-20');
+
+INSERT INTO hotels (name, destination, price, rating, description, facilities, check_in_date, check_out_date) VALUES ('苏州古典园林酒店', '苏州', 520.00, 4.4,'豪华酒店，采用经典苏州园林设计，靠近著名的留园。','["无线网络", "传统园林", "水疗中心", "文化工坊", "精致餐饮", "私人园林"]','2025-04-10', '2025-04-15');
+
 -- =============================================================================
 -- 3. 示例航班数据 (flights)
 -- FIXED: 移除 departure_time, arrival_time, flight_number, available_seats 字段

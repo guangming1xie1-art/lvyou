@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -42,7 +43,7 @@ public class TravelMcpTools {
                 destination, checkIn, checkOut);
 
         try {
-            return webClientBuilder.build()
+            List<Map<String, Object>> hotels = webClientBuilder.build()
                     .get()
                     .uri("lb://hotel-service/api/hotel", uriBuilder -> {
                         uriBuilder.queryParam("destination", destination)
@@ -55,8 +56,13 @@ public class TravelMcpTools {
                         return uriBuilder.build();
                     })
                     .retrieve()
-                    .bodyToMono(Map.class)
+//                    .bodyToMono(Map.class)
+                    .bodyToMono(LIST_MAP_TYPE)
                     .block();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", hotels);
+            return response;
         } catch (Exception e) {
             log.error("search_hotels failed: {}", e.getMessage(), e);
             return createErrorResponse("搜索酒店失败: " + e.getMessage());
@@ -86,7 +92,8 @@ public class TravelMcpTools {
     }
 
     // ==================== 航班工具 ====================
-
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_MAP_TYPE =
+            new ParameterizedTypeReference<List<Map<String, Object>>>() {};
     /**
      * 搜索航班
      */
@@ -102,7 +109,7 @@ public class TravelMcpTools {
         log.debug("Searching flights from {} to {} on {}", origin, destination, departureDate);
 
         try {
-            return webClientBuilder.build()
+            List<Map<String, Object>> hotels = webClientBuilder.build()
                     .get()
                     .uri("lb://flight-service/api/flight", uriBuilder -> {
                         uriBuilder.queryParam("origin", origin)
@@ -114,8 +121,13 @@ public class TravelMcpTools {
                         return uriBuilder.build();
                     })
                     .retrieve()
-                    .bodyToMono(Map.class)
+//                    .bodyToMono(Map.class)
+                    .bodyToMono(LIST_MAP_TYPE)
                     .block();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", hotels);
+            return response;
         } catch (Exception e) {
             log.error("search_flights failed: {}", e.getMessage(), e);
             return createErrorResponse("搜索航班失败: " + e.getMessage());

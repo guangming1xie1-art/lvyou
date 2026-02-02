@@ -186,15 +186,22 @@ class HybridRetriever:
         # 2. BM25检索
         bm25_results = self._bm25_search(query, bm25_k, filter)
         
+        # # 3. 合并结果
+        # combined_scores = self._combine_scores(
+        #     vector_results, vector_scores,
+        #     bm25_results
+        # )
+        
+        # # 4. 去重并排序
+        # result = self._dedupe_and_rank(combined_scores, k)
         # 3. 合并结果
-        combined_scores = self._combine_scores(
+        combined_scores, content_to_doc = self._combine_scores(
             vector_results, vector_scores,
             bm25_results
         )
-        
+
         # 4. 去重并排序
-        result = self._dedupe_and_rank(combined_scores, k)
-        
+        result = self._dedupe_and_rank(combined_scores, content_to_doc, k)
         logger.info(f"Hybrid retrieve: query='{query[:50]}...' returned {len(result)} docs")
         return result
     
@@ -252,48 +259,91 @@ class HybridRetriever:
             logger.error(f"BM25 search failed: {e}")
             return []
     
+    # def _combine_scores(
+    #     self,
+    #     vector_results: List[Document],
+    #     vector_scores: Dict[str, float],
+    #     bm25_results: List[tuple]
+    # ) -> Dict[Document, float]:
     def _combine_scores(
         self,
         vector_results: List[Document],
         vector_scores: Dict[str, float],
         bm25_results: List[tuple]
-    ) -> Dict[Document, float]:
+    ) -> tuple[Dict[str, float], Dict[str, Document]]:
+        # """合并向量和BM25分数"""
+        # combined = defaultdict(float)
+        
+        # # 添加向量分数
+        # for doc in vector_results:
+        #     combined[doc] += vector_scores.get(doc.page_content, 0)
+        
+        # # 添加BM25分数
+        # for doc, score in bm25_results:
+        #     combined[doc] += score
+        
+        # return combined
         """合并向量和BM25分数"""
         combined = defaultdict(float)
+        content_to_doc: Dict[str, Document] = {}
         
-        # 添加向量分数
         for doc in vector_results:
-            combined[doc] += vector_scores.get(doc.page_content, 0)
+            content = doc.page_content
+            content_to_doc[content] = doc
+            combined[content] += vector_scores.get(content, 0)
         
-        # 添加BM25分数
         for doc, score in bm25_results:
-            combined[doc] += score
+            content = doc.page_content
+            content_to_doc[content] = doc
+            combined[content] += score
         
-        return combined
-    
+        return combined, content_to_doc
     def _dedupe_and_rank(
         self,
-        combined_scores: Dict[Document, float],
+        combined_scores: Dict[str, float],
+        content_to_doc: Dict[str, Document],
         k: int
     ) -> List[Document]:
         """去重并排序"""
         seen = set()
         result = []
         
-        # 按分数排序
-        sorted_docs = sorted(
+        sorted_items = sorted(
             combined_scores.items(),
             key=lambda x: x[1],
             reverse=True
         )
         
-        for doc, score in sorted_docs:
-            content_hash = doc.page_content[:100]  # 使用前100字符作为唯一标识
+        for content, score in sorted_items:
+            content_hash = content[:100]
             if content_hash not in seen and len(result) < k:
-                result.append(doc)
+                result.append(content_to_doc[content])
                 seen.add(content_hash)
         
         return result
+    # def _dedupe_and_rank(
+    #     self,
+    #     combined_scores: Dict[Document, float],
+    #     k: int
+    # ) -> List[Document]:
+    #     """去重并排序"""
+    #     seen = set()
+    #     result = []
+        
+    #     # 按分数排序
+    #     sorted_docs = sorted(
+    #         combined_scores.items(),
+    #         key=lambda x: x[1],
+    #         reverse=True
+    #     )
+        
+    #     for doc, score in sorted_docs:
+    #         content_hash = doc.page_content[:100]  # 使用前100字符作为唯一标识
+    #         if content_hash not in seen and len(result) < k:
+    #             result.append(doc)
+    #             seen.add(content_hash)
+        
+    #     return result
     
     def vector_search(
         self,

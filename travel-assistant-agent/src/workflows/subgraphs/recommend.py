@@ -44,9 +44,9 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
         budget=collected_info.get("budget")
     )
     if cached:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info("🎯 业务缓存命中（recommend_plan）")
+        # import logging
+        # logger = logging.getLogger(__name__)
+        logger.info("🎯 业务缓存命中(recommend_plan)")
         need_clarification = cached.get("need_clarification", False)
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
@@ -62,159 +62,160 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     
     system_prompt = """你是旅游推荐规划专家。你的工作不是简单复述搜索结果，而是：
 
-## 职责
-1. 分析用户需求与搜索结果，洞察用户偏好与行程节奏
-2. 制定推荐框架：构建多方案策略，明确不同方案定位与满意度预期
-3. 识别信息缺口，提出澄清问题
-4. 为推荐执行阶段提供可操作的指导
+    ## 职责
+    1. 分析用户需求与搜索结果，洞察用户偏好与行程节奏
+    2. 制定推荐框架：构建多方案策略，明确不同方案定位与满意度预期
+    3. 识别信息缺口，提出澄清问题
+    4. 为推荐执行阶段提供可操作的指导
 
-## 输出格式（JSON）
-{
-    "user_profile_analysis": {
-        "trip_characteristics": {
-            "duration": "行程时长",
-            "destination_type": "目的地类型",
-            "travel_pace": "行程节奏",
-            "interest_focus": "兴趣焦点"
+    ## 输出格式(JSON)
+    {
+        "user_profile_analysis": {
+            "trip_characteristics": {
+                "duration": "行程时长",
+                "destination_type": "目的地类型",
+                "travel_pace": "行程节奏",
+                "interest_focus": "兴趣焦点"
+            },
+            "recommendation_considerations": ["考虑点1", "考虑点2"]
         },
-        "recommendation_considerations": ["考虑点1", "考虑点2"]
-    },
-    "recommendation_framework": {
-        "plan_1": {
-            "name": "方案名称",
-            "target": "目标人群",
-            "focus": ["景点1", "景点2"],
-            "characteristics": "方案特点",
-            "estimated_satisfaction": 0.8
-        }
-    },
-    "information_gaps": {
-        "missing_inputs": ["缺失信息1"],
-        "impact": "缺失影响"
-    },
-    "clarification_questions": ["问题1", "问题2"],
-    "recommend_plan": {
-        "themes": ["主题1", "主题2"],
-        "num_plans": 3,
-        "focus_points": ["侧重点1", "侧重点2"],
-        "weights": {"budget": 0.3, "experience": 0.4, "convenience": 0.3}
-    },
-    "output": "推荐计划描述"
-}"""
+        "recommendation_framework": {
+            "plan_1": {
+                "name": "方案名称",
+                "target": "目标人群",
+                "focus": ["景点1", "景点2"],
+                "characteristics": "方案特点",
+                "estimated_satisfaction": 0.8
+            }
+        },
+        "information_gaps": {
+            "missing_inputs": ["缺失信息1"],
+            "impact": "缺失影响"
+        },
+        "clarification_questions": ["问题1", "问题2"],
+        "recommend_plan": {
+            "themes": ["主题1", "主题2"],
+            "num_plans": 3,
+            "focus_points": ["侧重点1", "侧重点2"],
+            "weights": {"budget": 0.3, "experience": 0.4, "convenience": 0.3}
+        },
+        "output": "推荐计划描述"
+    }"""
 
     few_shots = """## 示例1: 信息相对完整
-用户：杭州3天，预算5000元，喜欢自然。
-搜索结果：包含西湖、灵隐寺、西溪湿地。
+    用户:杭州3天,预算5000元,喜欢自然。
+    搜索结果：包含西湖、灵隐寺、西溪湿地。
 
-输出：
-{
-    "user_profile_analysis": {
-        "trip_characteristics": {
-            "duration": "3天",
-            "destination_type": "城市自然+文化",
-            "travel_pace": "适中",
-            "interest_focus": "自然风景"
+    输出：
+    {
+        "user_profile_analysis": {
+            "trip_characteristics": {
+                "duration": "3天",
+                "destination_type": "城市自然+文化",
+                "travel_pace": "适中",
+                "interest_focus": "自然风景"
+            },
+            "recommendation_considerations": ["需要兼顾自然与文化体验"]
         },
-        "recommendation_considerations": ["需要兼顾自然与文化体验"]
-    },
-    "recommendation_framework": {
-        "plan_1": {
-            "name": "经典自然版",
-            "target": "首次到杭州",
-            "focus": ["西湖", "灵隐寺"],
-            "characteristics": "经典、景点集中",
-            "estimated_satisfaction": 0.85
+        "recommendation_framework": {
+            "plan_1": {
+                "name": "经典自然版",
+                "target": "首次到杭州",
+                "focus": ["西湖", "灵隐寺"],
+                "characteristics": "经典、景点集中",
+                "estimated_satisfaction": 0.85
+            },
+            "plan_2": {
+                "name": "湿地深度版",
+                "target": "喜欢轻徒步",
+                "focus": ["西溪湿地", "九溪"],
+                "characteristics": "生态、放松",
+                "estimated_satisfaction": 0.8
+            }
         },
-        "plan_2": {
-            "name": "湿地深度版",
-            "target": "喜欢轻徒步",
-            "focus": ["西溪湿地", "九溪"],
-            "characteristics": "生态、放松",
-            "estimated_satisfaction": 0.8
-        }
-    },
-    "information_gaps": {
-        "missing_inputs": [],
-        "impact": ""
-    },
-    "clarification_questions": [],
-    "recommend_plan": {
-        "themes": ["自然山水", "文化寻踪"],
-        "num_plans": 2,
-        "focus_points": ["西湖十景", "湿地生态"],
-        "weights": {"budget": 0.2, "experience": 0.6, "convenience": 0.2}
-    },
-    "output": "为您规划了以自然景观为主的推荐策略。"
-}
+        "information_gaps": {
+            "missing_inputs": [],
+            "impact": ""
+        },
+        "clarification_questions": [],
+        "recommend_plan": {
+            "themes": ["自然山水", "文化寻踪"],
+            "num_plans": 2,
+            "focus_points": ["西湖十景", "湿地生态"],
+            "weights": {"budget": 0.2, "experience": 0.6, "convenience": 0.2}
+        },
+        "output": "为您规划了以自然景观为主的推荐策略。"
+    }
 
-## 示例2: 信息不完整
-用户：北京游，偏好好玩的场所。
-搜索结果：基础景点信息有限。
+    ## 示例2: 信息不完整
+    用户：北京游，偏好好玩的场所。
+    搜索结果：基础景点信息有限。
 
-输出：
-{
-    "user_profile_analysis": {
-        "trip_characteristics": {
-            "duration": "未知",
-            "destination_type": "城市娱乐+文化",
-            "travel_pace": "未知",
-            "interest_focus": "好玩的场所"
+    输出：
+    {
+        "user_profile_analysis": {
+            "trip_characteristics": {
+                "duration": "未知",
+                "destination_type": "城市娱乐+文化",
+                "travel_pace": "未知",
+                "interest_focus": "好玩的场所"
+            },
+            "recommendation_considerations": ["缺少预算与行程节奏信息"]
         },
-        "recommendation_considerations": ["缺少预算与行程节奏信息"]
-    },
-    "recommendation_framework": {
-        "plan_1": {
-            "name": "热门景点精选版",
-            "target": "首次来北京",
-            "focus": ["故宫", "长城"],
-            "characteristics": "经典、可靠",
-            "estimated_satisfaction": 0.8
-        }
-    },
-    "information_gaps": {
-        "missing_inputs": ["预算范围", "出行风格"],
-        "impact": "影响酒店等级与行程强度"
-    },
-    "clarification_questions": ["您的预算范围是多少？", "偏好紧凑还是悠闲行程？"],
-    "recommend_plan": {
-        "themes": ["热门景点"],
-        "num_plans": 1,
-        "focus_points": ["经典景点"],
-        "weights": {"budget": 0.3, "experience": 0.4, "convenience": 0.3}
-    },
-    "output": "信息不足，需要补充预算和行程风格后优化推荐。"
-}"""
+        "recommendation_framework": {
+            "plan_1": {
+                "name": "热门景点精选版",
+                "target": "首次来北京",
+                "focus": ["故宫", "长城"],
+                "characteristics": "经典、可靠",
+                "estimated_satisfaction": 0.8
+            }
+        },
+        "information_gaps": {
+            "missing_inputs": ["预算范围", "出行风格"],
+            "impact": "影响酒店等级与行程强度"
+        },
+        "clarification_questions": ["您的预算范围是多少？", "偏好紧凑还是悠闲行程？"],
+        "recommend_plan": {
+            "themes": ["热门景点"],
+            "num_plans": 1,
+            "focus_points": ["经典景点"],
+            "weights": {"budget": 0.3, "experience": 0.4, "convenience": 0.3}
+        },
+        "output": "信息不足，需要补充预算和行程风格后优化推荐。"
+    }"""
 
     tools_text = await get_tools_and_skills_text()
-    cache_mgr = get_prompt_cache_manager()
-    prompt_cache_id = await cache_mgr.get_or_create_cache(
-        cache_key="recommend_plan",
-        llm=llm,
-        system_prompt=system_prompt,
-        few_shots=few_shots,
-        tools_text=tools_text
-    )
+    # cache_mgr = get_prompt_cache_manager()
+    # prompt_cache_id = await cache_mgr.get_or_create_cache(
+    #     cache_key="recommend_plan",
+    #     llm=llm,
+    #     system_prompt=system_prompt,
+    #     few_shots=few_shots,
+    #     tools_text=tools_text
+    # )
     
     user_query = f"""请制定推荐策略：
 
-## 用户信息
-- 目的地：{collected_info.get('destination')}
-- 出发日：{collected_info.get('dates')}
-- 周期：{collected_info.get('duration')}
-- 预算：{collected_info.get('budget', '未指定')}
-- 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+    ## 用户信息
+    - 目的地：{collected_info.get('destination')}
+    - 出发日：{collected_info.get('dates')}
+    - 周期：{collected_info.get('duration')}
+    - 预算：{collected_info.get('budget', '未指定')}
+    - 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
 
-## 搜索结果摘要
-{str(search_results)[:1000]}
+    ## 搜索结果摘要
+    {str(search_results)[:1000]}
 
-## 用户原始请求
-{user_content}
+    ## 用户原始请求
+    {user_content}
 
-返回 JSON 格式的推荐策略。"""
+    返回 JSON 格式的推荐策略。"""
 
-    if not prompt_cache_id:
-        import logging
-        logger = logging.getLogger(__name__)
+    # if not prompt_cache_id:
+    if True:
+        # import logging
+        # logger = logging.getLogger(__name__)
         logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
         messages = [
             SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表：\n{tools_text}"),
@@ -310,9 +311,9 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
         budget=collected_info.get("budget")
     )
     if cached:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info("🎯 业务缓存命中（recommend_execute）")
+        # import logging
+        # logger = logging.getLogger(__name__)
+        logger.info("🎯 业务缓存命中(recommend_execute)")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "cached": 0, "total": 0},
@@ -324,40 +325,40 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
     
     system_prompt = """你是旅游推荐执行专家，负责生成个性化的旅游方案。
 
-## 职责
-1. 根据推荐计划和搜索结果，生成具体的旅游行程方案
-2. 包含每日行程、推荐酒店、预估预算和亮点介绍
-3. 使用工具获取额外的推荐建议或进行价格校验
-4. 必须输出有效的 JSON 结构
+    ## 职责
+    1. 根据推荐计划和搜索结果，生成具体的旅游行程方案
+    2. 包含每日行程、推荐酒店、预估预算和亮点介绍
+    3. 使用工具获取额外的推荐建议或进行价格校验
+    4. 必须输出有效的 JSON 结构
 
-## 输出格式（JSON）
-{
-    "recommendations": {
-        "plans": [
-            {
-                "id": "plan_1",
-                "title": "方案标题",
-                "itinerary": [...],
-                "budget": {...},
-                "highlights": [...]
-            }
-        ]
-    },
-    "output": "方案概览描述"
-}"""
+    ## 输出格式(JSON)
+    {
+        "recommendations": {
+            "plans": [
+                {
+                    "id": "plan_1",
+                    "title": "方案标题",
+                    "itinerary": [...],
+                    "budget": {...},
+                    "highlights": [...]
+                }
+            ]
+        },
+        "output": "方案概览描述"
+    }"""
 
     few_shots = "## 示例：根据杭州搜索结果生成一个西湖深度游方案。"
     tools_text = await get_tools_and_skills_text()
     
     # 4️⃣ Prompt Cache
-    cache_mgr = get_prompt_cache_manager()
-    prompt_cache_id = await cache_mgr.get_or_create_cache(
-        cache_key="recommend_execute",
-        llm=llm,
-        system_prompt=system_prompt,
-        few_shots=few_shots,
-        tools_text=tools_text
-    )
+    # cache_mgr = get_prompt_cache_manager()
+    # prompt_cache_id = await cache_mgr.get_or_create_cache(
+    #     cache_key="recommend_execute",
+    #     llm=llm,
+    #     system_prompt=system_prompt,
+    #     few_shots=few_shots,
+    #     tools_text=tools_text
+    # )
     
     # Step 1: Java MCP 获取推荐基础数据
     mcp_client = get_mcp_client()
@@ -412,10 +413,10 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
     ## 搜索结果摘要
     {str(search_results)[:1000]}
 
-    ## 基础推荐数据（Java MCP）
+    ## 基础推荐数据(Java MCP)
     {json.dumps(rec_base.get('user', {}), ensure_ascii=False)}
 
-    ## 优质备选酒店（RAG 混合排序）
+    ## 优质备选酒店(RAG 混合排序)
     {json.dumps(ranked_hotels[:5], ensure_ascii=False)}
     """
 
@@ -469,8 +470,8 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
+        # import logging
+        # logger = logging.getLogger(__name__)
         logger.error(f"❌ recommend_execute_agent_node failed: {e}")
         return {
             "messages": [AIMessage(content=f"Error: {e}")],
