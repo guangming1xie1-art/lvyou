@@ -135,7 +135,7 @@ class MCPClient:
             connections = {
                 "java_api": {
                     "url": f"{self.java_api_url}/mcp",
-                    "transport": "http"
+                    "transport": "streamable_http"
                 }
             }
             
@@ -153,74 +153,74 @@ class MCPClient:
         """兼容性方法"""
         return self._client is not None
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
-    )
-    async def call_tool(
-        self,
-        tool_name: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        调用 Java API 工具
-        支持重试机制（3次重试，指数退避）
-        超时控制（30秒）
-        结果缓存（Redis，1小时）
-        调用 Gateway 的 MCP 统一端点，由 Gateway 路由到具体服务
-        """
-        # 合并参数
-        params = parameters or {}
-        params.update(kwargs)
+    # @retry(
+    #     stop=stop_after_attempt(3),
+    #     wait=wait_exponential(multiplier=1, min=2, max=10),
+    #     reraise=True
+    # )
+    # async def call_tool(
+    #     self,
+    #     tool_name: str,
+    #     parameters: Optional[Dict[str, Any]] = None,
+    #     **kwargs
+    # ) -> Dict[str, Any]:
+    #     """
+    #     调用 Java API 工具
+    #     支持重试机制（3次重试，指数退避）
+    #     超时控制（30秒）
+    #     结果缓存（Redis，1小时）
+    #     调用 Gateway 的 MCP 统一端点，由 Gateway 路由到具体服务
+    #     """
+    #     # 合并参数
+    #     params = parameters or {}
+    #     params.update(kwargs)
 
-        cache_key = f"mcp_cache:{tool_name}:{hash(json.dumps(params, sort_keys=True))}"
+    #     cache_key = f"mcp_cache:{tool_name}:{hash(json.dumps(params, sort_keys=True))}"
 
-        # 1. 尝试从缓存获取
-        try:
-            r = await self._get_redis()
-            cached_result = await r.get(cache_key)
-            if cached_result:
-                logger.info(f"Cache hit for MCP tool: {tool_name}")
-                return json.loads(cached_result)
-        except Exception as e:
-            logger.warning(f"Redis cache error: {e}")
+    #     # 1. 尝试从缓存获取
+    #     try:
+    #         r = await self._get_redis()
+    #         cached_result = await r.get(cache_key)
+    #         if cached_result:
+    #             logger.info(f"Cache hit for MCP tool: {tool_name}")
+    #             return json.loads(cached_result)
+    #     except Exception as e:
+    #         logger.warning(f"Redis cache error: {e}")
 
-        # 2. 构建 Gateway MCP 端点 URL
-        # 新的架构：所有工具调用都通过 Gateway MCP 端点
-        url = f"{self.java_api_url}/mcp/tools/{tool_name}/call"
+    #     # 2. 构建 Gateway MCP 端点 URL
+    #     # 新的架构：所有工具调用都通过 Gateway MCP 端点
+    #     url = f"{self.java_api_url}/mcp/tools/{tool_name}/call"
 
-        # 构建请求体（Gateway MCP 端点期望的格式）
-        request_body = {
-            "parameters": params
-        }
+    #     # 构建请求体（Gateway MCP 端点期望的格式）
+    #     request_body = {
+    #         "parameters": params
+    #     }
 
-        # 构建包含JWT的headers
-        headers = self._get_auth_headers()
+    #     # 构建包含JWT的headers
+    #     headers = self._get_auth_headers()
 
-        logger.info(f"Calling MCP tool '{tool_name}' via Gateway at {url}")
+    #     logger.info(f"Calling MCP tool '{tool_name}' via Gateway at {url}")
 
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url, json=request_body, headers=headers)
-                response.raise_for_status()
-                result = response.json()
+    #     try:
+    #         async with httpx.AsyncClient(timeout=self.timeout) as client:
+    #             response = await client.post(url, json=request_body, headers=headers)
+    #             response.raise_for_status()
+    #             result = response.json()
 
-                # 3. 存入缓存 (1小时)
-                try:
-                    await r.setex(cache_key, 3600, json.dumps(result))
-                except Exception as e:
-                    logger.warning(f"Failed to cache MCP result: {e}")
+    #             # 3. 存入缓存 (1小时)
+    #             try:
+    #                 await r.setex(cache_key, 3600, json.dumps(result))
+    #             except Exception as e:
+    #                 logger.warning(f"Failed to cache MCP result: {e}")
 
-                logger.info(f"MCP tool {tool_name} called successfully via Gateway with JWT auth")
-                return result
-        except Exception as e:
-            logger.error(f"Failed to call MCP tool {tool_name} via Gateway at {url}: {e}")
-            # 如果是 search 相关工具失败，尝试使用 mock 数据
-            if "search" in tool_name:
-                return self._mock_response(tool_name, params)
-            raise e
+    #             logger.info(f"MCP tool {tool_name} called successfully via Gateway with JWT auth")
+    #             return result
+    #     except Exception as e:
+    #         logger.error(f"Failed to call MCP tool {tool_name} via Gateway at {url}: {e}")
+    #         # 如果是 search 相关工具失败，尝试使用 mock 数据
+    #         if "search" in tool_name:
+    #             return self._mock_response(tool_name, params)
+    #         raise e
 
     async def get_tools(self) -> List[Any]:
         """
@@ -334,22 +334,25 @@ class MCPClient:
             
             # 直接调用 MCP 工具
             # 注意：实际的工具调用可能需要不同的方法
-            tools = await client.get_tools()
-            
+            # tools = await client.get_tools()
+            result = await client.call_tool(
+                tool_name,
+                arguments=parameters
+            )
             # 查找匹配的工具
-            target_tool = None
-            for tool in tools:
-                if tool.name == tool_name:
-                    target_tool = tool
-                    break
+            # target_tool = None
+            # for tool in tools:
+            #     if tool.name == tool_name:
+            #         target_tool = tool
+            #         break
             
-            if target_tool:
-                # 调用工具
-                if hasattr(target_tool, 'ainvoke'):
-                    result = await target_tool.ainvoke(parameters)
-                else:
-                    result = target_tool.invoke(parameters)
-                
+            # if target_tool:
+            #     # 调用工具
+            #     if hasattr(target_tool, 'ainvoke'):
+            #         result = await target_tool.ainvoke(parameters)
+            #     else:
+            #         result = target_tool.invoke(parameters)
+            if result:
                 return {
                     "result": result,
                     "error": None

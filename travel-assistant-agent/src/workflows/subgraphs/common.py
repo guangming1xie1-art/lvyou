@@ -238,14 +238,14 @@ async def build_search_tools(search_plan: Dict) -> List:
             logger.warning(f"[Build Tools] ⚠️ No MCP tools available")
         
         # 3. SKILLS 搜索技能
-        try:
-            search_skill = await SkillRegistry.load_skill("search")
-            if search_skill:
-                # 使用适配器转换为工具
-                tools.append(skill_to_tool(search_skill))
-                logger.info(f"[Build Tools] ✅ Added search skill tool")
-        except Exception as e:
-            logger.warning(f"[Build Tools] ⚠️ Failed to load search skill: {e}")
+        # try:
+        #     search_skill = await SkillRegistry.load_skill("search")
+        #     if search_skill:
+        #         # 使用适配器转换为工具
+        #         tools.append(skill_to_tool(search_skill))
+        #         logger.info(f"[Build Tools] ✅ Added search skill tool")
+        # except Exception as e:
+        #     logger.warning(f"[Build Tools] ⚠️ Failed to load search skill: {e}")
         
         logger.info(f"[Build Tools] 🔧 Total tools built: {len(tools)}")
         

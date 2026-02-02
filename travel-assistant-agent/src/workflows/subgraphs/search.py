@@ -39,8 +39,8 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     cache_key_biz = f"search_plan:{user_content[:50]}:{destination}"
     cached = cache_strategy.get_search_results(query=cache_key_biz, destination=destination)
     if cached:
-        import logging
-        logger = logging.getLogger(__name__)
+        # import logging
+        # logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中(search_plan)")
         need_clarification = cached.get("need_clarification", False)
         return {
@@ -271,9 +271,9 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
 
     # if not prompt_cache_id:
     if True:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
+        # import logging
+        # logger = logging.getLogger(__name__)
+        # logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
         messages = [
             SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表:\n{tools_text}"),
             HumanMessage(content=user_query)
@@ -371,8 +371,8 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     # 1️⃣ 业务缓存
     cached = cache_strategy.get_search_results(query=cache_key_biz, destination=destination)
     if cached:
-        import logging
-        logger = logging.getLogger(__name__)
+        # import logging
+        # logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中（search_execute）")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
@@ -382,7 +382,8 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
         }
 
     # 2️⃣ 获取 LLM（标准层）
-    llm = LLMFactory.create_model_by_tier(tier="standard")
+    # llm = LLMFactory.create_model_by_tier(tier="standard")
+    llm = LLMFactory.create_model_by_tier(tier="cheap")
     
     # 3️⃣ 系统 Prompt (ReAct)
     system_prompt = """你是旅游搜索执行专家，负责利用各种工具获取详细的旅游信息。
@@ -415,14 +416,14 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     tools_text = await get_tools_and_skills_text()
     
     # 4️⃣ Prompt Cache
-    cache_mgr = get_prompt_cache_manager()
-    prompt_cache_id = await cache_mgr.get_or_create_cache(
-        cache_key="search_execute",
-        llm=llm,
-        system_prompt=system_prompt,
-        few_shots=few_shots,
-        tools_text=tools_text
-    )
+    # cache_mgr = get_prompt_cache_manager()
+    # prompt_cache_id = await cache_mgr.get_or_create_cache(
+    #     cache_key="search_execute",
+    #     llm=llm,
+    #     system_prompt=system_prompt,
+    #     few_shots=few_shots,
+    #     tools_text=tools_text
+    # )
     
     # 5️⃣ 构建工具
     tools = await build_search_tools(search_plan)
@@ -438,14 +439,21 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     priorities = search_config.get("priorities", {})
 
     # Step 1: Java MCP 查询原始数据
-    mcp_client = get_mcp_client()
-    raw_hotels_resp = await mcp_client.call_tool(
-        "search_hotels",
-        destination=plan_payload.get("destination"),
-        price_min=collected_info.get("budget_min", 0),
-        price_max=collected_info.get("budget_max", 1000000),
-        rating_min=4.0
-    )
+    llm_with_tools = llm.bind_tools(tools)
+    # mcp_client = get_mcp_client()
+    # raw_hotels_resp = await mcp_client.call_tool(
+    #     "search_hotels",
+    #     parameters={
+    #         destination:plan_payload.get("destination"),
+    #         # price_min:collected_info.get("budget_min", 0),
+    #         # price_max:collected_info.get("budget_max", 1000000),
+    #         "checkIn":plan_payload.get("checkIn"),
+    #         "checkOut":plan_payload.get("checkOut"),
+    #         "minPrice":0,
+    #         "maxPrice":collected_info.get("budget", 1000000),
+    #         "minRating":4.0
+    #     }
+    # )
     raw_hotels = raw_hotels_resp.get("data", []) if isinstance(raw_hotels_resp.get("data"), list) else []
 
     # Step 2: RAG 混合检索
@@ -542,8 +550,8 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
+        # import logging
+        
         logger.error(f"❌ search_execute_agent_node failed: {e}")
         return {
             "messages": [AIMessage(content=f"Error: {e}")],

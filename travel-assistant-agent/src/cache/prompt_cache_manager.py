@@ -50,7 +50,8 @@ class PromptCacheManager:
             # 注意：这里需要 LLM 支持 extra_body 或者类似机制
             # 在阿里云 DashScope 中通常是通过 extra_body 传递 create_cache
             if hasattr(llm, 'invoke'):
-                resp = llm.invoke(cache_msg, extra_body={"create_cache": True})
+                # resp = llm.invoke(cache_msg, extra_body={"create_cache": True})
+                resp = llm.invoke(cache_msg)
                 
                 # 尝试从 response_metadata 中获取 cache_id
                 cache_id = resp.response_metadata.get("cache_id")
