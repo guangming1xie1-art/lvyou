@@ -1,5 +1,7 @@
 package com.travelassistant.hotel.controller;
 
+import com.travelassistant.hotel.dto.HotelSearchCriteria;
+import com.travelassistant.hotel.dto.PageResponse;
 import com.travelassistant.hotel.entity.Hotel;
 import com.travelassistant.hotel.service.HotelService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,96 @@ public class HotelController {
 
     @Autowired
     private HotelService hotelService;
+
+    /**
+     * 通用搜索端点 - 支持任意参数组合的可选参数查询
+     * 所有参数都是可选的，可以任意组合使用
+     */
+    @GetMapping("/search")
+    @Operation(
+        summary = "搜索酒店（动态查询）",
+        description = "通用搜索端点，支持任意参数组合的可选参数查询。" +
+                      "所有参数都是可选的，可以传一个、多个或全部参数。" +
+                      "支持：destination, minPrice, maxPrice, minRating, maxRating, facilities, " +
+                      "checkInDate, checkOutDate, name(模糊), description(模糊), 分页和排序"
+    )
+    public ResponseEntity<PageResponse<Hotel>> searchHotels(
+            @Parameter(description = "目的地")
+            @RequestParam(required = false) String destination,
+
+            @Parameter(description = "最低价格")
+            @RequestParam(required = false) BigDecimal minPrice,
+
+            @Parameter(description = "最高价格")
+            @RequestParam(required = false) BigDecimal maxPrice,
+
+            @Parameter(description = "最低评分")
+            @RequestParam(required = false) BigDecimal minRating,
+
+            @Parameter(description = "最高评分")
+            @RequestParam(required = false) BigDecimal maxRating,
+
+            @Parameter(description = "设施列表（满足任一即可）")
+            @RequestParam(required = false) List<String> facilities,
+
+            @Parameter(description = "入住日期")
+            @RequestParam(required = false) String checkInDate,
+
+            @Parameter(description = "退住日期")
+            @RequestParam(required = false) String checkOutDate,
+
+            @Parameter(description = "酒店名称（模糊匹配）")
+            @RequestParam(required = false) String name,
+
+            @Parameter(description = "描述关键词（模糊匹配）")
+            @RequestParam(required = false) String description,
+
+            @Parameter(description = "排序字段: name, price, rating, createdAt, updatedAt")
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+
+            @Parameter(description = "排序方向: asc, desc")
+            @RequestParam(defaultValue = "desc") String sortDirection,
+
+            @Parameter(description = "页码，从0开始")
+            @RequestParam(defaultValue = "0") Integer page,
+
+            @Parameter(description = "每页大小")
+            @RequestParam(defaultValue = "10") Integer size) {
+
+        HotelSearchCriteria criteria = HotelSearchCriteria.builder()
+                .destination(destination)
+                .minPrice(minPrice)
+                .maxPrice(maxPrice)
+                .minRating(minRating)
+                .maxRating(maxRating)
+                .facilities(facilities)
+                .checkInDate(checkInDate != null ? java.time.LocalDate.parse(checkInDate) : null)
+                .checkOutDate(checkOutDate != null ? java.time.LocalDate.parse(checkOutDate) : null)
+                .name(name)
+                .description(description)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
+                .page(page)
+                .size(size)
+                .build();
+
+        PageResponse<Hotel> result = hotelService.searchHotels(criteria);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * POST版本的搜索端点 - 支持更复杂的查询条件
+     */
+    @PostMapping("/search")
+    @Operation(
+        summary = "搜索酒店（POST版本）",
+        description = "POST版本的通用搜索端点，支持更复杂的查询条件。",
+        hidden = true
+    )
+    public ResponseEntity<PageResponse<Hotel>> searchHotelsPost(@RequestBody HotelSearchCriteria criteria) {
+        PageResponse<Hotel> result = hotelService.searchHotels(criteria);
+        return ResponseEntity.ok(result);
+    }
 
     @PostMapping
     @Operation(summary = "创建酒店", description = "创建新的酒店")
