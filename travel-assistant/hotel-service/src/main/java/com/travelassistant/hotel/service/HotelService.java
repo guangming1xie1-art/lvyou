@@ -1,10 +1,16 @@
 package com.travelassistant.hotel.service;
 
+import com.travelassistant.hotel.dto.HotelSearchCriteria;
+import com.travelassistant.hotel.dto.PageResponse;
 import com.travelassistant.hotel.entity.Hotel;
 import com.travelassistant.hotel.repository.HotelRepository;
+import com.travelassistant.hotel.specification.HotelSpecificationBuilder;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,6 +23,31 @@ public class HotelService {
 
     @Autowired
     private HotelRepository hotelRepository;
+
+    /**
+     * 动态搜索酒店（支持任意参数组合）
+     */
+    public PageResponse<Hotel> searchHotels(HotelSearchCriteria criteria) {
+        int page = criteria.getPage() != null ? criteria.getPage() : 0;
+        int size = criteria.getSize() != null ? criteria.getSize() : 10;
+
+        // 构建排序
+        Sort sort = Sort.by(Sort.Direction.fromString(
+                criteria.getSortDirection() != null ? criteria.getSortDirection().toUpperCase() : "DESC"),
+                criteria.getSortBy() != null ? criteria.getSortBy() : "createdAt");
+
+        PageRequest pageRequest = PageRequest.of(page, size, sort);
+
+        Page<Hotel> hotelPage = hotelRepository.findAll(
+                HotelSpecificationBuilder.build(criteria),
+                pageRequest);
+
+        return PageResponse.of(
+                hotelPage.getContent(),
+                hotelPage.getNumber(),
+                hotelPage.getSize(),
+                hotelPage.getTotalElements());
+    }
 
     /**
      * 创建酒店
