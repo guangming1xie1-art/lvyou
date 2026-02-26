@@ -1,10 +1,16 @@
 package com.travelassistant.flight.service;
 
+import com.travelassistant.flight.dto.FlightSearchCriteria;
+import com.travelassistant.flight.dto.PageResponse;
 import com.travelassistant.flight.entity.Flight;
 import com.travelassistant.flight.repository.FlightRepository;
+import com.travelassistant.flight.specification.FlightSpecificationBuilder;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,6 +25,31 @@ public class FlightService {
 
     @Autowired
     private FlightRepository flightRepository;
+
+    /**
+     * 动态搜索航班（支持任意参数组合）
+     */
+    public PageResponse<Flight> searchFlights(FlightSearchCriteria criteria) {
+        int page = criteria.getPage() != null ? criteria.getPage() : 0;
+        int size = criteria.getSize() != null ? criteria.getSize() : 10;
+
+        // 构建排序
+        Sort sort = Sort.by(Sort.Direction.fromString(
+                criteria.getSortDirection() != null ? criteria.getSortDirection().toUpperCase() : "DESC"),
+                criteria.getSortBy() != null ? criteria.getSortBy() : "createdAt");
+
+        PageRequest pageRequest = PageRequest.of(page, size, sort);
+
+        Page<Flight> flightPage = flightRepository.findAll(
+                FlightSpecificationBuilder.build(criteria),
+                pageRequest);
+
+        return PageResponse.of(
+                flightPage.getContent(),
+                flightPage.getNumber(),
+                flightPage.getSize(),
+                flightPage.getTotalElements());
+    }
 
     /**
      * 创建航班

@@ -2,6 +2,7 @@ package com.travelassistant.attraction.repository;
 
 import com.travelassistant.attraction.entity.Attraction;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -10,7 +11,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
-public interface AttractionRepository extends JpaRepository<Attraction, java.util.UUID> {
+public interface AttractionRepository extends JpaRepository<Attraction, java.util.UUID>, JpaSpecificationExecutor<Attraction> {
 
   /**
    * 根据目的地查找景点

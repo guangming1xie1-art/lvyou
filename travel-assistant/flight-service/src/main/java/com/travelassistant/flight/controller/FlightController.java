@@ -1,6 +1,8 @@
 package com.travelassistant.flight.controller;
 
 import com.travelassistant.flight.DTO.FlightSearchRequest;
+import com.travelassistant.flight.dto.FlightSearchCriteria;
+import com.travelassistant.flight.dto.PageResponse;
 import com.travelassistant.flight.entity.Flight;
 import com.travelassistant.flight.service.FlightService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +27,104 @@ public class FlightController {
 
     @Autowired
     private FlightService flightService;
+
+    /**
+     * 通用搜索端点 - 支持任意参数组合的可选参数查询
+     * 所有参数都是可选的，可以任意组合使用
+     */
+    @GetMapping("/search")
+    @Operation(
+        summary = "搜索航班（动态查询）",
+        description = "通用搜索端点，支持任意参数组合的可选参数查询。" +
+                      "所有参数都是可选的，可以传一个、多个或全部参数。" +
+                      "支持：origin, destination, departureDateStart/End, returnDateStart/End, " +
+                      "minPrice, maxPrice, airline, flightNo, minDuration, maxDuration, 分页和排序"
+    )
+    public ResponseEntity<List<Flight>> searchFlights(
+            @Parameter(description = "出发地")
+            @RequestParam(name="origin", required = false) String origin,
+
+            @Parameter(description = "目的地")
+            @RequestParam(name="destination", required = false) String destination,
+
+            @Parameter(description = "出发日期开始范围")
+            @RequestParam(name="departureDateStart", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate departureDateStart,
+
+            @Parameter(description = "出发日期结束范围")
+            @RequestParam(name="departureDateEnd", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate departureDateEnd,
+
+            @Parameter(description = "返回日期开始范围")
+            @RequestParam(name="returnDateStart", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDateStart,
+
+            @Parameter(description = "返回日期结束范围")
+            @RequestParam(name="returnDateEnd", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDateEnd,
+
+            @Parameter(description = "最低价格")
+            @RequestParam(name="minPrice", required = false) BigDecimal minPrice,
+
+            @Parameter(description = "最高价格")
+            @RequestParam(name="maxPrice", required = false) BigDecimal maxPrice,
+
+            @Parameter(description = "航空公司")
+            @RequestParam(name="airline", required = false) String airline,
+
+            @Parameter(description = "航班号（模糊匹配）")
+            @RequestParam(name="flightNo", required = false) String flightNo,
+
+            @Parameter(description = "最短时长（分钟）")
+            @RequestParam(name="minDuration", required = false) Integer minDuration,
+
+            @Parameter(description = "最长时长（分钟）")
+            @RequestParam(name="maxDuration", required = false) Integer maxDuration,
+
+            @Parameter(description = "排序字段: flightNo, origin, destination, departureDate, price, airline, duration, createdAt")
+            @RequestParam(name="sortBy", defaultValue = "createdAt") String sortBy,
+
+            @Parameter(description = "排序方向: asc, desc")
+            @RequestParam(name="sortDirection", defaultValue = "desc") String sortDirection,
+
+            @Parameter(description = "页码，从0开始")
+            @RequestParam(name="page", defaultValue = "0") Integer page,
+
+            @Parameter(description = "每页大小")
+            @RequestParam(name="size", defaultValue = "10") Integer size) {
+
+        FlightSearchCriteria criteria = FlightSearchCriteria.builder()
+                .origin(origin)
+                .destination(destination)
+                .departureDateStart(departureDateStart)
+                .departureDateEnd(departureDateEnd)
+                .returnDateStart(returnDateStart)
+                .returnDateEnd(returnDateEnd)
+                .minPrice(minPrice)
+                .maxPrice(maxPrice)
+                .airline(airline)
+                .flightNo(flightNo)
+                .minDuration(minDuration)
+                .maxDuration(maxDuration)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
+                .page(page)
+                .size(size)
+                .build();
+
+        PageResponse<Flight> result = flightService.searchFlights(criteria);
+        return ResponseEntity.ok(result.getContent());
+    }
+
+    /**
+     * POST版本的搜索端点 - 支持更复杂的查询条件
+     */
+    @PostMapping("/search")
+    @Operation(
+        summary = "搜索航班（POST版本）",
+        description = "POST版本的通用搜索端点，支持更复杂的查询条件。",
+        hidden = true
+    )
+    public ResponseEntity<PageResponse<Flight>> searchFlightsPost(@RequestBody FlightSearchCriteria criteria) {
+        PageResponse<Flight> result = flightService.searchFlights(criteria);
+        return ResponseEntity.ok(result);
+    }
 
     @PostMapping
     @Operation(summary = "创建航班", description = "创建新的航班")
