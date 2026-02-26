@@ -1,5 +1,6 @@
 package com.travelassistant.flight.controller;
 
+import com.travelassistant.flight.DTO.FlightSearchRequest;
 import com.travelassistant.flight.entity.Flight;
 import com.travelassistant.flight.service.FlightService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -110,14 +111,18 @@ public class FlightController {
     @PostMapping("/flight_info")
     @Operation(summary = "根据航线获取航班", description = "根据出发地和目的地获取航班列表")
     public ResponseEntity<List<Flight>> getFlightsByOriginAndDestinationAndDate(
-            @Parameter(description = "出发地", required = true)
-            @PathVariable String origin,
-            @Parameter(description = "目的地", required = true)
-            @PathVariable String destination,
-            @Parameter(description = "起飞日", required = true)
-            @PathVariable LocalDate destinationDate) {
-        List<Flight> flights1 = flightService.getFlightsByOriginDestinationAndDate(origin, destination, destinationDate);
-        List<Flight> flights2 = flightService.getFlightsInfo(origin, destination, destinationDate);
+            @Parameter(description = "查询参数")
+            @RequestBody FlightSearchRequest request) {
+        List<Flight> flights1 = flightService.getFlightsByOriginDestinationAndDate(
+                request.getOrigin(),
+                request.getDestination(),
+                request.getDepartureDate()
+        );
+        List<Flight> flights2 = flightService.getFlightsInfo(
+                request.getOrigin(),
+                request.getDestination(),
+                request.getDepartureDate()
+        );
         flights1.addAll(flights2);
         return ResponseEntity.ok(flights1);
     }
