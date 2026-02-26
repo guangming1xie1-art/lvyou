@@ -106,4 +106,19 @@ public class FlightController {
         flightService.deleteFlight(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/flight_info")
+    @Operation(summary = "根据航线获取航班", description = "根据出发地和目的地获取航班列表")
+    public ResponseEntity<List<Flight>> getFlightsByOriginAndDestinationAndDate(
+            @Parameter(description = "出发地", required = true)
+            @PathVariable String origin,
+            @Parameter(description = "目的地", required = true)
+            @PathVariable String destination,
+            @Parameter(description = "起飞日", required = true)
+            @PathVariable LocalDate destinationDate) {
+        List<Flight> flights1 = flightService.getFlightsByOriginDestinationAndDate(origin, destination, destinationDate);
+        List<Flight> flights2 = flightService.getFlightsInfo(origin, destination, destinationDate);
+        flights1.addAll(flights2);
+        return ResponseEntity.ok(flights1);
+    }
 }

@@ -121,6 +121,8 @@ COMMENT ON COLUMN hotels.updated_at IS '更新时间：最后一次修改时间�
 CREATE TABLE IF NOT EXISTS flights (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
+  --航班号
+  flight_no VARCHAR(10) NOT NULL,
   -- 航线信息
   origin VARCHAR(100) NOT NULL,
   destination VARCHAR(100) NOT NULL,
@@ -151,6 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_flights_created_at ON flights(created_at);
 
 COMMENT ON TABLE flights IS '航班表：航线、出发/返回日期、价格、航空公司及时长';
 COMMENT ON COLUMN flights.id IS '主键：UUID，默认 gen_random_uuid() 自动生成';
+COMMENT ON COLUMN flights.flight_no IS '航班号';
 COMMENT ON COLUMN flights.origin IS '出发城市代码/名称：必填，如 "Shanghai" 或 "SHA"';
 COMMENT ON COLUMN flights.destination IS '目的地城市代码/名称：必填';
 COMMENT ON COLUMN flights.departure_date IS '出发日期：必填；常用搜索条件（建立索引）';

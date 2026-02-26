@@ -98,26 +98,31 @@ INSERT INTO hotels (name, destination, price, rating, description, facilities, c
 -- FIXED: 将 duration_minutes 改为 duration 以匹配 Flight.java 实体
 -- =============================================================================
 
-INSERT INTO flights (origin, destination, departure_date, return_date, price, airline, duration) VALUES
-('Beijing', 'Shanghai', '2025-02-15', '2025-02-20', 580.00, 'Air China', 135),
+INSERT INTO flights (flight_no, origin, destination, departure_date, return_date, price, airline, duration) VALUES
+('MU6002', '北京', '上海', '2026-03-30', '2025-02-20', 580.00, 'Air China', 135),
 
-('Shanghai', 'Beijing', '2025-02-15', '2025-02-20', 620.00, 'China Eastern', 135),
+('MU6002', '上海', '北京', '2026-03-30', '2025-02-20', 620.00, 'China Eastern', 135),
 
-('Beijing', 'Shenzhen', '2025-03-01', '2025-03-08', 1280.00, 'Air China', 195),
+('ES8811', '北京', '深圳', '2026-03-30', '2025-03-08', 1280.00, 'Air China', 195),
 
-('Shanghai', 'Guangzhou', '2025-02-28', '2025-03-05', 890.00, 'China Southern', 155),
+('ES8812', '上海', '广州', '2026-03-30', '2025-03-05', 890.00, 'China Southern', 155),
 
-('Beijing', 'Chengdu', '2025-03-10', NULL, 980.00, 'Air China', 195),
+('ES8813', '北京', '成都', '2026-03-30', NULL, 980.00, 'Air China', 195),
 
-('Shanghai', 'Hangzhou', '2025-02-25', '2025-02-27', 280.00, 'Spring Airlines', 60),
+('ES8814', '上海', '杭州', '2026-03-30', '2025-02-27', 280.00, 'Spring Airlines', 60),
 
-('Beijing', 'Xi''an', '2025-03-15', '2025-03-20', 750.00, 'Hainan Airlines', 135),
+('ES8815', '北京', '西安', '2026-03-30', '2025-03-20', 750.00, 'Hainan Airlines', 135),
 
-('Shanghai', 'Suzhou', '2025-04-01', '2025-04-03', 180.00, 'Juneyao Airlines', 45),
+('ES8816', '上海', '苏州', '2026-03-30', '2025-04-03', 180.00, 'Juneyao Airlines', 45),
 
-('Beijing', 'Shanghai', '2025-04-10', '2025-04-15', 680.00, 'Air China', 135),
+('MU7002', '北京', '上海', '2026-03-30', '2025-04-15', 680.00, 'Air China', 135),
 
-('Shanghai', 'Beijing', '2025-04-10', '2025-04-15', 720.00, 'China Eastern', 135);
+('MU7002', '上海', '北京', '2026-03-30', '2025-04-15', 720.00, 'China Eastern', 135),
+
+('MU2777', '大连', '北京', '2026-03-30', '2025-03-30', 720.00, 'China Eastern', 135),
+
+('MU2777', '北京', '大连', '2026-03-30', '2025-03-30', 720.00, 'China Eastern', 135);
+
 
 -- =============================================================================
 -- 4. 示例景点数据 (attractions)

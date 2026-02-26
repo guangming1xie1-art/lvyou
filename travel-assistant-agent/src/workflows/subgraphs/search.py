@@ -21,6 +21,7 @@ from .common import (
 from agents.mcp_client import get_mcp_client
 from rag.retriever import HybridRetriever
 from .hybrid_retrieval import hybrid_rank
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -440,17 +441,24 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
 
     # Step 1: Java MCP 查询原始数据
     # llm_with_tools = llm.bind_tools(tools)
+    budgetTmp=re.findall(r'\d+\.?\d*', plan_payload.get("budget_range", "1000000"))
+    if len(budgetTmp)>1:
+        minPrice=budgetTmp[0]
+        maxPrice=budgetTmp[1]
+    else:
+        minPrice=0
+        maxPrice=budgetTmp[0]
     mcp_client = get_mcp_client()
     raw_hotels_resp = await mcp_client.call_tool(
         "search_hotels",
         parameters={
-            destination:plan_payload.get("destination"),
+            "destination":plan_payload.get("destination"),
             # price_min:collected_info.get("budget_min", 0),
             # price_max:collected_info.get("budget_max", 1000000),
-            "checkIn":plan_payload.get("checkIn"),
-            "checkOut":plan_payload.get("checkOut"),
-            "minPrice":0,
-            "maxPrice":collected_info.get("budget", 1000000),
+            "checkIn":plan_payload.get("check_in"),
+            "checkOut":plan_payload.get("check_out"),
+            "minPrice":minPrice,
+            "maxPrice":maxPrice,
             "minRating":4.0
         }
     )
@@ -538,11 +546,11 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
             desc = output_text
             
         # 缓存结果到业务缓存
-        cache_strategy.cache_search_results(
-            query=cache_key_biz,
-            results={"search_results": search_results, "output": desc},
-            destination=destination
-        )
+        # cache_strategy.cache_search_results(
+        #     query=cache_key_biz,
+        #     results={"search_results": search_results, "output": desc},
+        #     destination=destination
+        # )
         
         return {
             "messages": [last_msg],

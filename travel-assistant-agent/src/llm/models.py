@@ -14,6 +14,7 @@ class ModelProvider(str, Enum):
     QWEN = "qwen"
     DEEPSEEK = "deepseek"
     GLM = "glm"
+    MODELSCOPE = "modelscope"
 
 
 class ModelTier(str, Enum):
@@ -37,6 +38,7 @@ class ModelConfig(BaseModel):
     input_cost: float                     # 输入成本
     output_cost: float                    # 输出成本
     cache_read_cost: Optional[float] = None  # 缓存读取成本
+    enable_thinking: bool = False # 取消思考模式
 
     class Config:
         use_enum_values = True
@@ -54,7 +56,8 @@ MODELS: Dict[str, ModelConfig] = {
         max_tokens=8192,
         input_cost=0.03,
         output_cost=0.06,
-        cache_read_cost=0.0075
+        cache_read_cost=0.0075,
+        enable_thinking=False,
     ),
     "gpt-4-turbo": ModelConfig(
         name="GPT-4 Turbo",
@@ -65,7 +68,8 @@ MODELS: Dict[str, ModelConfig] = {
         max_tokens=128000,
         input_cost=0.01,
         output_cost=0.03,
-        cache_read_cost=0.0025
+        cache_read_cost=0.0025,
+        enable_thinking=False,
     ),
 
     # ============ Anthropic Claude ============
@@ -78,7 +82,8 @@ MODELS: Dict[str, ModelConfig] = {
         max_tokens=200000,
         input_cost=0.003,
         output_cost=0.015,
-        cache_read_cost=0.0003
+        cache_read_cost=0.0003,
+        enable_thinking=False,
     ),
     "claude-3-opus": ModelConfig(
         name="Claude 3 Opus",
@@ -89,7 +94,8 @@ MODELS: Dict[str, ModelConfig] = {
         max_tokens=200000,
         input_cost=0.015,
         output_cost=0.075,
-        cache_read_cost=0.00375
+        cache_read_cost=0.00375,
+        enable_thinking=False,
     ),
 
     # ============ Qwen ============
@@ -102,7 +108,8 @@ MODELS: Dict[str, ModelConfig] = {
         max_tokens=8192,
         input_cost=0.0005,
         output_cost=0.0015,
-        cache_read_cost=None
+        cache_read_cost=None,
+        enable_thinking=False,
     ),
 
     # ============ DeepSeek ============
@@ -115,19 +122,34 @@ MODELS: Dict[str, ModelConfig] = {
         max_tokens=64000,
         input_cost=0.0002,
         output_cost=0.001,
-        cache_read_cost=None
+        cache_read_cost=None,
+        enable_thinking=False,
     ),
 
     # ============ GLM ============
     "glm-4": ModelConfig(
         name="GLM-4",
         provider=ModelProvider.GLM,
-        model_id="glm-4-0520",
+        # model_id="glm-4-0520",
+        model_id="glm-4.7-flash",
         base_url="https://open.bigmodel.cn/api/paas/v4",
         api_key_env="ZHIPU_API_KEY",
         max_tokens=8192,
         input_cost=0.0001,
         output_cost=0.0003,
-        cache_read_cost=None
+        cache_read_cost=None,
+        enable_thinking=False,
+    ),
+    "modelscope": ModelConfig(
+        name="Qwen3-32B",
+        provider=ModelProvider.MODELSCOPE,
+        model_id="Qwen/Qwen3-32B",
+        base_url="https://api-inference.modelscope.cn/v1/",
+        api_key_env="MODEL_SCOPE_API_KEY",
+        max_tokens=8192,
+        input_cost=0.0001,
+        output_cost=0.0003,
+        cache_read_cost=None,
+        enable_thinking=False,
     )
 }

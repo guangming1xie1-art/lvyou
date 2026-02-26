@@ -22,7 +22,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Flight extends BaseEntity {
-  
+
+  // 航线信息
+  @Column(name = "flight_no", nullable = false, length = 10)
+  private String flightNo;
+
   // 航线信息
   @Column(nullable = false, length = 100)
   private String origin;
@@ -47,24 +51,6 @@ public class Flight extends BaseEntity {
   // 时长（分钟）
   @Column
   private Integer duration;
-
-  // 审计字段
-  @Column(name = "created_by")
-  private UUID createdBy;
-
-  @Column(name = "updated_by")
-  private UUID updatedBy;
-
-  // 业务逻辑
-  @PrePersist
-  protected void onCreate() {
-    super.onCreate();
-  }
-
-  @PreUpdate
-  protected void onUpdate() {
-    super.onUpdate();
-  }
 
   // 业务方法
   public String getDurationFormatted() {

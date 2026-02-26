@@ -63,7 +63,7 @@ public class HotelSpecificationBuilder {
 
             // 设施 - 满足任一设施即可（使用 JSONB 数组 containment 查询）
             if (criteria.getFacilities() != null && !criteria.getFacilities().isEmpty()) {
-                Join<Object, Object> facilitiesJoin = root.join("facilities", JoinType.INNER);
+                Join<Hotel, String> facilitiesJoin = root.join("facilities", JoinType.INNER);
                 CriteriaBuilder.In<String> inClause = cb.in(facilitiesJoin);
                 for (String facility : criteria.getFacilities()) {
                     inClause.value(facility);

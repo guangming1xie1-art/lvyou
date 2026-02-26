@@ -8,9 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -73,14 +74,58 @@ public class FlightService {
      * 根据出发地、目的地和日期获取航班
      */
     public List<Flight> getFlightsByOriginDestinationAndDate(String origin, String destination, LocalDate departureDate) {
-        return flightRepository.findByOriginDestinationAndDate(origin, destination, departureDate);
+        return flightRepository.findByOriginAndDestinationAndDate(origin, destination, departureDate);
     }
 
     /**
      * 根据出发地和日期范围获取航班
      */
-    public List<Flight> getFlightsByOriginAndDateRange(String origin, LocalDate startDate, LocalDate endDate) {
-        return flightRepository.findByOriginAndDateRange(origin, startDate, endDate);
+    public List<Flight> getFlightsInfo(String origin, String destination, LocalDate departureDate) {
+
+        // 1. 查询所有从出发地起飞的航班（第一段）
+        List<Flight> firstLegFlights = flightRepository.findByOriginAndDepartureDate(origin, departureDate);
+
+        // 2. 查询所有到达目的地的航班（第二段）
+        List<Flight> secondLegFlights = flightRepository.findByDestinationAndDepartureDate(destination, departureDate);
+
+        List<Flight> results = new ArrayList<>();
+
+        // 3. 找直达航班（两个列表的交集）
+        Set<String> secondLegFlightNos = secondLegFlights.stream()
+                .map(Flight::getFlightNo)
+                .collect(Collectors.toSet());
+
+        List<Flight> directFlights = firstLegFlights.stream()
+                .filter(f -> secondLegFlightNos.contains(f.getFlightNo()))
+                .collect(Collectors.toList());
+
+        results.addAll(directFlights);
+
+        // 4. 找转机航班（第一段.destination == 第二段.origin，且时间衔接合理）
+        for (Flight first : firstLegFlights) {
+            for (Flight second : secondLegFlights) {
+                // 同一航班号的是直达，跳过
+                if (first.getFlightNo().equals(second.getFlightNo())) {
+                    continue;
+                }
+                // 中转城市匹配
+                if (first.getDestination().equals(second.getOrigin())) {
+                    // 检查中转时间（比如 1-4 小时）
+                    Duration transferTime = Duration.between(first.getDepartureDate(), second.getDepartureDate());
+                    if (transferTime.toMinutes() >= 60 && transferTime.toMinutes() <= 240) {
+                        results.add(first);
+                        results.add(second);
+                    }
+                }
+            }
+        }
+
+        // 5. 按总时长排序
+        results.sort(Comparator.comparing(Flight::getDepartureDate));
+
+        return results;
+
+
     }
 
     /**

@@ -119,6 +119,13 @@
 
   <build>
     <plugins>
+      <!-- 显式引入 compiler 插件，继承 parent 的配置 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <!-- 版本和配置会从 parent 的 pluginManagement 继承 -->
+      </plugin>
+
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

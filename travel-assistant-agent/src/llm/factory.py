@@ -17,7 +17,8 @@ class LLMFactory:
     # 默认层级模型配置
     DEFAULT_MODELS = {
         # "cheap": "deepseek-v3",      # 便宜层
-        "cheap": "glm-4",      # 便宜层
+        # "cheap": "glm-4",      # 便宜层
+        "cheap": "modelscope",      # 便宜层
         "standard": "qwen-max",      # 标准层
         "powerful": "gpt-4-turbo",   # 强力层
     }
@@ -80,6 +81,7 @@ class LLMFactory:
             temperature=kwargs.get("temperature", config.temperature),
             max_tokens=kwargs.get("max_tokens", config.max_tokens),
             top_p=kwargs.get("top_p", config.top_p),
+            extra_body={"enable_thinking": config.enable_thinking} 
         )
 
     @classmethod

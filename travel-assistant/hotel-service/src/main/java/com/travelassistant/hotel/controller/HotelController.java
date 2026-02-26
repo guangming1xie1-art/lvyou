@@ -37,48 +37,48 @@ public class HotelController {
                       "支持：destination, minPrice, maxPrice, minRating, maxRating, facilities, " +
                       "checkInDate, checkOutDate, name(模糊), description(模糊), 分页和排序"
     )
-    public ResponseEntity<PageResponse<Hotel>> searchHotels(
+    public ResponseEntity<List<Hotel>> searchHotels(
             @Parameter(description = "目的地")
-            @RequestParam(required = false) String destination,
+            @RequestParam(name="destination", required = false) String destination,
 
             @Parameter(description = "最低价格")
-            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(name="minPrice", required = false) BigDecimal minPrice,
 
             @Parameter(description = "最高价格")
-            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(name="maxPrice", required = false) BigDecimal maxPrice,
 
             @Parameter(description = "最低评分")
-            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(name="minRating", required = false) BigDecimal minRating,
 
             @Parameter(description = "最高评分")
-            @RequestParam(required = false) BigDecimal maxRating,
+            @RequestParam(name="maxRating", required = false) BigDecimal maxRating,
 
             @Parameter(description = "设施列表（满足任一即可）")
-            @RequestParam(required = false) List<String> facilities,
+            @RequestParam(name="facilities", required = false) List<String> facilities,
 
             @Parameter(description = "入住日期")
-            @RequestParam(required = false) String checkInDate,
+            @RequestParam(name="checkInDate", required = false) String checkInDate,
 
             @Parameter(description = "退住日期")
-            @RequestParam(required = false) String checkOutDate,
+            @RequestParam(name="checkOutDate", required = false) String checkOutDate,
 
             @Parameter(description = "酒店名称（模糊匹配）")
-            @RequestParam(required = false) String name,
+            @RequestParam(name="name", required = false) String name,
 
             @Parameter(description = "描述关键词（模糊匹配）")
-            @RequestParam(required = false) String description,
+            @RequestParam(name="description", required = false) String description,
 
             @Parameter(description = "排序字段: name, price, rating, createdAt, updatedAt")
-            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(name="sortBy", defaultValue = "createdAt") String sortBy,
 
             @Parameter(description = "排序方向: asc, desc")
-            @RequestParam(defaultValue = "desc") String sortDirection,
+            @RequestParam(name="sortDirection", defaultValue = "desc") String sortDirection,
 
             @Parameter(description = "页码，从0开始")
-            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(name="page", defaultValue = "0") Integer page,
 
             @Parameter(description = "每页大小")
-            @RequestParam(defaultValue = "10") Integer size) {
+            @RequestParam(name="size", defaultValue = "10") Integer size) {
 
         HotelSearchCriteria criteria = HotelSearchCriteria.builder()
                 .destination(destination)
@@ -98,7 +98,7 @@ public class HotelController {
                 .build();
 
         PageResponse<Hotel> result = hotelService.searchHotels(criteria);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(result.getContent());
     }
 
     /**

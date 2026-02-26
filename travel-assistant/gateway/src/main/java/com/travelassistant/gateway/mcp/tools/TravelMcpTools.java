@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.HashMap;
@@ -45,7 +47,7 @@ public class TravelMcpTools {
         try {
             List<Map<String, Object>> hotels = webClientBuilder.build()
                     .get()
-                    .uri("lb://hotel-service/api/hotel", uriBuilder -> {
+                    .uri("lb://hotel-service/api/hotel/search", uriBuilder -> {
                         uriBuilder.queryParam("destination", destination)
                                 .queryParam("checkIn", checkIn)
                                 .queryParam("checkOut", checkOut);
@@ -109,24 +111,27 @@ public class TravelMcpTools {
         log.debug("Searching flights from {} to {} on {}", origin, destination, departureDate);
 
         try {
-            List<Map<String, Object>> hotels = webClientBuilder.build()
-                    .get()
-                    .uri("lb://flight-service/api/flight", uriBuilder -> {
-                        uriBuilder.queryParam("origin", origin)
-                                .queryParam("destination", destination)
-                                .queryParam("departureDate", departureDate);
-                        if (minPrice != null) uriBuilder.queryParam("minPrice", minPrice);
-                        if (maxPrice != null) uriBuilder.queryParam("maxPrice", maxPrice);
-                        if (airline != null && !airline.isEmpty()) uriBuilder.queryParam("airline", airline);
-                        return uriBuilder.build();
-                    })
+            // 构建请求参数 Map
+            Map<String, Object> params = new HashMap<>();
+            params.put("origin", origin);
+            params.put("destination", destination);
+            params.put("departureDate", departureDate);
+//            if (minPrice != null) params.put("minPrice", minPrice);
+//            if (maxPrice != null) params.put("maxPrice", maxPrice);
+//            if (airline != null && !airline.isEmpty()) params.put("airline", airline);
+
+            List<Map<String, Object>> flights = webClientBuilder.build()
+                    .post()
+                    .uri("lb://flight-service/api/flight/flight_info")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(BodyInserters.fromValue(params))
                     .retrieve()
 //                    .bodyToMono(Map.class)
                     .bodyToMono(LIST_MAP_TYPE)
                     .block();
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("data", hotels);
+            response.put("data", flights);
             return response;
         } catch (Exception e) {
             log.error("search_flights failed: {}", e.getMessage(), e);

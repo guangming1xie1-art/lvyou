@@ -40,7 +40,7 @@ public interface FlightRepository extends JpaRepository<Flight, UUID> {
    * 根据出发地、目的地和日期查找航班
    */
   @Query("SELECT f FROM Flight f WHERE f.origin = :origin AND f.destination = :destination AND f.departureDate = :departureDate")
-  List<Flight> findByOriginDestinationAndDate(
+  List<Flight> findByOriginAndDestinationAndDate(
       @Param("origin") String origin,
       @Param("destination") String destination,
       @Param("departureDate") LocalDate departureDate);
@@ -48,9 +48,16 @@ public interface FlightRepository extends JpaRepository<Flight, UUID> {
   /**
    * 根据出发地和日期范围查找航班
    */
-  @Query("SELECT f FROM Flight f WHERE f.origin = :origin AND f.departureDate BETWEEN :startDate AND :endDate")
-  List<Flight> findByOriginAndDateRange(
+  @Query("SELECT f FROM Flight f WHERE f.origin = :origin AND f.departureDate =:departureDate")
+  List<Flight> findByOriginAndDepartureDate(
       @Param("origin") String origin,
-      @Param("startDate") LocalDate startDate,
-      @Param("endDate") LocalDate endDate);
+      @Param("departureDate") LocalDate departureDate);
+
+  /**
+   * 根据目的地和日期范围查找航班
+   */
+  @Query("SELECT f FROM Flight f WHERE f.destination = :destination AND f.departureDate =:departureDate")
+  List<Flight> findByDestinationAndDepartureDate(
+          @Param("destination") String destination,
+          @Param("departureDate") LocalDate departureDate);
 }
