@@ -1,10 +1,16 @@
 package com.travelassistant.attraction.service;
 
+import com.travelassistant.attraction.dto.AttractionSearchCriteria;
+import com.travelassistant.attraction.dto.PageResponse;
 import com.travelassistant.attraction.entity.Attraction;
 import com.travelassistant.attraction.repository.AttractionRepository;
+import com.travelassistant.attraction.specification.AttractionSpecificationBuilder;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,6 +23,31 @@ public class AttractionService {
 
     @Autowired
     private AttractionRepository attractionRepository;
+
+    /**
+     * 动态搜索景点（支持任意参数组合）
+     */
+    public PageResponse<Attraction> searchAttractions(AttractionSearchCriteria criteria) {
+        int page = criteria.getPage() != null ? criteria.getPage() : 0;
+        int size = criteria.getSize() != null ? criteria.getSize() : 10;
+
+        // 构建排序
+        Sort sort = Sort.by(Sort.Direction.fromString(
+                criteria.getSortDirection() != null ? criteria.getSortDirection().toUpperCase() : "DESC"),
+                criteria.getSortBy() != null ? criteria.getSortBy() : "createdAt");
+
+        PageRequest pageRequest = PageRequest.of(page, size, sort);
+
+        Page<Attraction> attractionPage = attractionRepository.findAll(
+                AttractionSpecificationBuilder.build(criteria),
+                pageRequest);
+
+        return PageResponse.of(
+                attractionPage.getContent(),
+                attractionPage.getNumber(),
+                attractionPage.getSize(),
+                attractionPage.getTotalElements());
+    }
 
     /**
      * 创建景点

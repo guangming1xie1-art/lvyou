@@ -1,5 +1,7 @@
 package com.travelassistant.attraction.controller;
 
+import com.travelassistant.attraction.dto.AttractionSearchCriteria;
+import com.travelassistant.attraction.dto.PageResponse;
 import com.travelassistant.attraction.entity.Attraction;
 import com.travelassistant.attraction.service.AttractionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,88 @@ public class AttractionController {
 
     @Autowired
     private AttractionService attractionService;
+
+    /**
+     * 通用搜索端点 - 支持任意参数组合的可选参数查询
+     * 所有参数都是可选的，可以任意组合使用
+     */
+    @GetMapping("/search")
+    @Operation(
+        summary = "搜索景点（动态查询）",
+        description = "通用搜索端点，支持任意参数组合的可选参数查询。" +
+                      "所有参数都是可选的，可以传一个、多个或全部参数。" +
+                      "支持：destination, name, category, minRating, maxRating, tags, " +
+                      "description, openingHours, 分页和排序"
+    )
+    public ResponseEntity<List<Attraction>> searchAttractions(
+            @Parameter(description = "目的地")
+            @RequestParam(name="destination", required = false) String destination,
+
+            @Parameter(description = "景点名称（模糊匹配）")
+            @RequestParam(name="name", required = false) String name,
+
+            @Parameter(description = "类别")
+            @RequestParam(name="category", required = false) String category,
+
+            @Parameter(description = "最低评分")
+            @RequestParam(name="minRating", required = false) BigDecimal minRating,
+
+            @Parameter(description = "最高评分")
+            @RequestParam(name="maxRating", required = false) BigDecimal maxRating,
+
+            @Parameter(description = "标签列表（满足任一即可）")
+            @RequestParam(name="tags", required = false) List<String> tags,
+
+            @Parameter(description = "描述关键词（模糊匹配）")
+            @RequestParam(name="description", required = false) String description,
+
+            @Parameter(description = "营业时间")
+            @RequestParam(name="openingHours", required = false) String openingHours,
+
+            @Parameter(description = "排序字段: name, rating, category, createdAt")
+            @RequestParam(name="sortBy", defaultValue = "createdAt") String sortBy,
+
+            @Parameter(description = "排序方向: asc, desc")
+            @RequestParam(name="sortDirection", defaultValue = "desc") String sortDirection,
+
+            @Parameter(description = "页码，从0开始")
+            @RequestParam(name="page", defaultValue = "0") Integer page,
+
+            @Parameter(description = "每页大小")
+            @RequestParam(name="size", defaultValue = "10") Integer size) {
+
+        AttractionSearchCriteria criteria = AttractionSearchCriteria.builder()
+                .destination(destination)
+                .name(name)
+                .category(category)
+                .minRating(minRating)
+                .maxRating(maxRating)
+                .tags(tags)
+                .description(description)
+                .openingHours(openingHours)
+                .sortBy(sortBy)
+                .sortDirection(sortDirection)
+                .page(page)
+                .size(size)
+                .build();
+
+        PageResponse<Attraction> result = attractionService.searchAttractions(criteria);
+        return ResponseEntity.ok(result.getContent());
+    }
+
+    /**
+     * POST版本的搜索端点 - 支持更复杂的查询条件
+     */
+    @PostMapping("/search")
+    @Operation(
+        summary = "搜索景点（POST版本）",
+        description = "POST版本的通用搜索端点，支持更复杂的查询条件。",
+        hidden = true
+    )
+    public ResponseEntity<PageResponse<Attraction>> searchAttractionsPost(@RequestBody AttractionSearchCriteria criteria) {
+        PageResponse<Attraction> result = attractionService.searchAttractions(criteria);
+        return ResponseEntity.ok(result);
+    }
 
     @PostMapping
     @Operation(summary = "创建景点", description = "创建新的景点")
