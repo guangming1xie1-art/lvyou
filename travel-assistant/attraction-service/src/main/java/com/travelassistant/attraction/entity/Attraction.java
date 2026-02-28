@@ -1,20 +1,13 @@
 package com.travelassistant.attraction.entity;
 
-import com.travelassistant.attraction.converter.JsonbConverter;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,59 +39,40 @@ public class Attraction extends BaseEntity {
   private String openingHours; // "09:00-18:00"
 
   // ⭐【核心字段】标签数组，用于搜索和推荐
-  @Column(columnDefinition = "jsonb", nullable = false)
-  @Convert(converter = JsonbConverter.class)
-  private List<String> tags; // ["summer", "beach", "family"] 或 ["winter", "skiing"]
+  @Column(name = "tags", columnDefinition = "text[]")
+  private String[] tags;
 
-  // 业务逻辑
-  @PrePersist
-  protected void onCreate() {
-    super.onCreate();
-    if (rating == null) {
-      rating = BigDecimal.ZERO;
-    }
-    if (tags == null) {
-      tags = new ArrayList<>();
+  // 辅助方法：List <-> 数组转换
+  public List<String> getTags() {
+    return tags == null ? new ArrayList<>() : new ArrayList<>(Arrays.asList(tags));
+  }
+
+  public void setTags(List<String> tagList) {
+    this.tags = tagList == null ? new String[0] : tagList.toArray(new String[0]);
+  }
+
+  // 业务方法保持不变
+  public boolean hasTag(String tag) {
+    return getTags().contains(tag);
+  }
+
+  public void addTag(String tag) {
+    List<String> list = getTags();
+    if (!list.contains(tag)) {
+      list.add(tag);
+      setTags(list);
     }
   }
 
+  public void removeTag(String tag) {
+    List<String> list = getTags();
+    list.remove(tag);
+    setTags(list);
+  }
+
+  // 业务逻辑
   @PreUpdate
   protected void onUpdate() {
     super.onUpdate();
-  }
-
-  /**
-   * 检查景点是否包含某个标签
-   */
-  public boolean hasTag(String tag) {
-    return tags != null && tags.contains(tag);
-  }
-
-  /**
-   * 添加标签
-   */
-  public void addTag(String tag) {
-    if (tags == null) {
-      tags = new ArrayList<>();
-    }
-    if (!tags.contains(tag)) {
-      tags.add(tag);
-    }
-  }
-
-  /**
-   * 移除标签
-   */
-  public void removeTag(String tag) {
-    if (tags != null) {
-      tags.remove(tag);
-    }
-  }
-
-  /**
-   * 获取所有标签（用于搜索）
-   */
-  public String getTagsAsString() {
-    return tags != null ? String.join(",", tags) : "";
   }
 }

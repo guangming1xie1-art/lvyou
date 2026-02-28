@@ -27,11 +27,12 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: false
+    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        use_sql_comments: true  # 显示 SQL 注释（可选，方便调试）
 
   flyway:
     enabled: true
@@ -53,3 +54,9 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+
+  logging:
+    level:
+      org.hibernate.SQL: DEBUG                    # SQL 语句
+      org.hibernate.orm.jdbc.bind: TRACE          # 参数值（JPA 3.x / Hibernate 6.x）
+      com.travelassistant: DEBUG

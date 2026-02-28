@@ -10,8 +10,10 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,31 +25,6 @@ public class AttractionService {
 
     @Autowired
     private AttractionRepository attractionRepository;
-
-    /**
-     * 动态搜索景点（支持任意参数组合）
-     */
-    public PageResponse<Attraction> searchAttractions(AttractionSearchCriteria criteria) {
-        int page = criteria.getPage() != null ? criteria.getPage() : 0;
-        int size = criteria.getSize() != null ? criteria.getSize() : 10;
-
-        // 构建排序
-        Sort sort = Sort.by(Sort.Direction.fromString(
-                criteria.getSortDirection() != null ? criteria.getSortDirection().toUpperCase() : "DESC"),
-                criteria.getSortBy() != null ? criteria.getSortBy() : "createdAt");
-
-        PageRequest pageRequest = PageRequest.of(page, size, sort);
-
-        Page<Attraction> attractionPage = attractionRepository.findAll(
-                AttractionSpecificationBuilder.build(criteria),
-                pageRequest);
-
-        return PageResponse.of(
-                attractionPage.getContent(),
-                attractionPage.getNumber(),
-                attractionPage.getSize(),
-                attractionPage.getTotalElements());
-    }
 
     /**
      * 创建景点
@@ -135,5 +112,47 @@ public class AttractionService {
     public void deleteAttraction(UUID id) {
         Attraction attraction = getAttractionById(id);
         attractionRepository.delete(attraction);
+    }
+
+    public Page<Attraction> searchAttractions(AttractionSearchCriteria criteria, Pageable pageable) {
+        // ✅ 空值保持为 null，不要转成空字符串
+        String destination = StringUtils.hasText(criteria.getDestination())
+                ? criteria.getDestination()
+                : null;  // 关键：保持 null
+
+        String name = StringUtils.hasText(criteria.getName())
+                ? criteria.getName()
+                : null;
+
+        String category = StringUtils.hasText(criteria.getCategory())
+                ? criteria.getCategory()
+                : null;
+
+        String openingHours = StringUtils.hasText(criteria.getOpeningHours())
+                ? criteria.getOpeningHours()
+                : null;
+
+        // 标签处理保持不变
+        String[] tagsArray = null;
+        if (criteria.getTags() != null && !criteria.getTags().isEmpty()) {
+            tagsArray = criteria.getTags().toArray(new String[0]);
+        }
+
+        // 排序有默认值，不需要判空
+        String sortBy = criteria.getSortBy();
+        String sortDirection = criteria.getSortDirection();
+
+        return attractionRepository.searchAttractions(
+                destination,   // 传 null
+                name,          // 传 null
+                category,      // 传 null
+                criteria.getMinRating(),
+                criteria.getMaxRating(),
+                openingHours,  // 传 null
+                tagsArray,
+                sortBy,
+                sortDirection,
+                pageable
+        );
     }
 }

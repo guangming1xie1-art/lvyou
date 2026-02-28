@@ -55,12 +55,27 @@ public class AttractionSpecificationBuilder {
 
             // 标签 - 满足任一标签即可（使用 JSONB 数组 containment 查询）
             if (criteria.getTags() != null && !criteria.getTags().isEmpty()) {
-                Join<Attraction, String> tagsJoin = root.join("tags", JoinType.INNER);
-                CriteriaBuilder.In<String> inClause = cb.in(tagsJoin);
-                for (String tag : criteria.getTags()) {
-                    inClause.value(tag);
-                }
-                predicates.add(inClause);
+//                Join<Attraction, String> tagsJoin = root.join("tags", JoinType.INNER);
+//                CriteriaBuilder.In<String> inClause = cb.in(tagsJoin);
+//                for (String tag : criteria.getTags()) {
+//                    inClause.value(tag);
+//                }
+//                predicates.add(inClause);
+                // 方法：tags 数组中只要包含任一传入的标签即可
+                String[] tags = criteria.getTags().toArray(new String[0]);
+                // 手动拼 SQL: tags && ARRAY['tag1','tag2']
+                String tagArrayStr = "ARRAY[" +
+                        java.util.Arrays.stream(tags)
+                                .map(t -> "'" + t.replace("'", "''") + "'")
+                                .collect(java.util.stream.Collectors.joining(","))
+                        + "]";
+
+                predicates.add(cb.isTrue(
+                        cb.function("arrayoverlaps", Boolean.class,
+                                root.get("tags"),
+                                cb.literal(tagArrayStr)  // 这里其实是字符串，会再转
+                        )
+                ));
             }
 
             // 处理排序

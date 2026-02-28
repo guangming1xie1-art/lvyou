@@ -25,7 +25,6 @@ import re
 
 logger = logging.getLogger(__name__)
 
-
 async def search_plan_node(state: SubState) -> Dict[str, Any]:
     """搜索规划节点 - 利用 Prompt Cache 优化成本"""
     counter = TokenCounter()
@@ -131,7 +130,7 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
 
     # 4️⃣ Few-shot 示例（固定内容，用于创建缓存）
     few_shots = """## 示例1: 信息相对完整
-    输入: 杭州3天游，预算5000元，喜欢自然风景
+    输入: 杭州3天游,预算5000元,喜欢自然风景
 
     规划输出:
     {
@@ -245,16 +244,6 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     # 5️⃣ 工具和技能文本
     tools_text = await get_tools_and_skills_text()
     
-    # 6️⃣ 获取或创建 Prompt Cache
-    # cache_mgr = get_prompt_cache_manager()
-    # prompt_cache_id = await cache_mgr.get_or_create_cache(
-    #     cache_key="search_plan",
-    #     llm=llm,
-    #     system_prompt=system_prompt,
-    #     few_shots=few_shots,
-    #     tools_text=tools_text
-    # )
-    
     user_query = f"""请根据以下已收集的用户信息，生成搜索战略：
 
     ## 用户信息
@@ -270,25 +259,12 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
 
     返回 JSON 格式的搜索战略。"""
 
-    # if not prompt_cache_id:
-    if True:
-        # import logging
-        # logger = logging.getLogger(__name__)
-        # logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
-        messages = [
-            SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表:\n{tools_text}"),
-            HumanMessage(content=user_query)
-        ]
-        result = await llm.ainvoke(messages, config={"callbacks": [counter]})
-        output_text = result.content
-    else:
-        # 7️⃣ 使用 Prompt Cache 调用 LLM
-        output_text, cached_tokens = await cache_mgr.invoke_with_cache(
-            llm=llm,
-            cache_id=prompt_cache_id,
-            user_query=user_query,
-            counter=counter
-        )
+    messages = [
+        SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表:\n{tools_text}"),
+        HumanMessage(content=user_query)
+    ]
+    result = await llm.ainvoke(messages, config={"callbacks": [counter]})
+    output_text = result.content
     
     if output_text is None:
         return {
@@ -314,7 +290,8 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
         search_plan = data
         desc = data.get("output", output_text)
         clarification_questions = data.get("clarification_questions", []) or []
-        need_clarification = len(clarification_questions) > 0
+        # need_clarification = len(clarification_questions) > 0
+        need_clarification = False
     except Exception:
         search_plan = {"raw": output_text, "search_plan": {"destination": destination}}
         desc = output_text
@@ -372,8 +349,6 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     # 1️⃣ 业务缓存
     cached = cache_strategy.get_search_results(query=cache_key_biz, destination=destination)
     if cached:
-        # import logging
-        # logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中（search_execute）")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
@@ -383,48 +358,7 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
         }
 
     # 2️⃣ 获取 LLM（标准层）
-    # llm = LLMFactory.create_model_by_tier(tier="standard")
     llm = LLMFactory.create_model_by_tier(tier="cheap")
-    
-    # 3️⃣ 系统 Prompt (ReAct)
-    # system_prompt = """你是旅游搜索执行专家，负责利用各种工具获取详细的旅游信息。
-
-    # ## 职责
-    # 1. 根据搜索计划，调用 RAG、Java API 或其他工具进行深度搜索
-    # 2. 获取具体的酒店、航班、景点和价格信息
-    # 3. 综合多方数据，形成完整的搜索结果报告
-    # 4. 必须输出有效的 JSON 结构
-
-    # ## 工具使用策略
-    # - 优先使用 RAG 检索知识库中的旅游攻略和常识
-    # - 使用 Java API (MCP) 获取实时的酒店、航班数据
-    # - 使用 Agent Skills 进行特定的搜索任务
-
-    # ## 输出格式(JSON)
-    # {
-    #     "output": "综合搜索结果文本描述",
-    #     "search_results": {
-    #         "destinations": [...],
-    #         "hotels": [...],
-    #         "flights": [...],
-    #         "attractions": [...],
-    #         "rag_sources_used": [...],
-    #         "tools_used": [...]
-    #     }
-    # }"""
-
-    # few_shots = "## 示例：请通过调用工具获取杭州的酒店和景点信息，并返回 JSON。"
-    # tools_text = await get_tools_and_skills_text()
-    
-    # 4️⃣ Prompt Cache
-    # cache_mgr = get_prompt_cache_manager()
-    # prompt_cache_id = await cache_mgr.get_or_create_cache(
-    #     cache_key="search_execute",
-    #     llm=llm,
-    #     system_prompt=system_prompt,
-    #     few_shots=few_shots,
-    #     tools_text=tools_text
-    # )
     
     # 5️⃣ 构建工具
     tools = await build_search_tools(search_plan)
@@ -449,51 +383,51 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
         minPrice=0
         maxPrice=budgetTmp[0]
     mcp_client = get_mcp_client()
-    raw_hotels_resp = await mcp_client.call_tool(
-        "search_hotels",
-        parameters={
-            "destination":plan_payload.get("destination"),
-            # price_min:collected_info.get("budget_min", 0),
-            # price_max:collected_info.get("budget_max", 1000000),
-            "checkIn":plan_payload.get("check_in"),
-            "checkOut":plan_payload.get("check_out"),
-            "minPrice":minPrice,
-            "maxPrice":maxPrice,
-            "minRating":4.0
-        }
-    )
-    raw_hotels_res = json.loads(raw_hotels_resp.get("result")[0]['text'])
-    
-    raw_hotels = raw_hotels_res.get("data", []) if isinstance(raw_hotels_res.get("data"), list) else []
 
-    # Step 2: RAG 混合检索
-    hybrid_retriever = HybridRetriever()
-    rag_query = f"{plan_payload.get('destination')} {', '.join(rag_keywords)}"
-    rag_docs = await hybrid_retriever.aretrieve(rag_query, k=50)
+   # 3️⃣ 正确的系统提示词，指导Agent按策略执行
+    system_prompt = f"""你是旅游搜索执行专家，负责根据搜索策略使用工具获取旅游信息。
 
-    # Step 3: 混合排序
-    ranked_hotels = hybrid_rank(raw_hotels, rag_docs, search_plan)
+    ## 执行策略
+    1. 必须按顺序执行以下三个步骤，每个步骤都要实际调用对应工具：
+    - 步骤1: 调用工具获取景点信息 (search_attractions)
+    - 步骤2: 调用工具获取酒店信息 (search_hotels) 
+    - 步骤3: 调用工具获取交通信息 (search_flights)
+    2. 每个步骤完成后，在中间结果中确认该步骤已完成
+    3. 最终汇总所有结果
 
-    user_query = f"""请根据以下搜索战略执行搜索任务：
+    ## 搜索策略
+    - 阶段1(热门景点): {search_plan.get('search_strategy', {}).get('phase1_hot_spots', {})}
+    - 阶段2(特殊兴趣): {search_plan.get('search_strategy', {}).get('phase2_special_interests', {})}
+    - 阶段3(住宿): {search_plan.get('search_strategy', {}).get('phase3_accommodation', {})}
+    - 阶段4(交通): {search_plan.get('search_strategy', {}).get('phase4_logistics', {})}
 
-    ## 搜索战略
-    - 第1阶段(热门景点): {strategy.get('phase1_hot_spots')}
-    - 第2阶段(特殊兴趣): {strategy.get('phase2_special_interests')}
-    - 第3阶段(住宿): {strategy.get('phase3_accommodation')}
-    - 第4阶段(交通): {strategy.get('phase4_logistics')}
+    ## 参数信息
+    - 目的地: {plan_payload.get('destination', '')}
+    - 出发地: {plan_payload.get('origin', '')}
+    - 入住日期: {plan_payload.get('check_in', '')}
+    - 退房日期: {plan_payload.get('check_out', '')}
+    - 预算范围: {plan_payload.get('budget_range', '')}
 
-    ## 搜索配置
-    - RAG关键词: {rag_keywords}
-    - 优先级配置：{priorities}
-    - 酒店策略：{search_config.get('hotel_strategy')}
-    - 航班策略：{search_config.get('flight_strategy')}
+    ## 工具使用策略
+    - 必须调用search_attractions获取景点数据
+    - 必须调用search_hotels获取住宿数据
+    - 必须调用search_flights获取交通数据
+    - 可选使用RAG工具获取背景信息
 
-    ## 搜索计划
-    - 目的地：{plan_payload.get('destination')}
-    - 入住日期：{plan_payload.get('check_in')}
-    - 退房日期：{plan_payload.get('check_out')}
-    - 住宿天数：{plan_payload.get('duration_days')}
-    - 搜索优先级：{', '.join(plan_payload.get('search_priorities', []))}
+    ## 输出格式(JSON)
+    {{
+        "output": "综合搜索结果文本描述",
+        "search_results": {{
+            "destinations": [],
+            "hotels": [],
+            "flights": [],
+            "attractions": [],
+            "rag_sources_used": [],
+            "tools_used": []
+        }}
+    }}"""
+
+    user_query = f"""请按执行策略完成搜索任务：
 
     ## 用户信息
     - 目的地：{collected_info.get('destination')}
@@ -505,8 +439,7 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     ## 用户原始请求
     {user_content}
 
-    ## 已获取的优质酒店（经过混合排序）
-    {json.dumps(ranked_hotels[:5], ensure_ascii=False)}
+    请严格按照执行策略调用所有必需工具并汇总结果。
     """
 
     try:
@@ -515,12 +448,13 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
         agent = create_react_agent(llm, tools)
         
         invoke_kwargs = {"callbacks": [counter]}
-        # if prompt_cache_id:
-        #     invoke_kwargs["extra_body"] = {"cache_id": prompt_cache_id}
         
         logger.info(f"[Search Execute] 🚀 Starting agent execution...")
         result = await agent.ainvoke(
-            {"messages": [HumanMessage(content=user_query)]},
+            {"messages": [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_query)
+            ]},
             config=invoke_kwargs
         )
         logger.info(f"[Search Execute] ✅ Agent execution completed")
@@ -546,11 +480,11 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
             desc = output_text
             
         # 缓存结果到业务缓存
-        # cache_strategy.cache_search_results(
-        #     query=cache_key_biz,
-        #     results={"search_results": search_results, "output": desc},
-        #     destination=destination
-        # )
+        cache_strategy.cache_search_results(
+            query=cache_key_biz,
+            results={"search_results": search_results, "output": desc},
+            destination=destination
+        )
         
         return {
             "messages": [last_msg],
@@ -560,7 +494,6 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        # import logging
         
         logger.error(f"❌ search_execute_agent_node failed: {e}")
         return {

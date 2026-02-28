@@ -263,12 +263,15 @@ class HuggingFaceEmbeddingAdapter(EmbeddingAdapter):
                 "Install them with: pip install langchain-huggingface sentence-transformers"
             )
         
+        os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
         init_kwargs = {
             "model_name": model,
+            "model_kwargs": {"device": "cpu"},
         }
         
-        if api_key:
-            init_kwargs["token"] = api_key
+        # if api_key:
+        #     init_kwargs["token"] = api_key
         
         # 添加额外的配置参数
         init_kwargs.update(kwargs)
@@ -301,6 +304,50 @@ class HuggingFaceEmbeddingAdapter(EmbeddingAdapter):
             return 768
 
 
+class ModelScopeEmbeddingAdapter(EmbeddingAdapter):
+    """ModelScope 嵌入模型适配器"""
+    
+    def __init__(self, model: str, api_key: str, **kwargs):
+        try:
+            from langchain_community.embeddings import ModelScopeEmbeddings
+        except ImportError:
+            raise ImportError(
+                "ModelScopeEmbeddingAdapter requires zhipuai and langchain-community. "
+                "Install them with: pip install zhipuai langchain-community"
+            )
+        
+        init_kwargs = {
+            "model_id": model,
+        }
+        
+        # 添加额外的配置参数
+        init_kwargs.update(kwargs)
+        
+        self._client = ModelScopeEmbeddings(**init_kwargs)
+        self._model = model
+        logger.info(f"Initialized ModelScopeEmbeddingAdapter with model: {model}")
+    
+    def embed_query(self, text: str) -> List[float]:
+        try:
+            return self._client.embed_query(text)
+        except Exception as e:
+            logger.error(f"ModelScope embed_query failed: {e}")
+            raise
+    
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        try:
+            return self._client.embed_documents(texts)
+        except Exception as e:
+            logger.error(f"ModelScope embed_documents failed: {e}")
+            raise
+    
+    def get_dimension(self) -> int:
+        # ModelScope 模型维度
+        dimension_map = {
+            "Qwen/Qwen3-Embedding-0.6B": 1024,
+        }
+        return dimension_map.get(self._model, 1024)
+
 class EmbeddingFactory:
     """
     Embedding模型工厂
@@ -316,7 +363,8 @@ class EmbeddingFactory:
         "qwen": "text-embedding-v2",
         "glm": "embedding-2",
         "kimi": "moonshot-v1",
-        "huggingface": "sentence-transformers/all-MiniLM-L6-v2",
+        "huggingface": "Qwen/Qwen3-Embedding-0.6B",
+        "modelscope":"Qwen/Qwen3-Embedding-0.6B"
     }
     
     # 提供商到适配器类的映射
@@ -326,6 +374,7 @@ class EmbeddingFactory:
         "glm": GLMEmbeddingAdapter,
         "kimi": KimiEmbeddingAdapter,
         "huggingface": HuggingFaceEmbeddingAdapter,
+        "modelscope": ModelScopeEmbeddingAdapter,
     }
     
     @classmethod
@@ -362,11 +411,11 @@ class EmbeddingFactory:
             vec = embeddings.embed_query("北京旅游")
         """
         # 获取提供商
-        provider = provider or os.getenv("EMBEDDING_PROVIDER", "glm").lower()
+        provider = provider or os.getenv("EMBEDDING_PROVIDER", "huggingface").lower()
         
         # 获取模型名称
         if not model:
-            model = os.getenv("EMBEDDING_MODEL") or cls.DEFAULT_MODELS.get(provider, "")
+            model = cls.DEFAULT_MODELS.get(provider, "")
         
         # 创建缓存键
         cache_key = f"{provider}:{model}"
@@ -424,6 +473,7 @@ class EmbeddingFactory:
             "glm": ["ZHIPUAI_API_KEY"],
             "kimi": ["MOONSHOT_API_KEY"],
             "huggingface": ["HUGGINGFACE_API_KEY"],
+            "modelscope": ["MODEL_SCOPE_API_KEY"],
         }
         
         for env_var in env_vars.get(provider, []):

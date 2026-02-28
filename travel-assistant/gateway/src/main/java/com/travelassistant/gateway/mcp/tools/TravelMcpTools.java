@@ -13,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Travel MCP Tools
@@ -44,6 +45,8 @@ public class TravelMcpTools {
         log.debug("Searching hotels for destination: {}, checkIn: {}, checkOut: {}",
                 destination, checkIn, checkOut);
 
+        ParameterizedTypeReference<List<Map<String, Object>>> LIST_MAP_TYPE =
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {};
         try {
             List<Map<String, Object>> hotels = webClientBuilder.build()
                     .get()
@@ -74,28 +77,28 @@ public class TravelMcpTools {
     /**
      * 获取酒店详情
      */
-    @Tool(name = "get_hotel_details", description = "获取酒店详细信息")
-    public Map<String, Object> getHotelDetails(
-            @ToolParam(description = "酒店ID") String id) {
-
-        log.debug("Getting hotel details for id: {}", id);
-
-        try {
-            return webClientBuilder.build()
-                    .get()
-                    .uri("lb://hotel-service/api/hotel/{id}", id)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("get_hotel_details failed: {}", e.getMessage(), e);
-            return createErrorResponse("获取酒店详情失败: " + e.getMessage());
-        }
-    }
+//    @Tool(name = "get_hotel_details", description = "获取酒店详细信息")
+//    public Map<String, Object> getHotelDetails(
+//            @ToolParam(description = "酒店ID") String id) {
+//
+//        log.debug("Getting hotel details for id: {}", id);
+//
+//        try {
+//            return webClientBuilder.build()
+//                    .get()
+//                    .uri("lb://hotel-service/api/hotel/{id}", id)
+//                    .retrieve()
+//                    .bodyToMono(Map.class)
+//                    .block();
+//        } catch (Exception e) {
+//            log.error("get_hotel_details failed: {}", e.getMessage(), e);
+//            return createErrorResponse("获取酒店详情失败: " + e.getMessage());
+//        }
+//    }
 
     // ==================== 航班工具 ====================
-    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_MAP_TYPE =
-            new ParameterizedTypeReference<List<Map<String, Object>>>() {};
+//    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_MAP_TYPE =
+//            new ParameterizedTypeReference<List<Map<String, Object>>>() {};
     /**
      * 搜索航班
      */
@@ -119,6 +122,8 @@ public class TravelMcpTools {
 //            if (minPrice != null) params.put("minPrice", minPrice);
 //            if (maxPrice != null) params.put("maxPrice", maxPrice);
 //            if (airline != null && !airline.isEmpty()) params.put("airline", airline);
+            ParameterizedTypeReference<List<Map<String, Object>>> LIST_MAP_TYPE =
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {};
 
             List<Map<String, Object>> flights = webClientBuilder.build()
                     .post()
@@ -142,24 +147,24 @@ public class TravelMcpTools {
     /**
      * 获取航班详情
      */
-    @Tool(name = "get_flight_details", description = "获取航班详细信息")
-    public Map<String, Object> getFlightDetails(
-            @ToolParam(description = "航班ID") String id) {
-
-        log.debug("Getting flight details for id: {}", id);
-
-        try {
-            return webClientBuilder.build()
-                    .get()
-                    .uri("lb://flight-service/api/flight/{id}", id)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("get_flight_details failed: {}", e.getMessage(), e);
-            return createErrorResponse("获取航班详情失败: " + e.getMessage());
-        }
-    }
+//    @Tool(name = "get_flight_details", description = "获取航班详细信息")
+//    public Map<String, Object> getFlightDetails(
+//            @ToolParam(description = "航班ID") String id) {
+//
+//        log.debug("Getting flight details for id: {}", id);
+//
+//        try {
+//            return webClientBuilder.build()
+//                    .get()
+//                    .uri("lb://flight-service/api/flight/{id}", id)
+//                    .retrieve()
+//                    .bodyToMono(Map.class)
+//                    .block();
+//        } catch (Exception e) {
+//            log.error("get_flight_details failed: {}", e.getMessage(), e);
+//            return createErrorResponse("获取航班详情失败: " + e.getMessage());
+//        }
+//    }
 
     // ==================== 景点工具 ====================
 
@@ -176,147 +181,151 @@ public class TravelMcpTools {
         log.debug("Searching attractions for destination: {}", destination);
 
         try {
-            return webClientBuilder.build()
+            List<Map<String, Object>> attractions =
+                    webClientBuilder.build()
                     .get()
-                    .uri("lb://attraction-service/api/attraction", uriBuilder -> {
-                        uriBuilder.queryParam("destination", destination);
-                        if (category != null && !category.isEmpty()) uriBuilder.queryParam("category", category);
-                        if (minRating != null) uriBuilder.queryParam("minRating", minRating);
-                        if (tags != null && !tags.isEmpty()) {
-                            tags.forEach(tag -> uriBuilder.queryParam("tags", tag));
-                        }
-                        return uriBuilder.build();
-                    })
+                    .uri(uriBuilder -> uriBuilder
+                            .scheme("lb")
+                            .host("attraction-service")
+                            .path("/api/attraction/search")
+                            .queryParam("destination", destination)
+                            .queryParamIfPresent("category", Optional.ofNullable(category))
+                            .queryParamIfPresent("minRating", Optional.ofNullable(minRating))
+                            .build())
                     .retrieve()
-                    .bodyToMono(Map.class)
+                    .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
                     .block();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", attractions);
+            return response;
         } catch (Exception e) {
             log.error("search_attractions failed: {}", e.getMessage(), e);
             return createErrorResponse("搜索景点失败: " + e.getMessage());
         }
     }
 
-    /**
-     * 获取景点详情
-     */
-    @Tool(name = "get_attraction_details", description = "获取景点详细信息")
-    public Map<String, Object> getAttractionDetails(
-            @ToolParam(description = "景点ID") String id) {
-
-        log.debug("Getting attraction details for id: {}", id);
-
-        try {
-            return webClientBuilder.build()
-                    .get()
-                    .uri("lb://attraction-service/api/attraction/{id}", id)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("get_attraction_details failed: {}", e.getMessage(), e);
-            return createErrorResponse("获取景点详情失败: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 获取景点详情
+//     */
+//    @Tool(name = "get_attraction_details", description = "获取景点详细信息")
+//    public Map<String, Object> getAttractionDetails(
+//            @ToolParam(description = "景点ID") String id) {
+//
+//        log.debug("Getting attraction details for id: {}", id);
+//
+//        try {
+//            return webClientBuilder.build()
+//                    .get()
+//                    .uri("lb://attraction-service/api/attraction/{id}", id)
+//                    .retrieve()
+//                    .bodyToMono(Map.class)
+//                    .block();
+//        } catch (Exception e) {
+//            log.error("get_attraction_details failed: {}", e.getMessage(), e);
+//            return createErrorResponse("获取景点详情失败: " + e.getMessage());
+//        }
+//    }
 
     // ==================== 预订工具 ====================
 
-    /**
-     * 创建预订
-     */
-    @Tool(name = "create_booking", description = "创建酒店、航班或景点预订")
-    public Map<String, Object> createBooking(
-            @ToolParam(description = "用户ID") String userId,
-            @ToolParam(description = "预订类型 (HOTEL, FLIGHT, ATTRACTION)") String bookingType,
-            @ToolParam(description = "资源ID (酒店/航班/景点ID)") String resourceId,
-            @ToolParam(description = "预订日期 YYYY-MM-DD") String bookingDate,
-            @ToolParam(description = "总价") Double totalPrice,
-            @ToolParam(description = "备注", required = false) String notes) {
-
-        log.debug("Creating booking for user: {}, type: {}, resource: {}", userId, bookingType, resourceId);
-
-        try {
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("userId", userId);
-            requestBody.put("bookingType", bookingType);
-            requestBody.put("resourceId", resourceId);
-            requestBody.put("bookingDate", bookingDate);
-            requestBody.put("totalPrice", totalPrice);
-            if (notes != null) requestBody.put("notes", notes);
-
-            return webClientBuilder.build()
-                    .post()
-                    .uri("lb://booking-service/api/booking")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("create_booking failed: {}", e.getMessage(), e);
-            return createErrorResponse("创建预订失败: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 创建预订
+//     */
+//    @Tool(name = "create_booking", description = "创建酒店、航班或景点预订")
+//    public Map<String, Object> createBooking(
+//            @ToolParam(description = "用户ID") String userId,
+//            @ToolParam(description = "预订类型 (HOTEL, FLIGHT, ATTRACTION)") String bookingType,
+//            @ToolParam(description = "资源ID (酒店/航班/景点ID)") String resourceId,
+//            @ToolParam(description = "预订日期 YYYY-MM-DD") String bookingDate,
+//            @ToolParam(description = "总价") Double totalPrice,
+//            @ToolParam(description = "备注", required = false) String notes) {
+//
+//        log.debug("Creating booking for user: {}, type: {}, resource: {}", userId, bookingType, resourceId);
+//
+//        try {
+//            Map<String, Object> requestBody = new HashMap<>();
+//            requestBody.put("userId", userId);
+//            requestBody.put("bookingType", bookingType);
+//            requestBody.put("resourceId", resourceId);
+//            requestBody.put("bookingDate", bookingDate);
+//            requestBody.put("totalPrice", totalPrice);
+//            if (notes != null) requestBody.put("notes", notes);
+//
+//            return webClientBuilder.build()
+//                    .post()
+//                    .uri("lb://booking-service/api/booking")
+//                    .bodyValue(requestBody)
+//                    .retrieve()
+//                    .bodyToMono(Map.class)
+//                    .block();
+//        } catch (Exception e) {
+//            log.error("create_booking failed: {}", e.getMessage(), e);
+//            return createErrorResponse("创建预订失败: " + e.getMessage());
+//        }
+//    }
 
     /**
      * 获取预订状态
      */
-    @Tool(name = "get_booking_status", description = "获取预订状态和详情")
-    public Map<String, Object> getBookingStatus(
-            @ToolParam(description = "预订ID") String id) {
-
-        log.debug("Getting booking status for id: {}", id);
-
-        try {
-            return webClientBuilder.build()
-                    .get()
-                    .uri("lb://booking-service/api/booking/{id}", id)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("get_booking_status failed: {}", e.getMessage(), e);
-            return createErrorResponse("获取预订状态失败: " + e.getMessage());
-        }
-    }
+//    @Tool(name = "get_booking_status", description = "获取预订状态和详情")
+//    public Map<String, Object> getBookingStatus(
+//            @ToolParam(description = "预订ID") String id) {
+//
+//        log.debug("Getting booking status for id: {}", id);
+//
+//        try {
+//            return webClientBuilder.build()
+//                    .get()
+//                    .uri("lb://booking-service/api/booking/{id}", id)
+//                    .retrieve()
+//                    .bodyToMono(Map.class)
+//                    .block();
+//        } catch (Exception e) {
+//            log.error("get_booking_status failed: {}", e.getMessage(), e);
+//            return createErrorResponse("获取预订状态失败: " + e.getMessage());
+//        }
+//    }
 
     // ==================== 推荐工具 ====================
 
-    /**
-     * 获取个性化推荐
-     */
-    @Tool(name = "get_recommendations", description = "获取个性化推荐（酒店、航班、景点或综合推荐）")
-    public Map<String, Object> getRecommendations(
-            @ToolParam(description = "用户ID") String userId,
-            @ToolParam(description = "推荐类型 (hotels, flights, attractions, comprehensive)") String type,
-            @ToolParam(description = "返回数量限制", required = false) Integer limit) {
-
-        log.debug("Getting recommendations for user: {}, type: {}", userId, type);
-
-        try {
-            String baseUri;
-            if ("hotels".equals(type)) {
-                baseUri = "lb://recommendation-service/api/recommendation/hotels/{userId}";
-            } else if ("flights".equals(type)) {
-                baseUri = "lb://recommendation-service/api/recommendation/flights/{userId}";
-            } else if ("attractions".equals(type)) {
-                baseUri = "lb://recommendation-service/api/recommendation/attractions/{userId}";
-            } else {
-                baseUri = "lb://recommendation-service/api/recommendation/comprehensive/{userId}";
-            }
-
-            return webClientBuilder.build()
-                    .get()
-                    .uri(baseUri, uriBuilder -> {
-                        if (limit != null) uriBuilder.queryParam("limit", limit);
-                        return uriBuilder.build(userId);
-                    })
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("get_recommendations failed: {}", e.getMessage(), e);
-            return createErrorResponse("获取推荐失败: " + e.getMessage());
-        }
-    }
+//    /**
+//     * 获取个性化推荐
+//     */
+//    @Tool(name = "get_recommendations", description = "获取个性化推荐（酒店、航班、景点或综合推荐）")
+//    public Map<String, Object> getRecommendations(
+//            @ToolParam(description = "用户ID") String userId,
+//            @ToolParam(description = "推荐类型 (hotels, flights, attractions, comprehensive)") String type,
+//            @ToolParam(description = "返回数量限制", required = false) Integer limit) {
+//
+//        log.debug("Getting recommendations for user: {}, type: {}", userId, type);
+//
+//        try {
+//            String baseUri;
+//            if ("hotels".equals(type)) {
+//                baseUri = "lb://recommendation-service/api/recommendation/hotels/{userId}";
+//            } else if ("flights".equals(type)) {
+//                baseUri = "lb://recommendation-service/api/recommendation/flights/{userId}";
+//            } else if ("attractions".equals(type)) {
+//                baseUri = "lb://recommendation-service/api/recommendation/attractions/{userId}";
+//            } else {
+//                baseUri = "lb://recommendation-service/api/recommendation/comprehensive/{userId}";
+//            }
+//
+//            return webClientBuilder.build()
+//                    .get()
+//                    .uri(baseUri, uriBuilder -> {
+//                        if (limit != null) uriBuilder.queryParam("limit", limit);
+//                        return uriBuilder.build(userId);
+//                    })
+//                    .retrieve()
+//                    .bodyToMono(Map.class)
+//                    .block();
+//        } catch (Exception e) {
+//            log.error("get_recommendations failed: {}", e.getMessage(), e);
+//            return createErrorResponse("获取推荐失败: " + e.getMessage());
+//        }
+//    }
 
     // ==================== 辅助方法 ====================
 

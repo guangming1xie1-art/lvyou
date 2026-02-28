@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS attractions (
   -- 核心字段：标签数组（JSON）
   -- 示例：夏季海滩 ["summer","beach","family","swimming"]
   --       冬季滑雪 ["winter","skiing","snow","adventure"]
-  tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+  tags TEXT[] NOT NULL DEFAULT '{}',
 
   -- 审计字段（FIXED: 移除 created_by/updated_by 以保持一致性）
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

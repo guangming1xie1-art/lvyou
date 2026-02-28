@@ -47,7 +47,7 @@ class VectorStoreManager:
         """获取Embedding模型"""
         if self._embeddings is None:
             from .embeddings import EmbeddingFactory
-            self._embeddings = EmbeddingFactory.get_embeddings()
+            self._embeddings = EmbeddingFactory.get_embeddings("huggingface")
         return self._embeddings
     
     def _load_or_create(self):

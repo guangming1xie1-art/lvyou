@@ -130,86 +130,167 @@ INSERT INTO flights (flight_no, origin, destination, departure_date, return_date
 -- FIXED: 添加 tags 字段（核心字段，用于搜索和推荐）
 -- =============================================================================
 INSERT INTO attractions (destination, name, category, rating, description, opening_hours, tags) VALUES
-('Shanghai', 'The Bund', 'historic', 4.6,
- 'Iconic waterfront promenade showcasing Shanghai''s colonial architecture and modern skyline.',
- '00:00-24:00', '["historic", "landmark", "waterfront", "photography", "architecture"]'),
+('上海', '外滩', '历史', 4.6,
+ '标志性的滨江长廊，展示上海的殖民建筑和现代天际线。',
+ '00:00-24:00', '["历史", "地标", "滨江", "摄影", "建筑"]'),
 
-('Shanghai', 'Yu Garden', 'historic', 4.4,
- 'Traditional Chinese garden featuring classical architecture, pavilions, and traditional shops.',
- '08:30-17:00', '["historic", "garden", "culture", "traditional", "architecture"]'),
+('上海', '豫园', '历史', 4.4,
+ '传统中式园林，拥有古典建筑、亭台楼阁和传统商铺。',
+ '08:30-17:00', '["历史", "园林", "文化", "传统", "建筑"]'),
 
-('Shanghai', 'Shanghai Disney Resort', 'entertainment', 4.7,
- 'Magic kingdom featuring Disney characters, thrilling rides, and spectacular shows.',
- '08:00-22:00', '["entertainment", "family", "theme_park", "kids", "adventure"]'),
+('上海', '上海迪士尼度假区', '娱乐', 4.7,
+ '神奇的王国，拥有迪士尼角色、刺激游乐设施和精彩演出。',
+ '08:00-22:00', '["娱乐", "家庭", "主题公园", "儿童", "冒险"]'),
 
-('Shanghai', 'French Concession', 'historic', 4.5,
- 'Historic area with tree-lined streets, European architecture, and trendy shops.',
- '00:00-24:00', '["historic", "architecture", "walking", "shopping", "culture"]'),
+('上海', '法租界', '历史', 4.5,
+ '历史街区，拥有林荫街道、欧式建筑和时尚店铺。',
+ '00:00-24:00', '["历史", "建筑", "漫步", "购物", "文化"]'),
 
-('Beijing', 'Forbidden City', 'historic', 4.8,
- 'Imperial palace complex showcasing 600 years of Chinese history and architecture.',
- '08:30-17:00', '["historic", "palace", "culture", "unesco", "landmark", "architecture"]'),
+('北京', '故宫', '历史', 4.8,
+ '皇家宫殿建筑群，展示600年的中国历史与建筑艺术。',
+ '08:30-17:00', '["历史", "宫殿", "文化", "世界遗产", "地标", "建筑"]'),
 
-('Beijing', 'Great Wall (Badaling)', 'historic', 4.5,
- 'Most visited section of the Great Wall offering spectacular mountain views.',
- '07:30-18:00', '["historic", "landmark", "hiking", "unesco", "adventure", "mountain"]'),
+('北京', '长城（八达岭）', '历史', 4.5,
+ '长城最受欢迎的路段，提供壮观的山景。',
+ '07:30-18:00', '["历史", "地标", "徒步", "世界遗产", "冒险", "山景"]'),
 
-('Beijing', 'Summer Palace', 'historic', 4.6,
- 'Imperial garden featuring lakes, palaces, and traditional Chinese landscaping.',
- '06:30-18:00', '["historic", "garden", "lake", "culture", "relaxation", "nature"]'),
+('北京', '颐和园', '历史', 4.6,
+ '皇家园林，拥有湖泊、宫殿和传统中式园林景观。',
+ '06:30-18:00', '["历史", "园林", "湖泊", "文化", "休闲", "自然"]'),
 
-('Beijing', 'Temple of Heaven', 'historic', 4.3,
- 'Sacred complex where emperors prayed for good harvests, featuring stunning architecture.',
- '06:00-22:00', '["historic", "culture", "religion", "architecture", "temple"]'),
+('北京', '天坛', '历史', 4.3,
+ '神圣的建筑群，皇帝曾在此祈求丰收，拥有令人惊叹的建筑。',
+ '06:00-22:00', '["历史", "文化", "宗教", "建筑", "寺庙"]'),
 
-('Shenzhen', 'Splendid China Folk Village', 'historic', 4.2,
- 'Miniature park showcasing China''s ethnic diversity and historical landmarks.',
- '09:00-21:30', '["historic", "culture", "family", "entertainment", "folk"]'),
+('深圳', '锦绣中华民俗村', '历史', 4.2,
+ '微缩公园，展示中国的民族多样性和历史地标。',
+ '09:00-21:30', '["历史", "文化", "家庭", "娱乐", "民俗"]'),
 
-('Shenzhen', 'Window of the World', 'entertainment', 4.1,
- 'Theme park featuring replicas of world-famous landmarks and cultural attractions.',
- '09:00-22:00', '["entertainment", "family", "theme_park", "international", "landmark"]'),
+('深圳', '世界之窗', '娱乐', 4.1,
+ '主题公园，展示世界著名地标和文化景点的复制品。',
+ '09:00-22:00', '["娱乐", "家庭", "主题公园", "国际", "地标"]'),
 
-('Guangzhou', 'Canton Tower', 'historic', 4.0,
- 'Iconic 604m television tower offering panoramic city views and entertainment facilities.',
- '09:00-22:30', '["landmark", "modern", "city_view", "entertainment", "architecture"]'),
+('广州', '广州塔', '历史', 4.0,
+ '标志性的604米高电视塔，提供全景城市视野和娱乐设施。',
+ '09:00-22:30', '["地标", "现代", "城市景观", "娱乐", "建筑"]'),
 
-('Guangzhou', 'Chimelong Safari Park', 'entertainment', 4.4,
- 'Large safari park featuring diverse wildlife and exciting animal shows.',
- '09:30-17:30', '["wildlife", "family", "animals", "nature", "adventure"]'),
+('广州', '长隆野生动物世界', '娱乐', 4.4,
+ '大型野生动物园，拥有多样化的野生动物和精彩的动物表演。',
+ '09:30-17:30', '["野生动物", "家庭", "动物", "自然", "冒险"]'),
 
-('Chengdu', 'Giant Panda Breeding Research Base', 'historic', 4.8,
- 'World-renowned panda conservation center where visitors can observe giant pandas.',
- '07:30-18:00', '["wildlife", "animals", "nature", "family", "culture", "conservation"]'),
+('成都', '大熊猫繁育研究基地', '历史', 4.8,
+ '世界著名的大熊猫保护中心，游客可以在此观赏大熊猫。',
+ '07:30-18:00', '["野生动物", "动物", "自然", "家庭", "文化", "保护"]'),
 
-('Chengdu', 'Jinli Ancient Street', 'food', 4.3,
- 'Historic street lined with traditional Sichuan restaurants and cultural shops.',
- '00:00-24:00', '["food", "historic", "culture", "nightlife", "traditional", "shopping"]'),
+('成都', '锦里古街', '美食', 4.3,
+ '历史悠久的街道，两旁是传统的川菜餐厅和文化商店。',
+ '00:00-24:00', '["美食", "历史", "文化", "夜生活", "传统", "购物"]'),
 
-('Hangzhou', 'West Lake', 'historic', 4.9,
- 'UNESCO World Heritage site featuring beautiful lakes, gardens, and historic pagodas.',
- '00:00-24:00', '["nature", "lake", "landscape", "unesco", "relaxation", "garden"]'),
+('杭州', '西湖', '历史', 4.9,
+ '联合国教科文组织世界遗产，拥有美丽的湖泊、园林和历史宝塔。',
+ '00:00-24:00', '["自然", "湖泊", "风景", "世界遗产", "休闲", "园林"]'),
 
-('Hangzhou', 'Lingyin Temple', 'historic', 4.5,
- 'Ancient Buddhist temple complex with impressive rock carvings and peaceful gardens.',
- '07:00-18:15', '["historic", "culture", "religion", "temple", "nature", "architecture"]'),
+('杭州', '灵隐寺', '历史', 4.5,
+ '古老的佛教寺庙建筑群，拥有令人印象深刻的石刻和宁静的园林。',
+ '07:00-18:15', '["历史", "文化", "宗教", "寺庙", "自然", "建筑"]'),
 
-('Xi''an', 'Terracotta Army', 'historic', 4.7,
- 'Ancient military museum featuring thousands of life-sized terracotta soldiers.',
- '08:30-18:00', '["historic", "archaeology", "culture", "unesco", "museum", "ancient"]'),
+('西安', '兵马俑', '历史', 4.7,
+ '古代军事博物馆，拥有数千个真人大小的陶制士兵。',
+ '08:30-18:00', '["历史", "考古", "文化", "世界遗产", "博物馆", "古代"]'),
 
-('Xi''an', 'Xi''an City Wall', 'historic', 4.2,
- 'Complete Ming Dynasty city wall offering bike riding and city views.',
- '08:00-22:00', '["historic", "landmark", "architecture", "cycling", "city_view", "ancient"]'),
+('西安', '西安城墙', '历史', 4.2,
+ '完整的明代城墙，提供骑行和城市景观观赏。',
+ '08:00-22:00', '["历史", "地标", "建筑", "骑行", "城市景观", "古代"]'),
 
-('Suzhou', 'Lingering Garden', 'historic', 4.6,
- 'Classical Chinese garden recognized as a UNESCO World Heritage site.',
- '07:30-17:30', '["historic", "garden", "unesco", "culture", "architecture", "landscape"]'),
+('苏州', '留园', '历史', 4.6,
+ '古典中式园林，被联合国教科文组织认定为世界遗产。',
+ '07:30-17:30', '["历史", "园林", "世界遗产", "文化", "建筑", "景观"]'),
 
-('Suzhou', 'Humble Administrator''s Garden', 'historic', 4.5,
- 'Largest classical garden in Suzhou showcasing traditional Chinese garden design.',
- '07:30-17:30', '["historic", "garden", "unesco", "culture", "architecture", "landscape"]');
+('苏州', '拙政园', '历史', 4.5,
+ '苏州最大的古典园林，展示传统中式园林设计。',
+ '07:30-17:30', '["历史", "园林", "世界遗产", "文化", "建筑", "景观"]');
 
+===========================
+INSERT INTO attractions (destination, name, category, rating, description, opening_hours, tags) VALUES
+('上海', '外滩', '历史', 4.6,
+ '标志性的滨江长廊，展示上海的殖民建筑和现代天际线。',
+ '00:00-24:00', ARRAY['历史', '地标', '滨江', '摄影', '建筑']),
+
+('上海', '豫园', '历史', 4.4,
+ '传统中式园林，拥有古典建筑、亭台楼阁和传统商铺。',
+ '08:30-17:00', ARRAY['历史', '园林', '文化', '传统', '建筑']),
+
+('上海', '上海迪士尼度假区', '娱乐', 4.7,
+ '神奇的王国，拥有迪士尼角色、刺激游乐设施和精彩演出。',
+ '08:00-22:00', ARRAY['娱乐', '家庭', '主题公园', '儿童', '冒险']),
+
+('上海', '法租界', '历史', 4.5,
+ '历史街区，拥有林荫街道、欧式建筑和时尚店铺。',
+ '00:00-24:00', ARRAY['历史', '建筑', '漫步', '购物', '文化']),
+
+('北京', '故宫', '历史', 4.8,
+ '皇家宫殿建筑群，展示600年的中国历史与建筑艺术。',
+ '08:30-17:00', ARRAY['历史', '宫殿', '文化', '世界遗产', '地标', '建筑']),
+
+('北京', '长城（八达岭）', '历史', 4.5,
+ '长城最受欢迎的路段，提供壮观的山景。',
+ '07:30-18:00', ARRAY['历史', '地标', '徒步', '世界遗产', '冒险', '山景']),
+
+('北京', '颐和园', '历史', 4.6,
+ '皇家园林，拥有湖泊、宫殿和传统中式园林景观。',
+ '06:30-18:00', ARRAY['历史', '园林', '湖泊', '文化', '休闲', '自然']),
+
+('北京', '天坛', '历史', 4.3,
+ '神圣的建筑群，皇帝曾在此祈求丰收，拥有令人惊叹的建筑。',
+ '06:00-22:00', ARRAY['历史', '文化', '宗教', '建筑', '寺庙']),
+
+('深圳', '锦绣中华民俗村', '历史', 4.2,
+ '微缩公园，展示中国的民族多样性和历史地标。',
+ '09:00-21:30', ARRAY['历史', '文化', '家庭', '娱乐', '民俗']),
+
+('深圳', '世界之窗', '娱乐', 4.1,
+ '主题公园，展示世界著名地标和文化景点的复制品。',
+ '09:00-22:00', ARRAY['娱乐', '家庭', '主题公园', '国际', '地标']),
+
+('广州', '广州塔', '历史', 4.0,
+ '标志性的604米高电视塔，提供全景城市视野和娱乐设施。',
+ '09:00-22:30', ARRAY['地标', '现代', '城市景观', '娱乐', '建筑']),
+
+('广州', '长隆野生动物世界', '娱乐', 4.4,
+ '大型野生动物园，拥有多样化的野生动物和精彩的动物表演。',
+ '09:30-17:30', ARRAY['野生动物', '家庭', '动物', '自然', '冒险']),
+
+('成都', '大熊猫繁育研究基地', '历史', 4.8,
+ '世界著名的大熊猫保护中心，游客可以在此观赏大熊猫。',
+ '07:30-18:00', ARRAY['野生动物', '动物', '自然', '家庭', '文化', '保护']),
+
+('成都', '锦里古街', '美食', 4.3,
+ '历史悠久的街道，两旁是传统的川菜餐厅和文化商店。',
+ '00:00-24:00', ARRAY['美食', '历史', '文化', '夜生活', '传统', '购物']),
+
+('杭州', '西湖', '历史', 4.9,
+ '联合国教科文组织世界遗产，拥有美丽的湖泊、园林和历史宝塔。',
+ '00:00-24:00', ARRAY['自然', '湖泊', '风景', '世界遗产', '休闲', '园林']),
+
+('杭州', '灵隐寺', '历史', 4.5,
+ '古老的佛教寺庙建筑群，拥有令人印象深刻的石刻和宁静的园林。',
+ '07:00-18:15', ARRAY['历史', '文化', '宗教', '寺庙', '自然', '建筑']),
+
+('西安', '兵马俑', '历史', 4.7,
+ '古代军事博物馆，拥有数千个真人大小的陶制士兵。',
+ '08:30-18:00', ARRAY['历史', '考古', '文化', '世界遗产', '博物馆', '古代']),
+
+('西安', '西安城墙', '历史', 4.2,
+ '完整的明代城墙，提供骑行和城市景观观赏。',
+ '08:00-22:00', ARRAY['历史', '地标', '建筑', '骑行', '城市景观', '古代']),
+
+('苏州', '留园', '历史', 4.6,
+ '古典中式园林，被联合国教科文组织认定为世界遗产。',
+ '07:30-17:30', ARRAY['历史', '园林', '世界遗产', '文化', '建筑', '景观']),
+
+('苏州', '拙政园', '历史', 4.5,
+ '苏州最大的古典园林，展示传统中式园林设计。',
+ '07:30-17:30', ARRAY['历史', '园林', '世界遗产', '文化', '建筑', '景观']);
 -- =============================================================================
 -- 5. 示例RAG文档数据 (rag_documents) - 可选
 -- FIXED: 移除对 flight_number 的引用，使用 origin 和 destination 来查询航班

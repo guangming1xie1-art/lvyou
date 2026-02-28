@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 
 @RestController
 @RequestMapping("/api/attraction")
@@ -31,13 +34,14 @@ public class AttractionController {
      */
     @GetMapping("/search")
     @Operation(
-        summary = "搜索景点（动态查询）",
-        description = "通用搜索端点，支持任意参数组合的可选参数查询。" +
-                      "所有参数都是可选的，可以传一个、多个或全部参数。" +
-                      "支持：destination, name, category, minRating, maxRating, tags, " +
-                      "description, openingHours, 分页和排序"
+            summary = "搜索景点（动态查询）",
+            description = "通用搜索端点，支持任意参数组合的可选参数查询。" +
+                    "所有参数都是可选的，可以传一个、多个或全部参数。" +
+                    "支持：destination, name, category, minRating, maxRating, tags, " +
+                    "description, openingHours, 分页和排序"
     )
     public ResponseEntity<List<Attraction>> searchAttractions(
+            // ✅ 改成 Page<Attraction>
             @Parameter(description = "目的地")
             @RequestParam(name="destination", required = false) String destination,
 
@@ -68,11 +72,9 @@ public class AttractionController {
             @Parameter(description = "排序方向: asc, desc")
             @RequestParam(name="sortDirection", defaultValue = "desc") String sortDirection,
 
-            @Parameter(description = "页码，从0开始")
-            @RequestParam(name="page", defaultValue = "0") Integer page,
-
-            @Parameter(description = "每页大小")
-            @RequestParam(name="size", defaultValue = "10") Integer size) {
+            // ✅ 改成 Pageable，Spring 自动处理
+            @Parameter(description = "分页参数")
+            @PageableDefault(page = 0, size = 10) Pageable pageable) {
 
         AttractionSearchCriteria criteria = AttractionSearchCriteria.builder()
                 .destination(destination)
@@ -85,26 +87,11 @@ public class AttractionController {
                 .openingHours(openingHours)
                 .sortBy(sortBy)
                 .sortDirection(sortDirection)
-                .page(page)
-                .size(size)
                 .build();
 
-        PageResponse<Attraction> result = attractionService.searchAttractions(criteria);
+        // ✅ 直接返回 Page
+        Page<Attraction> result = attractionService.searchAttractions(criteria, pageable);
         return ResponseEntity.ok(result.getContent());
-    }
-
-    /**
-     * POST版本的搜索端点 - 支持更复杂的查询条件
-     */
-    @PostMapping("/search")
-    @Operation(
-        summary = "搜索景点（POST版本）",
-        description = "POST版本的通用搜索端点，支持更复杂的查询条件。",
-        hidden = true
-    )
-    public ResponseEntity<PageResponse<Attraction>> searchAttractionsPost(@RequestBody AttractionSearchCriteria criteria) {
-        PageResponse<Attraction> result = attractionService.searchAttractions(criteria);
-        return ResponseEntity.ok(result);
     }
 
     @PostMapping

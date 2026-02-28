@@ -32,7 +32,7 @@ class ModelConfig(BaseModel):
     base_url: str                         # API基础URL
     api_key_env: str                      # API KEY环境变量名
     max_tokens: int = 4096                # 最大token数
-    temperature: float = 0.7              # 温度
+    temperature: float = 0.0              # 温度
     top_p: float = 1.0                    # Top P
     # 成本参数（单位：美元/1M tokens）
     input_cost: float                     # 输入成本
@@ -58,6 +58,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.06,
         cache_read_cost=0.0075,
         enable_thinking=False,
+        temperature=0.0,
     ),
     "gpt-4-turbo": ModelConfig(
         name="GPT-4 Turbo",
@@ -70,6 +71,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.03,
         cache_read_cost=0.0025,
         enable_thinking=False,
+        temperature=0.0,
     ),
 
     # ============ Anthropic Claude ============
@@ -84,6 +86,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.015,
         cache_read_cost=0.0003,
         enable_thinking=False,
+        temperature=0.0,
     ),
     "claude-3-opus": ModelConfig(
         name="Claude 3 Opus",
@@ -96,6 +99,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.075,
         cache_read_cost=0.00375,
         enable_thinking=False,
+        temperature=0.0,
     ),
 
     # ============ Qwen ============
@@ -110,6 +114,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.0015,
         cache_read_cost=None,
         enable_thinking=False,
+        temperature=0.0,
     ),
 
     # ============ DeepSeek ============
@@ -124,6 +129,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.001,
         cache_read_cost=None,
         enable_thinking=False,
+        temperature=0.0,
     ),
 
     # ============ GLM ============
@@ -139,6 +145,7 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.0003,
         cache_read_cost=None,
         enable_thinking=False,
+        temperature=0.0,
     ),
     "modelscope": ModelConfig(
         name="Qwen3-32B",
@@ -151,5 +158,6 @@ MODELS: Dict[str, ModelConfig] = {
         output_cost=0.0003,
         cache_read_cost=None,
         enable_thinking=False,
+        temperature=0.0,
     )
 }
