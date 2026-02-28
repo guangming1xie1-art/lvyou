@@ -24,7 +24,6 @@ from .hybrid_retrieval import hybrid_rank
 
 logger = logging.getLogger(__name__)
 
-
 async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     """推荐规划节点 - 利用 Prompt Cache 优化成本"""
     counter = TokenCounter()
@@ -44,8 +43,6 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
         budget=collected_info.get("budget")
     )
     if cached:
-        # import logging
-        # logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中(recommend_plan)")
         need_clarification = cached.get("need_clarification", False)
         return {
@@ -186,14 +183,6 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     }"""
 
     tools_text = await get_tools_and_skills_text()
-    # cache_mgr = get_prompt_cache_manager()
-    # prompt_cache_id = await cache_mgr.get_or_create_cache(
-    #     cache_key="recommend_plan",
-    #     llm=llm,
-    #     system_prompt=system_prompt,
-    #     few_shots=few_shots,
-    #     tools_text=tools_text
-    # )
     
     user_query = f"""请制定推荐策略：
 
@@ -212,24 +201,13 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
 
     返回 JSON 格式的推荐策略。"""
 
-    # if not prompt_cache_id:
-    if True:
-        # import logging
-        # logger = logging.getLogger(__name__)
-        logger.warning("⚠️ Prompt cache creation failed, falling back to direct invocation")
-        messages = [
-            SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表：\n{tools_text}"),
-            HumanMessage(content=user_query)
-        ]
-        result = await llm.ainvoke(messages, config={"callbacks": [counter]})
-        output_text = result.content
-    else:
-        output_text, cached_tokens = await cache_mgr.invoke_with_cache(
-            llm=llm,
-            cache_id=prompt_cache_id,
-            user_query=user_query,
-            counter=counter
-        )
+    messages = [
+        SystemMessage(content=f"{system_prompt}\n\n{few_shots}\n\n工具列表：\n{tools_text}"),
+        HumanMessage(content=user_query)
+    ]
+    result = await llm.ainvoke(messages, config={"callbacks": [counter]})
+    output_text = result.content
+
         
     try:
         cleaned_text = output_text.strip()
@@ -256,7 +234,7 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     # 缓存
     cache_strategy.cache_recommendations(
         user_id=cache_key_biz,
-        results={
+        recommendations={
             "recommend_plan": recommend_plan,
             "output": desc,
             "need_clarification": need_clarification,
