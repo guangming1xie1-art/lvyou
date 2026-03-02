@@ -315,9 +315,10 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
             clarification_prompt += f"{i}. {q}\n"
         clarification_prompt += "\n请回复您的答案,我会根据您的反馈继续为您推荐。"
         return {
-            "messages": [AIMessage(content=desc)],
+            "messages": [AIMessage(content=clarification_prompt)],
             "usage": counter.dump(),
             "output": clarification_prompt,
+            "search_results": clarification_prompt,
             "need_clarification": True,
             "clarification_questions": clarification_questions,
             "search_plan": None,

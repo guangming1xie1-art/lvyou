@@ -133,11 +133,15 @@ export function Message({ message, isWelcome = false }: MessageProps) {
               />
             )}
 
-            {Array.isArray(message.data.recommendations) && message.data.recommendations.length > 0 && (
+            {message.data.recommendations && (
               <DataPanel
                 icon="✨"
                 title="推荐方案"
-                count={message.data.recommendations.length}
+                count={
+                  Array.isArray(message.data.recommendations)
+                    ? message.data.recommendations.length
+                    : (message.data.recommendations as any)?.plans?.length || 0
+                }
                 value={message.data.recommendations}
               />
             )}

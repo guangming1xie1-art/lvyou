@@ -245,8 +245,12 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     )
 
     if need_clarification:
+        clarification_prompt = "为了更好地为您规划行程，请您回答以下问题：\n"
+        for i, q in enumerate(clarification_questions, 1):
+            clarification_prompt += f"{i}. {q}\n"
+        clarification_prompt += "\n请回复您的答案,我会根据您的反馈继续为您推荐。"
         return {
-            "messages": [AIMessage(content=desc)],
+            "messages": [AIMessage(content=clarification_prompt)],
             "usage": counter.dump(),
             "output": desc,
             "need_clarification": True,
@@ -460,10 +464,40 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
             budget=collected_info.get("budget")
         )
         
+        # 构建完整的输出文本（包含所有方案的详细描述）
+        full_output = desc
+        if recommendations and "plans" in recommendations:
+            plans = recommendations["plans"]
+            full_output += "\n\n## 详细推荐方案\n\n"
+            for i, plan in enumerate(plans, 1):
+                full_output += f"### 方案 {i}: {plan.get('title', '')}\n"
+                full_output += f"{plan.get('subtitle', '')}\n\n"
+                
+                # 每日行程
+                itinerary = plan.get("itinerary", [])
+                for day in itinerary:
+                    full_output += f"**{day.get('title', '')}**\n"
+                    activities = day.get("activities", [])
+                    for activity in activities:
+                        full_output += f"- {activity.get('time', '')}: {activity.get('location', '')} - {activity.get('description', '')}\n"
+                    full_output += "\n"
+                
+                # 预算和亮点
+                budget = plan.get("budget_breakdown", {})
+                if budget:
+                    full_output += f"**预算**: 总计 {budget.get('total_budget', '')} 元\n"
+                highlights = plan.get("highlights", [])
+                if highlights:
+                    full_output += f"**亮点**: {', '.join(highlights)}\n"
+                full_output += "\n---\n\n"
+        
+        # 创建新的 AIMessage，包含完整内容
+        full_message = AIMessage(content=full_output)
+        
         return {
-            "messages": [result],
+            "messages": [full_message],
             "usage": counter.dump(),
-            "output": desc,
+            "output": full_output,
             "recommendations": recommendations
         }
         
