@@ -13,7 +13,6 @@ from llm.factory import LLMFactory
 
 from .common import SubState, cache_strategy
 
-
 async def collect_info_node(state: SubState) -> Dict[str, Any]:
     """信息收集节点（便宜层 + 缓存）"""
     counter = TokenCounter()
@@ -143,7 +142,6 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
 
         # 尝试解析为 JSON
         try:
-            # collected_info = json.loads(output_text)
             # 去除可能的 Markdown 代码块标记
             cleaned_text = output_text.strip()
             if cleaned_text.startswith("```json"):

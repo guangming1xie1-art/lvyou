@@ -208,7 +208,6 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     result = await llm.ainvoke(messages, config={"callbacks": [counter]})
     output_text = result.content
 
-        
     try:
         cleaned_text = output_text.strip()
         if cleaned_text.startswith("```json"):
@@ -265,10 +264,8 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
         "clarification_questions": [],
         "stage": "ready_for_execution"
     }
-
-
 async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
-    """推荐执行节点 - ReAct Agent + Prompt Cache"""
+    """推荐执行节点 - 直接调用大模型进行推荐"""
     counter = TokenCounter()
     
     recommend_plan = state.get("recommend_plan", {})
@@ -289,8 +286,6 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
         budget=collected_info.get("budget")
     )
     if cached:
-        # import logging
-        # logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中(recommend_execute)")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
@@ -299,69 +294,85 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
             "recommendations": cached.get("recommendations", {})
         }
         
-    llm = LLMFactory.create_model_by_tier(tier="standard")
+    llm = LLMFactory.create_model_by_tier(tier="cheap")
     
-    system_prompt = """你是旅游推荐执行专家，负责生成个性化的旅游方案。
+    system_prompt = """你是专业的旅游推荐专家，负责根据用户信息和搜索结果生成个性化的旅游推荐方案。
 
     ## 职责
-    1. 根据推荐计划和搜索结果，生成具体的旅游行程方案
-    2. 包含每日行程、推荐酒店、预估预算和亮点介绍
-    3. 使用工具获取额外的推荐建议或进行价格校验
-    4. 必须输出有效的 JSON 结构
+    1. 综合分析用户需求、偏好、预算和搜索结果
+    2. 生成具体、实用、个性化的旅游行程方案
+    3. 包含每日行程安排、推荐住宿、交通建议、预算分配和亮点介绍
+    4. 确保推荐内容与用户偏好高度匹配
+    5. 提供多个不同风格的方案供用户选择
 
     ## 输出格式(JSON)
     {
         "recommendations": {
+            "summary": "整体推荐概述",
             "plans": [
                 {
                     "id": "plan_1",
                     "title": "方案标题",
-                    "itinerary": [...],
-                    "budget": {...},
-                    "highlights": [...]
+                    "subtitle": "副标题，如'适合家庭出游'或'文艺青年首选'",
+                    "theme": "方案主题",
+                    "duration": "行程天数",
+                    "itinerary": [
+                        {
+                            "day": 1,
+                            "date": "具体日期（如果有）",
+                            "title": "第X天行程标题",
+                            "activities": [
+                                {
+                                    "time": "时间段",
+                                    "location": "地点名称",
+                                    "description": "活动描述",
+                                    "reason": "推荐理由",
+                                    "estimated_duration": "预计时长",
+                                    "tips": "实用建议"
+                                }
+                            ],
+                            "accommodation": {
+                                "name": "酒店名称",
+                                "rating": "评分",
+                                "location": "位置",
+                                "price_range": "价格区间",
+                                "features": ["特色1", "特色2"],
+                                "reason": "推荐理由"
+                            },
+                            "transportation": {
+                                "from_to": "交通路线",
+                                "mode": "交通方式",
+                                "cost": "费用",
+                                "duration": "耗时"
+                            },
+                            "meals": [
+                                {
+                                    "meal_type": "餐别（早餐/午餐/晚餐）",
+                                    "name": "餐厅/美食名称",
+                                    "type": "菜系/类型",
+                                    "cost": "预估费用",
+                                    "reason": "推荐理由"
+                                }
+                            ]
+                        }
+                    ],
+                    "budget_breakdown": {
+                        "total_budget": "总预算",
+                        "accommodation": "住宿费用",
+                        "transportation": "交通费用",
+                        "meals": "餐饮费用",
+                        "attractions": "景点门票费用",
+                        "shopping_other": "购物及其他费用"
+                    },
+                    "highlights": ["亮点1", "亮点2", "亮点3"],
+                    "travel_tips": ["贴士1", "贴士2"],
+                    "best_for": ["适合人群"]
                 }
             ]
         },
-        "output": "方案概览描述"
+        "output": "推荐方案概览描述"
     }"""
 
-    few_shots = "## 示例：根据杭州搜索结果生成一个西湖深度游方案。"
-    tools_text = await get_tools_and_skills_text()
-    
-    # 4️⃣ Prompt Cache
-    # cache_mgr = get_prompt_cache_manager()
-    # prompt_cache_id = await cache_mgr.get_or_create_cache(
-    #     cache_key="recommend_execute",
-    #     llm=llm,
-    #     system_prompt=system_prompt,
-    #     few_shots=few_shots,
-    #     tools_text=tools_text
-    # )
-    
-    # Step 1: Java MCP 获取推荐基础数据
-    mcp_client = get_mcp_client()
-    rec_base_resp = await mcp_client.call_tool(
-        "get_recommendation_base",
-        email=collected_info.get("email", "guest@example.com"),
-        destination=destination
-    )
-    rec_base = rec_base_resp.get("data", {})
-    raw_hotels = rec_base.get("hotels", [])
-    
-    # Step 2: RAG 混合检索
-    hybrid_retriever = HybridRetriever()
-    rag_query = f"recommendations for {destination} with preferences {', '.join(collected_info.get('preferences', []))}"
-    rag_docs = await hybrid_retriever.aretrieve(rag_query, k=50)
-    
-    # Step 3: 混合排序
-    ranked_hotels = hybrid_rank(raw_hotels, rag_docs, recommend_plan)
-
-    tools = await build_recommend_tools(recommend_plan)
-    
-    # 记录工具信息
-    tool_names = [getattr(t, 'name', str(t)) for t in tools]
-    logger.info(f"[Recommend Execute] 🔧 Tools available: {tool_names}")
-    
     user_profile = recommend_plan.get("user_profile_analysis", {})
     framework = recommend_plan.get("recommendation_framework", {})
     gaps = recommend_plan.get("information_gaps", {})
@@ -370,10 +381,20 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
 
     user_query = f"""请生成个性化旅游推荐方案：
 
+    ## 用户信息
+    - 目的地：{collected_info.get('destination')}
+    - 出发地：{collected_info.get('origin', '未知')}
+    - 出发日：{collected_info.get('dates')}
+    - 周期：{collected_info.get('duration')}
+    - 预算：{collected_info.get('budget', '未指定')}
+    - 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+    - 人数：{collected_info.get('group_size', '未知')}
+    - 特殊需求：{collected_info.get('special_requests', '无')}
+
     ## 推荐策略分析
-    - 用户画像：{user_profile}
-    - 方案框架：{framework}
-    - 信息缺口：{gaps}
+    - 用户画像：{json.dumps(user_profile, ensure_ascii=False)}
+    - 方案框架：{json.dumps(framework, ensure_ascii=False)}
+    - 信息缺口：{json.dumps(gaps, ensure_ascii=False)}
 
     ## 推荐计划
     - 主题：{', '.join(plan_config.get('themes', []))}
@@ -381,44 +402,38 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
     - 侧重点：{', '.join(plan_config.get('focus_points', []))}
     - 权重：{plan_config.get('weights', {})}
 
-    ## 用户信息
-    - 目的地：{collected_info.get('destination')}
-    - 出发日：{collected_info.get('dates')}
-    - 周期：{collected_info.get('duration')}
-    - 预算：{collected_info.get('budget', '未指定')}
-    - 偏好：{', '.join(collected_info.get('preferences', [])) or '无特殊偏好'}
+    ## 搜索结果详情
+    景点信息：
+    {json.dumps(search_results.get('attractions', []), ensure_ascii=False, indent=2)}
+    
+    酒店信息：
+    {json.dumps(search_results.get('hotels', []), ensure_ascii=False, indent=2)}
+    
+    交通信息：
+    {json.dumps(search_results.get('flights', []), ensure_ascii=False, indent=2)}
+    
+    其他信息：
+    {json.dumps({k: v for k, v in search_results.items() if k not in ['attractions', 'hotels', 'flights']}, ensure_ascii=False, indent=2)}
 
-    ## 搜索结果摘要
-    {str(search_results)[:1000]}
+    ## 用户原始请求
+    {user_content}
 
-    ## 基础推荐数据(Java MCP)
-    {json.dumps(rec_base.get('user', {}), ensure_ascii=False)}
-
-    ## 优质备选酒店(RAG 混合排序)
-    {json.dumps(ranked_hotels[:5], ensure_ascii=False)}
+    请根据以上所有信息，生成详细、实用、个性化的旅游推荐方案。
     """
 
     try:
-        # 创建 ReAct Agent（绑定真正的工具）
-        logger.info(f"[Recommend Execute] 🤖 Creating ReAct agent with {len(tools)} tools")
-        agent = create_react_agent(llm, tools)
+        logger.info("[Recommend Execute] 🚀 Starting direct LLM recommendation...")
         
-        invoke_kwargs = {"callbacks": [counter]}
-        if prompt_cache_id:
-            invoke_kwargs["extra_body"] = {"cache_id": prompt_cache_id}
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_query)
+        ]
         
-        logger.info(f"[Recommend Execute] 🚀 Starting agent execution...")
-        result = await agent.ainvoke(
-            {"messages": [HumanMessage(content=user_query)]},
-            config=invoke_kwargs
-        )
-        logger.info(f"[Recommend Execute] ✅ Agent execution completed")
-        
-        last_msg = result["messages"][-1]
-        output_text = last_msg.content
+        result = await llm.ainvoke(messages, config={"callbacks": [counter]})
+        output_text = result.content
         
         try:
-            # 兼容处理 JSON 回复
+            # 尝试解析 JSON 回复
             clean_text = output_text
             if "```json" in output_text:
                 clean_text = output_text.split("```json")[1].split("```")[0].strip()
@@ -428,28 +443,31 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
             data = json.loads(clean_text)
             recommendations = data.get("recommendations", data)
             desc = data.get("output", output_text)
-        except:
-            recommendations = {"raw": output_text}
+        except json.JSONDecodeError:
+            # 如果解析失败，创建基本结构
+            recommendations = {
+                "summary": "无法解析推荐结果",
+                "plans": [],
+                "raw_response": output_text
+            }
             desc = output_text
             
-        # 缓存
+        # 缓存结果
         cache_strategy.cache_recommendations(
             user_id=cache_key_biz,
-            results={"recommendations": recommendations, "output": desc},
+            recommendations={"recommendations": recommendations, "output": desc},
             interests=collected_info.get("preferences", []),
             budget=collected_info.get("budget")
         )
         
         return {
-            "messages": [last_msg],
+            "messages": [result],
             "usage": counter.dump(),
             "output": desc,
             "recommendations": recommendations
         }
         
     except Exception as e:
-        # import logging
-        # logger = logging.getLogger(__name__)
         logger.error(f"❌ recommend_execute_agent_node failed: {e}")
         return {
             "messages": [AIMessage(content=f"Error: {e}")],
@@ -457,8 +475,6 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
             "output": f"Error: {e}",
             "recommendations": {"error": str(e)}
         }
-
-
 def build_recommend_graph() -> StateGraph:
     """构建推荐子图（两阶段流程）"""
     graph = StateGraph(SubState)
@@ -482,6 +498,5 @@ def build_recommend_graph() -> StateGraph:
     graph.set_entry_point("recommend_plan")
     
     return graph.compile()
-
 
 __all__ = ["build_recommend_graph"]

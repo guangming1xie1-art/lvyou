@@ -31,13 +31,6 @@ from llm.factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 
-# 定义字典合并函数
-# def merge_dicts(left: Dict[str, int], right: Dict[str, int]) -> Dict[str, int]:
-#     """合并两个字典，相同 key 的值相加"""
-#     result = left.copy()
-#     for key, value in right.items():
-#         result[key] = result.get(key, 0) + value
-#     return result
 # ============ MainState 定义（第4层）============
 
 class MainState(dict):
@@ -154,7 +147,7 @@ def call_subagent_node(subagent_getter, output_key: str):
 _build_collect_info_graph = build_collect_info_graph()
 _build_search_graph = build_search_graph()
 _build_recommend_graph = build_recommend_graph()
-_build_booking_graph = build_booking_graph()
+# _build_booking_graph = build_booking_graph()
 def build_main_graph() -> StateGraph:
     """构建主工作流图"""
     graph = StateGraph(MainState)
@@ -163,11 +156,7 @@ def build_main_graph() -> StateGraph:
     graph.add_node("collect", _build_collect_info_graph)
     graph.add_node("search", _build_search_graph)
     graph.add_node("recommend", _build_recommend_graph)
-    graph.add_node("booking", _build_booking_graph)
-    # graph.add_node("collect", call_subagent_node(get_info_collection_agent, "collected_info"))
-    # graph.add_node("search", call_subagent_node(get_search_agent, "search_results"))
-    # graph.add_node("recommend", call_subagent_node(get_recommend_agent, "recommendations"))
-    # graph.add_node("booking", call_subagent_node(get_booking_agent, "booking_confirmation"))
+    # graph.add_node("booking", _build_booking_graph)
 
     # ✅ 使用条件边替代固定边
     graph.add_conditional_edges(
@@ -190,15 +179,15 @@ def build_main_graph() -> StateGraph:
     )
 
     # 推荐阶段可能需要澄清
-    graph.add_conditional_edges(
-        "recommend",
-        lambda state: "end" if state.get("need_clarification") else "booking",
-        {
-            "booking": "booking",
-            "end": END
-        }
-    )
-    graph.add_edge("booking", END)
+    # graph.add_conditional_edges(
+    #     "recommend",
+    #     lambda state: "end" if state.get("need_clarification") else "booking",
+    #     {
+    #         "booking": "booking",
+    #         "end": END
+    #     }
+    # )
+    graph.add_edge("recommend", END)
 
     # 设置入口点
     graph.set_entry_point("collect")
@@ -228,27 +217,6 @@ def get_or_create_main_agent() -> Any:
         # 构建主图
         main_runnable = build_main_graph()
         _main_agent = main_runnable
-        # 创建 DeepAgent
-        # _main_agent = create_deep_agent(
-        #     model=llm,
-        #     # runnable=main_runnable,
-        #     subagents=[
-        #         get_info_collection_agent(),
-        #         get_search_agent(),
-        #         get_recommend_agent(),
-        #         get_booking_agent(),
-        #     ],
-        #     system_prompt="""你是旅游协调员，负责协调4个子代理完成用户的旅游预订需求。
-
-        #     工作流程：
-        #     1. 信息收集员：收集用户的旅游需求（目的地、时间、预算等）
-        #     2. 搜索员：搜索相关的目的地、酒店、航班信息
-        #     3. 推荐员：生成个性化旅游推荐方案
-        #     4. 预订员：完成用户选定的预订
-
-        #     你的职责是确保整个流程顺利进行，并向用户提供最终的预订确认。
-        #     """
-        # )
         
         logger.info("Main DeepAgent created successfully")
     

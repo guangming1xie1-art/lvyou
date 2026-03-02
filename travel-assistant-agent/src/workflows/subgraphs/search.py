@@ -39,8 +39,6 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     cache_key_biz = f"search_plan:{user_content[:50]}:{destination}"
     cached = cache_strategy.get_search_results(query=cache_key_biz, destination=destination)
     if cached:
-        # import logging
-        # logger = logging.getLogger(__name__)
         logger.info("🎯 业务缓存命中(search_plan)")
         need_clarification = cached.get("need_clarification", False)
         return {
@@ -182,7 +180,7 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
             "budget_range": "5000元",
             "preferences": ["自然风景"]
         },
-        "output": "已制定杭州3日游搜索战略，优先景点与住宿，并控制预算。"
+        "output": "已制定杭州3日游搜索战略,优先景点与住宿,并控制预算。"
     }
 
     ## 示例2: 信息不完整
@@ -290,8 +288,7 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
         search_plan = data
         desc = data.get("output", output_text)
         clarification_questions = data.get("clarification_questions", []) or []
-        # need_clarification = len(clarification_questions) > 0
-        need_clarification = False
+        need_clarification = len(clarification_questions) > 0
     except Exception:
         search_plan = {"raw": output_text, "search_plan": {"destination": destination}}
         desc = output_text
@@ -312,10 +309,15 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
     )
 
     if need_clarification:
+        # 不再使用 LLM 的 output，而是构造一个清晰的澄清请求
+        clarification_prompt = "为了更好地为您规划行程，请您回答以下问题：\n"
+        for i, q in enumerate(clarification_questions, 1):
+            clarification_prompt += f"{i}. {q}\n"
+        clarification_prompt += "\n请回复您的答案,我会根据您的反馈继续为您推荐。"
         return {
             "messages": [AIMessage(content=desc)],
             "usage": counter.dump(),
-            "output": desc,
+            "output": clarification_prompt,
             "need_clarification": True,
             "clarification_questions": clarification_questions,
             "search_plan": None,
@@ -331,7 +333,6 @@ async def search_plan_node(state: SubState) -> Dict[str, Any]:
         "clarification_questions": [],
         "stage": "ready_for_execution"
     }
-
 
 async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     """搜索执行节点 - ReAct Agent + Prompt Cache"""
@@ -374,7 +375,6 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
     priorities = search_config.get("priorities", {})
 
     # Step 1: Java MCP 查询原始数据
-    # llm_with_tools = llm.bind_tools(tools)
     budgetTmp=re.findall(r'\d+\.?\d*', plan_payload.get("budget_range", "1000000"))
     if len(budgetTmp)>1:
         minPrice=budgetTmp[0]
@@ -502,7 +502,6 @@ async def search_execute_agent_node(state: SubState) -> Dict[str, Any]:
             "output": f"Error: {e}",
             "search_results": {"error": str(e)}
         }
-
 
 def build_search_graph() -> StateGraph:
     """构建搜索子图（两阶段流程）"""
