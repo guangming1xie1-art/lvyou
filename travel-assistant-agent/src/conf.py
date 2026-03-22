@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # 阿里云通义千问 (标准层)
     dashscope_api_key: str = Field(default="", alias="DASHSCOPE_API_KEY")
     # 智谱 AI GLM
-    zhipu_api_key: str = Field(default="bf1f2d8d1a770c701db9200868846d58.DQ7Jo5qVgyQw4nzc", alias="ZHIPU_API_KEY")
+    zhipu_api_key: str = Field(default="", alias="ZHIPU_API_KEY")
     # OpenAI 兼容
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     # Anthropic Claude (强力层)
