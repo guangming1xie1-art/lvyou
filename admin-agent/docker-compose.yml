@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  admin-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8091:8091"
+    environment:
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-travel_assistant}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - FAISS_INDEX_PATH=/app/data/faiss
+    volumes:
+      - faiss-data:/app/data/faiss
+    networks:
+      - travel-assistant-network
+    restart: unless-stopped
+
+volumes:
+  faiss-data:
+
+networks:
+  travel-assistant-network:
+    external: true
