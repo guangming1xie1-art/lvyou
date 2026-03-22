@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 import logging
 
-from app.services.document_processor import DocumentProcessor
+from app.services.document_processor import DocumentProcessor, SplitStrategy
 from app.services.parent_child_index import ParentChildIndex
 from app.services.vector_store import VectorStore
 
@@ -29,6 +29,9 @@ class DocumentProcessRequest(BaseModel):
     chunk_size: int = 500
     chunk_overlap: int = 50
     doc_type: str = "default"
+    strategy: str = "recursive"  # recursive or semantic
+    use_embeddings: bool = False
+    embedding_model: str = "text-embedding-3-small"
 
 
 class StrategyInfo(BaseModel):
@@ -52,6 +55,10 @@ async def process_documents(request: DocumentProcessRequest):
     支持两种模式：
     1. 自动切割模式（默认）：传入原始文档，自动切割
     2. 手动切割模式：传入已切割的文档，直接入库
+    
+    支持两种策略：
+    - recursive: 递归字符切分（传统方式）
+    - semantic: 语义切分（智能方式，需要嵌入模型）
     """
     if not request.documents:
         return DocumentProcessResponse(
@@ -83,7 +90,26 @@ async def process_documents(request: DocumentProcessRequest):
                 request.chunk_overlap
             )
             
-            processor = DocumentProcessor(chunk_size, chunk_overlap)
+            # 处理策略
+            strategy = SplitStrategy.RECURSIVE
+            embeddings = None
+            
+            if request.strategy == "semantic" and request.use_embeddings:
+                strategy = SplitStrategy.SEMANTIC
+                try:
+                    from langchain_openai import OpenAIEmbeddings
+                    embeddings = OpenAIEmbeddings(model=request.embedding_model)
+                    logger.info(f"Using OpenAI embeddings: {request.embedding_model}")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize embeddings, falling back to recursive: {e}")
+                    strategy = SplitStrategy.RECURSIVE
+            
+            processor = DocumentProcessor(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                strategy=strategy,
+                embeddings=embeddings
+            )
             processed_docs = processor.process_documents(docs_to_process)
             
             await parent_child_index.index_documents(processed_docs, docs_to_process)
