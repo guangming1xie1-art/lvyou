@@ -1,125 +1,225 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: travel-assistant-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=${DB_NAME:-travel_assistant}
-      - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    networks:
-      - travel-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: travel-assistant-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    networks:
-      - travel-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-
-  # Backend API Service
-  agent_backend:
+  # Travel Assistant Agent (Python FastAPI)
+  travel-assistant-agent:
     build:
       context: ./travel-assistant-agent
       dockerfile: Dockerfile
-      target: production
     container_name: travel-assistant-agent
     ports:
       - "8000:8000"
     environment:
-      - APP_ENV=${APP_ENV:-production}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_ENABLED=${REDIS_ENABLED:-true}
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-travel_assistant}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_POOL_SIZE=${DB_POOL_SIZE:-20}
-      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-10}
-      - ENABLE_GZIP=${ENABLE_GZIP:-true}
-      - ENABLE_HTTPS_REDIRECT=${ENABLE_HTTPS_REDIRECT:-false}
-      - SLOW_REQUEST_THRESHOLD=${SLOW_REQUEST_THRESHOLD:-0.5}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
-    volumes:
-      - ./travel-assistant-agent/logs:/app/logs
+      APP_ENV: ${APP_ENV:-production}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # Claude API
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-3-5-sonnet-20241022}
+      CLAUDE_MAX_TOKENS: ${CLAUDE_MAX_TOKENS:-4096}
+      CLAUDE_TEMPERATURE: ${CLAUDE_TEMPERATURE:-0.7}
+
+      # Database
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/travel_assistant
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80}
+
+      # MCP
+      MCP_ENABLED: ${MCP_ENABLED:-true}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-http://localhost:8765}
+      MCP_TRANSPORT: ${MCP_TRANSPORT:-stdio}
+    networks:
+      - travel-network
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - travel-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 40s
 
-  # Frontend Service
-  frontend:
+  # Admin Agent (Python FastAPI)
+  admin-agent:
     build:
-      context: ./travel-assistant-front
+      context: ./admin-agent
       dockerfile: Dockerfile
-    container_name: travel-assistant-frontend
+    container_name: admin-agent
     ports:
-      - "3000:80"
+      - "8091:8091"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - VITE_AGENT_API_BASE_URL=http://localhost:8000
-      - VITE_APP_NAME=${VITE_APP_NAME:-Travel Assistant}
-    depends_on:
-      agent_backend:
-        condition: service_healthy
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/travel_assistant
+      REDIS_URL: redis://redis:6379/1
     networks:
       - travel-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Admin Service (Java Spring Boot)
+  admin-service:
+    build:
+      context: ./admin-service
+      dockerfile: Dockerfile
+    container_name: admin-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/travel_assistant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:-nacos:8848}
+    networks:
+      - travel-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Admin Frontend (Vue 3)
+  admin-frontend:
+    build:
+      context: ./admin-frontend
+      dockerfile: Dockerfile
+    container_name: admin-frontend
+    ports:
+      - "8081:80"
+    environment:
+      VITE_API_BASE_URL: ${VITE_ADMIN_API_URL:-http://localhost:8080}
+    networks:
+      - travel-network
+    depends_on:
+      - admin-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
-volumes:
-  postgres-data:
-    driver: local
-  redis-data:
-    driver: local
+  # Travel Assistant Frontend (React)
+  travel-assistant-front:
+    build:
+      context: ./travel-assistant-front
+      dockerfile: Dockerfile
+    container_name: travel-assistant-front
+    ports:
+      - "3000:80"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_ADMIN_API_URL: ${NEXT_PUBLIC_ADMIN_API_URL:-http://localhost:8080}
+    networks:
+      - travel-network
+    depends_on:
+      - travel-assistant-agent
+      - admin-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: travel-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: travel_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: travel-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nacos Service Discovery (Optional)
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: travel-nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: embedded
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    volumes:
+      - nacos_data:/home/nacos/data
+    networks:
+      - travel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 networks:
   travel-network:
     driver: bridge
     name: travel-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  nacos_data:
