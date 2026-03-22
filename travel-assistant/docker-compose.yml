@@ -149,6 +149,13 @@ services:
       - postgres
     networks:
       - travel-assistant-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   # Booking Service
   booking-service:
@@ -170,6 +177,13 @@ services:
       - postgres
     networks:
       - travel-assistant-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   # Recommendation Service
   recommendation-service:
@@ -186,6 +200,13 @@ services:
       - nacos
     networks:
       - travel-assistant-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   # Travel Assistant Agent
   travel-assistant-agent:
