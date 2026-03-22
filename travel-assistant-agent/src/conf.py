@@ -221,13 +221,7 @@ class Settings(BaseSettings):
     mcp_v2_max_websockets: int = Field(default=100, alias="MCP_V2_MAX_WEBSOCKETS")
     mcp_v2_request_timeout: float = Field(default=30.0, alias="MCP_V2_REQUEST_TIMEOUT")
 
-    # ============ Agent Skills Framework ============
-    skills_enabled: bool = Field(default=True, alias="SKILLS_ENABLED")
-    skills_auto_load: bool = Field(default=True, alias="SKILLS_AUTO_LOAD")
-    skills_builtin_enabled: bool = Field(default=True, alias="SKILLS_BUILTIN_ENABLED")
-    skills_max_execution_time: float = Field(default=30.0, alias="SKILLS_MAX_EXECUTION_TIME")
-    skills_parallel_enabled: bool = Field(default=True, alias="SKILLS_PARALLEL_ENABLED")
-    skills_cost_tracking: bool = Field(default=True, alias="SKILLS_COST_TRACKING")
+
 
     # ============ Memory System Configuration ============
     # 记忆系统配置

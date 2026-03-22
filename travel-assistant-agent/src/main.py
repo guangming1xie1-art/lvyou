@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from workflows.main_workflow import run_main_workflow_async
 from api.routes import router, chat_router, rag_router, memory_router
 from api.auth_routes import router as auth_router
+from api.websocket import router as ws_router
 from auth.dependencies import get_current_active_user, get_user_token
 from auth.models import User
 from security import rate_limiter
@@ -128,6 +129,7 @@ app.include_router(router)       # 现有：agent业务路由
 app.include_router(chat_router)  # 现有：chat路由
 app.include_router(rag_router)   # 现有：rag路由
 app.include_router(memory_router)  # 新增：记忆系统路由
+app.include_router(ws_router)    # 新增：WebSocket路由
 
 class ChatRequest(BaseModel):
     message: str

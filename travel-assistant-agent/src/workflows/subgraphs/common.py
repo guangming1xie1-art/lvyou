@@ -13,7 +13,7 @@ import json
 
 from utils.token_counter import TokenCounter
 from agents.mcp_client import get_mcp_client
-from skills.registry import SkillRegistry
+
 from conf import settings
 from llm.factory import LLMFactory
 from cache.cache_strategy import CacheStrategy
@@ -62,29 +62,7 @@ knowledge_base = KnowledgeBase()
 mcp_client = get_mcp_client()
 
 
-# ============ 技能到工具的适配器 ============
 
-def skill_to_tool(skill):
-    """将Skill实例转换为LangChain Tool"""
-    from langchain_core.tools import tool
-    
-    @tool
-    def skill_tool(**kwargs):
-        """使用技能执行任务"""
-        import asyncio
-        
-        # 运行技能的execute方法
-        try:
-            result = asyncio.run(skill.execute(kwargs))
-            return str(result)
-        except Exception as e:
-            return f"Skill execution error: {str(e)}"
-    
-    # 设置技能的基本信息
-    skill_tool.name = skill.name
-    skill_tool.description = skill.description
-    
-    return skill_tool
 
 
 # ============ 辅助函数 ============
@@ -290,16 +268,6 @@ async def build_recommend_tools(recommend_plan: Dict) -> List:
         else:
             logger.warning(f"[Build Tools] ⚠️ No MCP tools available")
         
-        # 3. SKILLS 推荐技能
-        try:
-            recommend_skill = await SkillRegistry.load_skill("recommend")
-            if recommend_skill:
-                # 使用适配器转换为工具
-                tools.append(skill_to_tool(recommend_skill))
-                logger.info(f"[Build Tools] ✅ Added recommend skill tool")
-        except Exception as e:
-            logger.warning(f"[Build Tools] ⚠️ Failed to load recommend skill: {e}")
-        
         logger.info(f"[Build Tools] 🔧 Total tools built: {len(tools)}")
         
     except Exception as e:
@@ -367,7 +335,6 @@ __all__ = [
     "cache_strategy",
     "knowledge_base",
     "mcp_client",
-    "skill_to_tool",
     "create_search_plan_prompt",
     "create_recommend_plan_prompt",
     "build_search_tools",
