@@ -1,0 +1,87 @@
+server:
+  port: 8088
+  servlet:
+    context-path: /api/memory
+
+spring:
+  application:
+    name: memory-service
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/travel_assistant
+    username: postgres
+    password: ${DB_PASSWORD:your_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+  
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      date-format: yyyy-MM-dd'T'HH:mm:ss'Z
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.travelassistant.memory: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/memory-service.log
+
+# 向量数据库配置
+vector:
+  db:
+    type: faiss  # faiss or milvus
+    host: localhost
+    port: 19530
+    index-path: ./data/vector_index
+
+# Redis配置（可选）
+redis:
+  host: localhost
+  port: 6379
+  password: ${REDIS_PASSWORD:}
+  timeout: 5000
+  lettuce:
+    pool:
+      max-active: 8
+      max-idle: 8
+      min-idle: 0
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
