@@ -484,6 +484,109 @@ INSERT INTO bookings (
 );
 
 -- =============================================================================
+-- 9. 示例记忆系统数据（从 schema_memory.sql 整合）
+-- 用途：为四层记忆系统提供示例数据
+-- =============================================================================
+
+-- =============================================================================
+-- 9.1 对话会话数据 (conversations)
+-- =============================================================================
+INSERT INTO conversations (user_id, session_id, title, status, summary, metadata) VALUES
+-- 用户1的会话
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'session_1', '三亚旅游规划', 'active', '用户计划去三亚旅游，需要酒店和景点推荐', '{"travel_destination": "三亚", "travel_days": 5, "budget": "5000-8000"}'),
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'session_2', '北京周末游', 'archived', '用户计划北京周末游，需要故宫和长城的攻略', '{"travel_destination": "北京", "travel_days": 2, "budget": "2000-3000"}'),
+
+-- 用户2的会话
+((SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'session_3', '上海商务旅行', 'active', '用户需要上海商务旅行的酒店和交通推荐', '{"travel_destination": "上海", "travel_purpose": "business", "budget": "10000+"}'),
+
+-- 用户3的会话
+((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), 'session_4', '成都美食之旅', 'active', '用户计划成都美食之旅，需要餐厅推荐', '{"travel_destination": "成都", "travel_purpose": "food", "budget": "3000-5000"}'),
+
+-- 用户4的会话
+((SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1), 'session_5', '杭州西湖游', 'archived', '用户计划杭州西湖一日游，需要景点和交通信息', '{"travel_destination": "杭州", "travel_days": 1, "budget": "1000-2000"}');
+
+-- =============================================================================
+-- 9.2 对话消息数据 (conversation_messages)
+-- =============================================================================
+INSERT INTO conversation_messages (conversation_id, user_id, role, content, message_type, metadata) VALUES
+-- 会话1的消息
+((SELECT id FROM conversations WHERE session_id = 'session_1' LIMIT 1), (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'user', '我计划下个月去三亚旅游，想了解一下酒店和景点推荐', 'text', '{"message_id": "msg_1"}'),
+((SELECT id FROM conversations WHERE session_id = 'session_1' LIMIT 1), (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'assistant', '三亚是一个非常适合度假的地方！推荐您考虑以下酒店：\n1. 三亚亚特兰蒂斯酒店 - 豪华水世界主题酒店\n2. 三亚海棠湾红树林度假酒店 - 海边豪华酒店\n3. 三亚亚龙湾铂尔曼度假酒店 - 性价比高\n\n推荐景点：\n1. 亚龙湾 - 著名的白沙滩\n2. 蜈支洲岛 - 潜水胜地\n3. 天涯海角 - 标志性景点\n4. 南山文化旅游区 - 佛教文化胜地', 'text', '{"message_id": "msg_2", "token_count": 150}'),
+
+-- 会话2的消息
+((SELECT id FROM conversations WHERE session_id = 'session_2' LIMIT 1), (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'user', '我周末想去北京玩，故宫和长城怎么安排比较好？', 'text', '{"message_id": "msg_3"}'),
+((SELECT id FROM conversations WHERE session_id = 'session_2' LIMIT 1), (SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'assistant', '周末游北京的建议安排：\n\n**第一天：故宫**\n- 建议早上8:30入场，避开人流\n- 参观路线：午门 → 太和殿 → 乾清宫 → 御花园\n- 预计游览时间：4-5小时\n- 午餐推荐：故宫附近的王府井大街\n\n**第二天：长城**\n- 推荐八达岭长城，交通最便利\n- 早上7点出发，可乘坐S2线火车\n- 预计游览时间：3-4小时\n- 下午返回市区，可顺路参观明十三陵', 'text', '{"message_id": "msg_4", "token_count": 200}'),
+
+-- 会话3的消息
+((SELECT id FROM conversations WHERE session_id = 'session_3' LIMIT 1), (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'user', '我需要去上海出差3天，推荐一下市中心的商务酒店', 'text', '{"message_id": "msg_5"}'),
+((SELECT id FROM conversations WHERE session_id = 'session_3' LIMIT 1), (SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'assistant', '上海市中心的商务酒店推荐：\n\n1. 上海浦东香格里拉大酒店 - 位于陆家嘴金融区，交通便利\n2. 上海静安香格里拉大酒店 - 位于静安区，购物方便\n3. 上海外滩华尔道夫酒店 - 位于外滩，景观优美\n4. 上海凯悦酒店 - 位于人民广场附近，地理位置优越\n\n这些酒店都提供商务中心、高速网络和会议设施，非常适合商务出行。', 'text', '{"message_id": "msg_6", "token_count": 120}');
+
+-- =============================================================================
+-- 9.3 用户偏好数据 (user_preferences)
+-- =============================================================================
+INSERT INTO user_preferences (user_id, preference_type, preference_value, confidence, source, metadata) VALUES
+-- 用户1的偏好
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'travel_style', 'cultural', 0.8, 'explicit', '{"last_confirmed": "2025-01-15"}'),
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'budget_range', 'mid', 0.9, 'explicit', '{"last_confirmed": "2025-01-15"}'),
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'destination_type', 'beach', 0.7, 'implicit', '{"inferred_count": 3}'),
+
+-- 用户2的偏好
+((SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'travel_style', 'luxury', 0.9, 'explicit', '{"last_confirmed": "2025-01-18"}'),
+((SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'accommodation_type', '5_star_hotel', 0.85, 'explicit', '{"last_confirmed": "2025-01-18"}'),
+
+-- 用户3的偏好
+((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), 'travel_style', 'adventure', 0.8, 'explicit', '{"last_confirmed": "2025-01-20"}'),
+((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), 'budget_range', 'budget', 0.9, 'explicit', '{"last_confirmed": "2025-01-20"}'),
+((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), 'food_preference', 'local_cuisine', 0.95, 'explicit', '{"last_confirmed": "2025-01-20"}'),
+
+-- 用户4的偏好
+((SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1), 'travel_style', 'cultural', 0.75, 'implicit', '{"inferred_count": 2}'),
+((SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1), 'budget_range', 'luxury', 0.8, 'explicit', '{"last_confirmed": "2025-01-10"}'),
+
+-- 用户5的偏好
+((SELECT id FROM users WHERE username = 'david_b' LIMIT 1), 'travel_style', 'adventure', 0.85, 'explicit', '{"last_confirmed": "2025-01-12"}'),
+((SELECT id FROM users WHERE username = 'david_b' LIMIT 1), 'activity_type', 'hiking', 0.9, 'explicit', '{"last_confirmed": "2025-01-12"}');
+
+-- =============================================================================
+-- 9.4 历史任务案例数据 (task_cases)
+-- =============================================================================
+INSERT INTO task_cases (user_id, destination, duration_days, budget_range, preferences, plan_summary, satisfaction, feedback) VALUES
+-- 用户1的任务案例
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), '三亚', 5, '5000-8000', '["海边", "美食", "休闲"]', '5天4晚三亚之旅，入住亚特兰蒂斯酒店，游览亚龙湾、蜈支洲岛和天涯海角，品尝当地海鲜美食', 4.8, '非常满意，酒店设施一流，景点推荐很到位'),
+
+-- 用户2的任务案例
+((SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), '上海', 3, '10000+', '["商务", "购物", "美食"]', '3天2晚上海商务之行，入住浦东香格里拉大酒店，参加商务会议，空余时间购物和品尝美食', 4.5, '酒店位置很好，交通便利，服务周到'),
+
+-- 用户3的任务案例
+((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), '成都', 4, '3000-5000', '["美食", "文化", "熊猫"]', '4天3晚成都美食之旅，入住锦里附近酒店，品尝川菜，参观大熊猫基地，游览武侯祠', 4.9, '美食推荐非常棒，熊猫基地的体验难忘'),
+
+-- 用户4的任务案例
+((SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1), '杭州', 2, '2000-3000', '["风景", "文化", "休闲"]', '2天1晚杭州之旅，入住西湖附近酒店，游览西湖、灵隐寺，品尝西湖醋鱼', 4.6, '西湖景色很美，酒店位置绝佳'),
+
+-- 用户5的任务案例
+((SELECT id FROM users WHERE username = 'david_b' LIMIT 1), '西安', 3, '4000-6000', '["历史", "文化", "美食"]', '3天2晚西安之旅，入住古城墙附近酒店，参观兵马俑、古城墙，品尝肉夹馍和凉皮', 4.7, '历史文化体验丰富，美食令人难忘');
+
+-- =============================================================================
+-- 9.5 向量存储元数据 (vector_memories)
+-- =============================================================================
+INSERT INTO vector_memories (user_id, memory_type, content, embedding_id, metadata) VALUES
+-- 用户1的向量记忆
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'preference', '用户喜欢海滩度假，预算中等，偏好文化体验', 'emb_1', '{"destination_type": "beach", "budget_level": "mid", "travel_style": "cultural"}'),
+((SELECT id FROM users WHERE username = 'john_doe' LIMIT 1), 'task_case', '三亚5天4晚度假，入住亚特兰蒂斯酒店，游览亚龙湾、蜈支洲岛', 'emb_2', '{"destination": "三亚", "duration": 5, "satisfaction": 4.8}'),
+
+-- 用户2的向量记忆
+((SELECT id FROM users WHERE username = 'jane_smith' LIMIT 1), 'preference', '用户偏好豪华旅行，喜欢五星级酒店，商务出行频繁', 'emb_3', '{"budget_level": "luxury", "accommodation_type": "5_star", "travel_purpose": "business"}'),
+
+-- 用户3的向量记忆
+((SELECT id FROM users WHERE username = 'mike_wilson' LIMIT 1), 'preference', '用户喜欢冒险旅行，预算有限，对当地美食有浓厚兴趣', 'emb_4', '{"travel_style": "adventure", "budget_level": "budget", "food_preference": "local"}'),
+
+-- 用户4的向量记忆
+((SELECT id FROM users WHERE username = 'sarah_j' LIMIT 1), 'task_case', '杭州2天1晚休闲游，游览西湖和灵隐寺，入住西湖附近酒店', 'emb_5', '{"destination": "杭州", "duration": 2, "satisfaction": 4.6}'),
+
+-- 用户5的向量记忆
+((SELECT id FROM users WHERE username = 'david_b' LIMIT 1), 'preference', '用户喜欢徒步旅行，对历史文化景点有兴趣，偏好冒险活动', 'emb_6', '{"activity_type": "hiking", "travel_style": "adventure", "interest": "history"}');
+
+-- =============================================================================
 -- 8. 示例查询 - 验证数据完整性
 -- =============================================================================
 
@@ -500,7 +603,18 @@ SELECT 'rag_documents', COUNT(*) FROM rag_documents
 UNION ALL
 SELECT 'audit_logs', COUNT(*) FROM audit_logs
 UNION ALL
-SELECT 'bookings', COUNT(*) FROM bookings;
+SELECT 'bookings', COUNT(*) FROM bookings
+UNION ALL
+-- 记忆系统表
+SELECT 'conversations', COUNT(*) FROM conversations
+UNION ALL
+SELECT 'conversation_messages', COUNT(*) FROM conversation_messages
+UNION ALL
+SELECT 'user_preferences', COUNT(*) FROM user_preferences
+UNION ALL
+SELECT 'task_cases', COUNT(*) FROM task_cases
+UNION ALL
+SELECT 'vector_memories', COUNT(*) FROM vector_memories;
 
 -- =============================================================================
 -- 示例数据初始化完成

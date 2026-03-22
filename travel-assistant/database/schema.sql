@@ -372,3 +372,202 @@ CREATE TRIGGER trg_set_updated_at_bookings
 BEFORE UPDATE ON bookings
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+-- =============================================================================
+-- 记忆系统表结构（从 schema_memory.sql 整合）
+-- 用途：存储四层记忆系统的数据
+-- 兼容性：与现有 users 表保持一致，使用 BIGINT 作为 user_id
+-- =============================================================================
+
+-- =============================================================================
+-- 表 8：conversations - 对话会话表
+-- 作用：存储每次对话会话的基本信息，对应左侧历史列表中的每一个条目
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id BIGINT NOT NULL,
+    session_id VARCHAR(255) UNIQUE NOT NULL,
+    title VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'active',
+    summary TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    CONSTRAINT fk_conversations_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conv_session ON conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_conv_updated ON conversations(updated_at);
+CREATE INDEX IF NOT EXISTS idx_conv_status ON conversations(status);
+
+DROP TRIGGER IF EXISTS trg_set_updated_at_conversations ON conversations;
+CREATE TRIGGER trg_set_updated_at_conversations
+BEFORE UPDATE ON conversations
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+COMMENT ON TABLE conversations IS '对话会话表：存储每次对话会话的基本信息';
+
+-- =============================================================================
+-- 表 9：conversation_messages - 对话消息表
+-- 关联关系：多对一，多条消息属于一个会话
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS conversation_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL,
+    user_id BIGINT NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    message_type VARCHAR(50) DEFAULT 'text',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_msg_conversation FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_msg_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_msg_conv ON conversation_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_msg_user ON conversation_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_msg_created ON conversation_messages(created_at);
+
+COMMENT ON TABLE conversation_messages IS '对话消息表：存储会话中的每条消息';
+
+-- =============================================================================
+-- 表 10：user_preferences - 用户偏好表
+-- 作用：存储用户的固定偏好，用于长期记忆（第4层）
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS user_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id BIGINT NOT NULL,
+    preference_type VARCHAR(50) NOT NULL,
+    preference_value TEXT NOT NULL,
+    confidence FLOAT DEFAULT 0.5,
+    source VARCHAR(50),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_preferences_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, preference_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pref_user ON user_preferences(user_id);
+CREATE INDEX IF NOT EXISTS idx_pref_type ON user_preferences(preference_type);
+CREATE INDEX IF NOT EXISTS idx_pref_confidence ON user_preferences(confidence);
+
+DROP TRIGGER IF EXISTS trg_set_updated_at_preferences ON user_preferences;
+CREATE TRIGGER trg_set_updated_at_preferences
+BEFORE UPDATE ON user_preferences
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+COMMENT ON TABLE user_preferences IS '用户偏好表：存储用户的固定偏好，用于长期记忆';
+
+-- =============================================================================
+-- 表 11：task_cases - 历史任务案例表
+-- 作用：存储用户的历史旅游任务，用于长期记忆和案例参考
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS task_cases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id BIGINT NOT NULL,
+    destination VARCHAR(255),
+    duration_days INT,
+    budget_range VARCHAR(50),
+    preferences JSONB DEFAULT '[]',
+    plan_summary TEXT,
+    satisfaction FLOAT,
+    feedback TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_task_cases_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_case_user ON task_cases(user_id);
+CREATE INDEX IF NOT EXISTS idx_case_dest ON task_cases(destination);
+CREATE INDEX IF NOT EXISTS idx_case_satisfaction ON task_cases(satisfaction);
+
+COMMENT ON TABLE task_cases IS '历史任务案例表：存储用户的历史旅游任务';
+
+-- =============================================================================
+-- 表 12：vector_memories - 向量存储元数据表
+-- 作用：存储向量数据库中数据的元数据，用于关联关系型数据库和向量数据库
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS vector_memories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id BIGINT NOT NULL,
+    memory_type VARCHAR(50),
+    content TEXT NOT NULL,
+    embedding_id VARCHAR(255),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_vector_memories_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_vec_user ON vector_memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_vec_type ON vector_memories(memory_type);
+CREATE INDEX IF NOT EXISTS idx_vec_embedding ON vector_memories(embedding_id);
+
+COMMENT ON TABLE vector_memories IS '向量存储元数据表：存储向量数据库的元数据';
+
+-- =============================================================================
+-- 辅助视图
+-- =============================================================================
+
+-- 会话统计视图
+CREATE OR REPLACE VIEW v_session_stats AS
+SELECT 
+    c.id AS conversation_id,
+    c.user_id,
+    c.session_id,
+    c.title,
+    c.status,
+    c.summary,
+    COUNT(cm.id) AS message_count,
+    c.created_at,
+    c.updated_at
+FROM conversations c
+LEFT JOIN conversation_messages cm ON c.id = cm.conversation_id
+GROUP BY c.id, c.user_id, c.session_id, c.title, c.status, c.summary, c.created_at, c.updated_at;
+
+-- 用户偏好汇总视图
+CREATE OR REPLACE VIEW v_user_preferences_summary AS
+SELECT 
+    up.user_id,
+    COUNT(*) AS preference_count,
+    JSON_AGG(
+        JSON_BUILD_OBJECT(
+            'type', up.preference_type,
+            'value', up.preference_value,
+            'confidence', up.confidence,
+            'source', up.source
+        )
+    ) AS preferences
+FROM user_preferences up
+GROUP BY up.user_id;
+
+-- =============================================================================
+-- 清理函数（用于定期清理过期数据）
+-- =============================================================================
+
+-- 删除过期的会话（保留30天）
+CREATE OR REPLACE FUNCTION cleanup_expired_sessions()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM conversations 
+    WHERE status = 'archived' 
+    AND updated_at < NOW() - INTERVAL '30 days';
+    
+    RAISE NOTICE 'Deleted % expired sessions', ROW_COUNT;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 删除低置信度的偏好（置信度 < 0.3）
+CREATE OR REPLACE FUNCTION cleanup_low_confidence_preferences()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM user_preferences 
+    WHERE confidence < 0.3 
+    AND updated_at < NOW() - INTERVAL '7 days';
+    
+    RAISE NOTICE 'Deleted % low confidence preferences', ROW_COUNT;
+END;
+$$ LANGUAGE plpgsql;

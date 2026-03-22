@@ -7,7 +7,7 @@
   "scripts": {
     "dev:frontend": "vite",
     "dev:api": "next dev -p 3000",
-    "dev": "concurrently -k -n API,FE -c magenta,cyan \"npm run dev:api\" \"npm run dev:frontend\"",
+    "dev": "concurrently -k -n API,FE -c magenta,cyan \"npm run dev:frontend\"",
     "dev:debug": "MOCK_API_DEBUG=true concurrently -k -n API,FE -c magenta,cyan \"npm run dev:api\" \"npm run dev:frontend\"",
     "build": "tsc && vite build",
     "preview": "vite preview",

@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # ============ Vector Store Configuration ============
     vector_store_type: str = Field(default="faiss", alias="VECTOR_STORE_TYPE")
-    vector_store_path: str = Field(default="./data/vector_store", alias="VECTOR_STORE_PATH")
+    vector_store_path: str = Field(default="E:/lvyou/lvyou/travel-assistant-agent/data/vector_store3", alias="VECTOR_STORE_PATH")
     vector_dimension: int = Field(default=1536, alias="VECTOR_DIMENSION")
     embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
     embedding_api_key: str = Field(default="", alias="EMBEDDING_API_KEY")
@@ -121,9 +121,9 @@ class Settings(BaseSettings):
     )
 
     # CORS
-    cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173"],
-        alias="CORS_ORIGINS"
+    cors_origins: str = Field(
+        default="http://localhost:3000,http://localhost:5173",
+        description="Comma-separated list of allowed origins for CORS"
     )
 
     # MCP (Model Context Protocol)

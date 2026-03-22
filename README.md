@@ -4,9 +4,9 @@
 
 This repository is organized as a small monorepo with **three independent sub-projects**:
 
-- `travel-assistant-front/` — React 18 + TypeScript + Vite frontend
-- `travel-assistant/` — Java Spring Cloud microservices (API)
-- `travel-assistant-agent/` — Python FastAPI agent service (LangChain/LangGraph)
+- `travel-assistant-front/` — React 18 + TypeScript + Vite frontend (用户端)
+- `travel-assistant/` — Java Spring Cloud microservices (API) + Python admin-agent (管理后台)
+- `travel-assistant-agent/` — Python FastAPI agent service (LangChain/LangGraph) (用户端AI)
 
 ## OpenSpec Integration
 
@@ -88,8 +88,36 @@ See [OPENSPEC_WORKFLOW.md](openspec/OPENSPEC_WORKFLOW.md) for detailed guidance.
 │  - Destination/Pricing/Weather/Reviews                           │
 └─────────────────────────────────────────────────────────────────┘
 
+───────────────────────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    Admin Browser                                 │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  travel-assistant/admin-frontend (Vue3 + TypeScript + Vite)     │
+│  Port: 3001 (dev) / 3001 (prod)                                 │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ HTTP REST API
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  travel-assistant/admin-service (Spring Boot)                  │
+│  Port: 8090                                                     │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ HTTP
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  travel-assistant/admin-agent (FastAPI + LangChain)             │
+│  Port: 8091                                                     │
+│  - Document Processing (RAG)                                     │
+│  - Vector Indexing (FAISS)                                       │
+│  - Parent-Child Index                                           │
+└─────────────────────────────────────────────────────────────────┘
+
 Data Layer: PostgreSQL (Port 5432)
 Service Discovery: Nacos (Port 8848)
+Vector Store: FAISS (Shared Storage)
 ```
 
 ## Quick Start
@@ -133,9 +161,37 @@ docker compose up --build
 
 See `travel-assistant-agent/README.md` for configuration and details.
 
+### Admin Frontend (Vue3, development)
+
+```bash
+cd travel-assistant/admin-frontend
+npm install
+npm run dev
+```
+
+Admin dev server: http://localhost:3001
+
+### Admin Backend (Spring Boot)
+
+```bash
+cd travel-assistant/admin-service
+docker compose up --build
+```
+
+See [ADMIN_SYSTEM_ARCHITECTURE.md](ADMIN_SYSTEM_ARCHITECTURE.md) for details.
+
+### Admin Agent (Python, RAG Processing)
+
+```bash
+cd travel-assistant/admin-agent
+docker compose up --build
+```
+
+See [RAG_DOCUMENT_SYNC_DESIGN.md](RAG_DOCUMENT_SYNC_DESIGN.md) for details.
+
 ## Project Structure
 
-### Frontend (`travel-assistant-front/`)
+### User Frontend (`travel-assistant-front/`)
 
 - React 18 + TypeScript + Vite
 - Zustand for state management
@@ -150,12 +206,34 @@ See `travel-assistant-agent/README.md` for configuration and details.
 - Spring Cloud Gateway
 - PostgreSQL database
 
-### Python Agent (`travel-assistant-agent/`)
+### User Python Agent (`travel-assistant-agent/`)
 
 - FastAPI + Python 3.10+
 - LangChain + LangGraph
 - Claude 3.5 Sonnet (Anthropic API)
 - MCP (Model Context Protocol)
+
+### Admin Frontend (`travel-assistant/admin-frontend/`)
+
+- Vue3 + TypeScript + Vite
+- Pinia for state management
+- Element Plus UI components
+- Vue Router
+- Axios HTTP client
+
+### Admin Backend (`travel-assistant/admin-service/`)
+
+- Spring Boot 3.x
+- Spring Security (权限控制)
+- OpenFeign (服务间调用)
+- PostgreSQL database
+
+### Admin Python Agent (`travel-assistant/admin-agent/`)
+
+- FastAPI + Python 3.10+
+- LangChain (文档处理)
+- FAISS (向量索引)
+- Parent-Child Index (RAG优化)
 
 ## Contributing
 

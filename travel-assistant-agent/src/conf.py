@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # 阿里云通义千问 (标准层)
     dashscope_api_key: str = Field(default="", alias="DASHSCOPE_API_KEY")
     # 智谱 AI GLM
-    zhipu_api_key: str = Field(default="", alias="ZHIPU_API_KEY")
+    zhipu_api_key: str = Field(default="bf1f2d8d1a770c701db9200868846d58.DQ7Jo5qVgyQw4nzc", alias="ZHIPU_API_KEY")
     # OpenAI 兼容
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     # Anthropic Claude (强力层)
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # ============ Vector Store Configuration ============
     vector_store_type: str = Field(default="faiss", alias="VECTOR_STORE_TYPE")
-    vector_store_path: str = Field(default="./data/vector_store", alias="VECTOR_STORE_PATH")
+    vector_store_path: str = Field(default="E:/lvyou/lvyou/travel-assistant-agent/data/vector_store", alias="VECTOR_STORE_PATH")
     vector_dimension: int = Field(default=1536, alias="VECTOR_DIMENSION")
     embedding_model: str = Field(default="text-embedding-3-small", alias="EMBEDDING_MODEL")
     embedding_api_key: str = Field(default="", alias="EMBEDDING_API_KEY")
@@ -136,11 +136,11 @@ class Settings(BaseSettings):
 
     # Java API
     java_api_url: str = Field(
-        default="http://localhost:8080/api",
+        default="http://localhost:9000",
         alias="JAVA_API_URL"
     )
     java_api_base_url: str = Field(
-        default="http://localhost:8080/api",
+        default="http://localhost:9000/api",
         alias="JAVA_API_BASE_URL"
     )
     java_api_timeout: int = Field(default=30, alias="JAVA_API_TIMEOUT")
@@ -187,7 +187,7 @@ class Settings(BaseSettings):
 
     # JWT Authentication
     jwt_secret_key: str = Field(
-        default="your-super-secret-key-change-in-production",
+        default="your-super-secret-key-change-in-production-32bytes",
         alias="JWT_SECRET_KEY"
     )
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
@@ -228,6 +228,38 @@ class Settings(BaseSettings):
     skills_max_execution_time: float = Field(default=30.0, alias="SKILLS_MAX_EXECUTION_TIME")
     skills_parallel_enabled: bool = Field(default=True, alias="SKILLS_PARALLEL_ENABLED")
     skills_cost_tracking: bool = Field(default=True, alias="SKILLS_COST_TRACKING")
+
+    # ============ Memory System Configuration ============
+    # 记忆系统配置
+    memory_system_enabled: bool = Field(default=True, alias="MEMORY_SYSTEM_ENABLED")
+    memory_gateway_enabled: bool = Field(default=True, alias="MEMORY_GATEWAY_ENABLED")
+    memory_retriever_enabled: bool = Field(default=True, alias="MEMORY_RETRIEVER_ENABLED")
+    
+    # 长期记忆检索配置
+    long_term_memory_enabled: bool = Field(default=True, alias="LONG_TERM_MEMORY_ENABLED")
+    long_term_memory_top_k: int = Field(default=10, alias="LONG_TERM_MEMORY_TOP_K")
+    long_term_memory_use_hybrid: bool = Field(default=True, alias="LONG_TERM_MEMORY_USE_HYBRID")
+    
+    # 记忆缓存配置
+    memory_cache_enabled: bool = Field(default=True, alias="MEMORY_CACHE_ENABLED")
+    memory_cache_ttl: int = Field(default=3600, alias="MEMORY_CACHE_TTL")
+    memory_cache_max_size: int = Field(default=1000, alias="MEMORY_CACHE_MAX_SIZE")
+
+    # ============ Query Rewrite Configuration ============
+    # Query改写配置
+    query_rewrite_enabled: bool = Field(default=True, alias="QUERY_REWRITE_ENABLED")
+    query_rewrite_confidence_threshold: float = Field(default=0.7, alias="QUERY_REWRITE_CONFIDENCE_THRESHOLD")
+    query_rewrite_use_local_model: bool = Field(default=True, alias="QUERY_REWRITE_USE_LOCAL_MODEL")
+    query_rewrite_local_model: str = Field(default="qwen-7b", alias="QUERY_REWRITE_LOCAL_MODEL")
+    query_rewrite_cloud_model: str = Field(default="gpt-4", alias="QUERY_REWRITE_CLOUD_MODEL")
+
+    # ============ Session Management Configuration ============
+    # 会话管理配置
+    session_manager_enabled: bool = Field(default=True, alias="SESSION_MANAGER_ENABLED")
+    session_max_tokens: int = Field(default=4000, alias="SESSION_MAX_TOKENS")
+    session_window_strategy: str = Field(default="sliding_window", alias="SESSION_WINDOW_STRATEGY")
+    session_compression_threshold: float = Field(default=0.8, alias="SESSION_COMPRESSION_THRESHOLD")
+    session_reset_threshold: float = Field(default=0.95, alias="SESSION_RESET_THRESHOLD")
 
     # ============ Concurrency & Rate Limiting ============
     # Connection Pool

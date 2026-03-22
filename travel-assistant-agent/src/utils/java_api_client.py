@@ -1147,7 +1147,651 @@ class JavaAPIClient:
         if self._client:
             await self._client.aclose()
             self._client = None
-            app_logger.info("JavaAPIClient connection closed")
+
+    # =============================================================================
+    # 记忆系统相关方法 (Memory System)
+    # =============================================================================
+
+    async def create_conversation(
+        self,
+        user_id: int,
+        session_id: str,
+        title: str = None,
+        metadata: Dict[str, Any] = None,
+        user_token: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        创建会话
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            title: 会话标题（可选）
+            metadata: 元数据（可选）
+            user_token: 用户 Token
+
+        Returns:
+            会话信息
+        """
+        try:
+            endpoint = "/api/memory/conversations"
+            payload = {
+                "user_id": user_id,
+                "session_id": session_id
+            }
+
+            if title:
+                payload["title"] = title
+
+            if metadata:
+                payload["metadata"] = metadata
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response
+        except Exception as e:
+            app_logger.error(f"Failed to create conversation: {e}")
+            return None
+
+    async def get_session_memory(
+        self,
+        user_id: int,
+        session_id: str,
+        user_token: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取会话记忆
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            user_token: 用户 Token
+
+        Returns:
+            会话记忆数据
+        """
+        try:
+            endpoint = f"/api/memory/conversations/{session_id}"
+            params = {"user_id": user_id}
+
+            response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response
+        except Exception as e:
+            app_logger.error(f"Failed to get session memory: {e}")
+            return None
+
+    async def save_message(
+        self,
+        user_id: int,
+        session_id: str,
+        role: str,
+        content: str,
+        metadata: Dict[str, Any] = None,
+        user_token: str = None
+    ) -> Optional[str]:
+        """
+        保存对话消息
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            role: 角色 (user/assistant/system)
+            content: 消息内容
+            metadata: 元数据
+            user_token: 用户 Token
+
+        Returns:
+            消息ID
+        """
+        try:
+            endpoint = "/api/memory/messages"
+            payload = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "role": role,
+                "content": content,
+                "metadata": metadata or {}
+            }
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("message_id")
+        except Exception as e:
+            app_logger.error(f"Failed to save message: {e}")
+            return None
+
+    async def get_conversation_history(
+        self,
+        user_id: int,
+        session_id: str,
+        limit: int = 20,
+        user_token: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取对话历史
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            limit: 返回消息数量
+            user_token: 用户 Token
+
+        Returns:
+            消息列表
+        """
+        try:
+            endpoint = f"/api/memory/sessions/{session_id}/messages"
+            params = {
+                "user_id": user_id,
+                "limit": limit
+            }
+
+            response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response.get("messages", [])
+        except Exception as e:
+            app_logger.error(f"Failed to get conversation history: {e}")
+            return []
+
+    async def save_preference(
+        self,
+        user_id: int,
+        preference_type: str,
+        preference_value: str,
+        confidence: float = 0.8,
+        source: str = "conversation",
+        user_token: str = None
+    ) -> Optional[str]:
+        """
+        保存用户偏好
+
+        Args:
+            user_id: 用户ID
+            preference_type: 偏好类型
+            preference_value: 偏好值
+            confidence: 置信度
+            source: 来源
+            user_token: 用户 Token
+
+        Returns:
+            偏好ID
+        """
+        try:
+            endpoint = "/api/memory/preferences"
+            payload = {
+                "user_id": user_id,
+                "preference_type": preference_type,
+                "preference_value": preference_value,
+                "confidence": confidence,
+                "source": source
+            }
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("preference_id")
+        except Exception as e:
+            app_logger.error(f"Failed to save preference: {e}")
+            return None
+
+    async def get_user_preferences(
+        self,
+        user_id: int,
+        preference_type: str = None,
+        user_token: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取用户偏好
+
+        Args:
+            user_id: 用户ID
+            preference_type: 偏好类型（可选）
+            user_token: 用户 Token
+
+        Returns:
+            偏好列表
+        """
+        try:
+            endpoint = "/api/memory/preferences"
+            params = {"user_id": user_id}
+
+            if preference_type:
+                params["preference_type"] = preference_type
+
+            response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response.get("preferences", [])
+        except Exception as e:
+            app_logger.error(f"Failed to get user preferences: {e}")
+            return []
+
+    async def save_task_case(
+        self,
+        user_id: int,
+        destination: str,
+        duration_days: int,
+        budget_range: str,
+        plan_summary: str,
+        satisfaction: float = None,
+        user_token: str = None
+    ) -> Optional[str]:
+        """
+        保存历史任务案例
+
+        Args:
+            user_id: 用户ID
+            destination: 目的地
+            duration_days: 天数
+            budget_range: 预算范围
+            plan_summary: 计划摘要
+            satisfaction: 满意度
+            user_token: 用户 Token
+
+        Returns:
+            案例ID
+        """
+        try:
+            endpoint = "/api/memory/task-cases"
+            payload = {
+                "user_id": user_id,
+                "destination": destination,
+                "duration_days": duration_days,
+                "budget_range": budget_range,
+                "plan_summary": plan_summary
+            }
+
+            if satisfaction is not None:
+                payload["satisfaction"] = satisfaction
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("case_id")
+        except Exception as e:
+            app_logger.error(f"Failed to save task case: {e}")
+            return None
+
+    async def get_task_cases(
+        self,
+        user_id: int,
+        destination: str = None,
+        limit: int = 10,
+        user_token: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取历史任务案例
+
+        Args:
+            user_id: 用户ID
+            destination: 目的地（可选）
+            limit: 返回数量
+            user_token: 用户 Token
+
+        Returns:
+            案例列表
+        """
+        try:
+            endpoint = "/api/memory/task-cases"
+            params = {
+                "user_id": user_id,
+                "limit": limit
+            }
+
+            if destination:
+                params["destination"] = destination
+
+            response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response.get("cases", [])
+        except Exception as e:
+            app_logger.error(f"Failed to get task cases: {e}")
+            return []
+
+    async def update_session_summary(
+        self,
+        user_id: int,
+        session_id: str,
+        summary: str,
+        user_token: str = None
+    ) -> bool:
+        """
+        更新会话摘要
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            summary: 摘要内容
+            user_token: 用户 Token
+
+        Returns:
+            是否成功
+        """
+        try:
+            endpoint = f"/api/memory/conversations/{session_id}/summary"
+            payload = {
+                "user_id": user_id,
+                "summary": summary
+            }
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("success", False)
+        except Exception as e:
+            app_logger.error(f"Failed to update session summary: {e}")
+            return False
+
+    async def get_user_sessions(
+        self,
+        user_id: int,
+        limit: int = 20,
+        user_token: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取用户的所有会话
+
+        Args:
+            user_id: 用户ID
+            limit: 返回数量
+            user_token: 用户 Token
+
+        Returns:
+            会话列表
+        """
+        try:
+            endpoint = f"/api/memory/conversations/user/{user_id}"
+            params = {
+                "limit": limit
+            }
+
+            response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response.get("conversations", [])
+        except Exception as e:
+            app_logger.error(f"Failed to get user sessions: {e}")
+            return []
+
+    async def archive_session(
+        self,
+        user_id: int,
+        session_id: str,
+        user_token: str = None
+    ) -> bool:
+        """
+        归档会话
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            user_token: 用户 Token
+
+        Returns:
+            是否成功
+        """
+        try:
+            endpoint = f"/api/memory/conversations/{session_id}/archive"
+            payload = {"user_id": user_id}
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("success", False)
+        except Exception as e:
+            app_logger.error(f"Failed to archive session: {e}")
+            return False
+
+    async def get_session_stats(
+        self,
+        user_id: int,
+        session_id: str,
+        user_token: str = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取会话统计信息
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            user_token: 用户 Token
+
+        Returns:
+            会话统计信息
+        """
+        try:
+            endpoint = f"/api/memory/sessions/{session_id}/stats"
+            params = {"user_id": user_id}
+
+            response = await self._request("GET", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response
+        except Exception as e:
+            app_logger.error(f"Failed to get session stats: {e}")
+            return None
+
+    async def delete_conversation(
+        self,
+        user_id: int,
+        session_id: str,
+        user_token: str = None
+    ) -> bool:
+        """
+        删除会话
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            user_token: 用户 Token
+
+        Returns:
+            是否成功
+        """
+        try:
+            endpoint = f"/api/memory/conversations/{session_id}"
+            params = {"user_id": user_id}
+
+            response = await self._request("DELETE", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response.get("success", False)
+        except Exception as e:
+            app_logger.error(f"Failed to delete conversation: {e}")
+            return False
+
+    async def update_preference(
+        self,
+        preference_id: str,
+        user_id: int,
+        preference_value: str,
+        confidence: float = None,
+        user_token: str = None
+    ) -> bool:
+        """
+        更新用户偏好
+
+        Args:
+            preference_id: 偏好ID
+            user_id: 用户ID
+            preference_value: 新的偏好值
+            confidence: 置信度（可选）
+            user_token: 用户 Token
+
+        Returns:
+            是否成功
+        """
+        try:
+            endpoint = f"/api/memory/preferences/{preference_id}"
+            payload = {
+                "user_id": user_id,
+                "preference_value": preference_value
+            }
+
+            if confidence is not None:
+                payload["confidence"] = confidence
+
+            response = await self._request("PUT", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("success", False)
+        except Exception as e:
+            app_logger.error(f"Failed to update preference: {e}")
+            return False
+
+    async def delete_preference(
+        self,
+        preference_id: str,
+        user_id: int,
+        user_token: str = None
+    ) -> bool:
+        """
+        删除用户偏好
+
+        Args:
+            preference_id: 偏好ID
+            user_id: 用户ID
+            user_token: 用户 Token
+
+        Returns:
+            是否成功
+        """
+        try:
+            endpoint = f"/api/memory/preferences/{preference_id}"
+            params = {"user_id": user_id}
+
+            response = await self._request("DELETE", endpoint, params=params, user_token=user_token, user_id=str(user_id))
+            return response.get("success", False)
+        except Exception as e:
+            app_logger.error(f"Failed to delete preference: {e}")
+            return False
+
+    async def save_memory(
+        self,
+        user_id: int,
+        memory_type: str,
+        content: str,
+        embedding_id: str = None,
+        metadata: Dict[str, Any] = None,
+        user_token: str = None
+    ) -> Optional[str]:
+        """
+        保存向量记忆
+
+        Args:
+            user_id: 用户ID
+            memory_type: 记忆类型
+            content: 记忆内容
+            embedding_id: 向量ID
+            metadata: 元数据
+            user_token: 用户 Token
+
+        Returns:
+            记忆ID
+        """
+        try:
+            endpoint = "/api/memory/memories"
+            payload = {
+                "user_id": user_id,
+                "memory_type": memory_type,
+                "content": content,
+                "metadata": metadata or {}
+            }
+
+            if embedding_id:
+                payload["embedding_id"] = embedding_id
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("memory_id")
+        except Exception as e:
+            app_logger.error(f"Failed to save memory: {e}")
+            return None
+
+    async def search_memories(
+        self,
+        user_id: int,
+        query: str,
+        memory_types: List[str] = None,
+        top_k: int = 5,
+        filters: Dict[str, Any] = None,
+        user_token: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        检索向量记忆
+
+        Args:
+            user_id: 用户ID
+            query: 查询文本
+            memory_types: 记忆类型列表（可选）
+            top_k: 返回数量
+            filters: 过滤条件（可选）
+            user_token: 用户 Token
+
+        Returns:
+            检索结果列表
+        """
+        try:
+            endpoint = "/api/memory/memories/search"
+            payload = {
+                "user_id": user_id,
+                "query": query,
+                "top_k": top_k
+            }
+
+            if memory_types:
+                payload["memory_types"] = memory_types
+
+            if filters:
+                payload["filters"] = filters
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("results", [])
+        except Exception as e:
+            app_logger.error(f"Failed to search memories: {e}")
+            return []
+
+    async def extract_preferences(
+        self,
+        user_id: int,
+        conversation_id: str,
+        confidence_threshold: float = 0.6,
+        user_token: str = None
+    ) -> List[Dict[str, Any]]:
+        """
+        从对话中提取偏好
+
+        Args:
+            user_id: 用户ID
+            conversation_id: 会话ID
+            confidence_threshold: 置信度阈值
+            user_token: 用户 Token
+
+        Returns:
+            提取的偏好列表
+        """
+        try:
+            endpoint = "/api/memory/memories/extract-preferences"
+            payload = {
+                "user_id": user_id,
+                "conversation_id": conversation_id,
+                "confidence_threshold": confidence_threshold
+            }
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("preferences", [])
+        except Exception as e:
+            app_logger.error(f"Failed to extract preferences: {e}")
+            return []
+
+    async def reset_session(
+        self,
+        user_id: int,
+        session_id: str,
+        keep_summary: bool = True,
+        user_token: str = None
+    ) -> Optional[str]:
+        """
+        重置会话
+
+        Args:
+            user_id: 用户ID
+            session_id: 会话ID
+            keep_summary: 是否保留摘要
+            user_token: 用户 Token
+
+        Returns:
+            新会话ID
+        """
+        try:
+            endpoint = f"/api/memory/sessions/{session_id}/reset"
+            payload = {
+                "user_id": user_id,
+                "keep_summary": keep_summary
+            }
+
+            response = await self._request("POST", endpoint, json=payload, user_token=user_token, user_id=str(user_id))
+            return response.get("new_session_id")
+        except Exception as e:
+            app_logger.error(f"Failed to reset session: {e}")
+            return None
 
     async def __aenter__(self):
         """异步上下文管理器入口"""

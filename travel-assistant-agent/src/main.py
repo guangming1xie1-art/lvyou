@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from workflows.main_workflow import run_main_workflow_async
-from api.routes import router, chat_router, rag_router
+from api.routes import router, chat_router, rag_router, memory_router
 from api.auth_routes import router as auth_router
 from auth.dependencies import get_current_active_user, get_user_token
 from auth.models import User
@@ -127,9 +127,11 @@ app.include_router(auth_router)  # 新增：认证路由
 app.include_router(router)       # 现有：agent业务路由
 app.include_router(chat_router)  # 现有：chat路由
 app.include_router(rag_router)   # 现有：rag路由
+app.include_router(memory_router)  # 新增：记忆系统路由
 
 class ChatRequest(BaseModel):
     message: str
+    session_id: str = None  # 可选：会话ID，用于记忆系统
 
 
 def _extract_response_from_workflow_result(result: dict) -> str:
@@ -153,7 +155,7 @@ async def chat_endpoint(
     current_user: User = Depends(get_current_active_user),
     user_token: str = Depends(get_user_token),
 ):
-    """唯一入口：接收用户消息，调用主代理"""
+    """唯一入口：接收用户消息，调用主代理（支持记忆系统）"""
 
     if not await rate_limiter.check_limit(http_request, user_id=current_user.id):
         raise HTTPException(
@@ -161,7 +163,14 @@ async def chat_endpoint(
             detail=f"Rate limit exceeded. Max {rate_limiter.requests_per_minute} requests per minute.",
         )
 
-    result = await run_main_workflow_async(request.message)
+    # 如果没有提供session_id，生成一个新的
+    session_id = request.session_id or str(uuid.uuid4())
+
+    result = await run_main_workflow_async(
+        user_message=request.message,
+        user_id=current_user.id,
+        session_id=session_id
+    )
 
     collected_info = result.get("collected_info") or {}
     is_complete = bool(collected_info.get("complete", False))
@@ -180,6 +189,7 @@ async def chat_endpoint(
             "stage": "collect",
             "total_usage": total_usage,
             "collected_info": collected_info,
+            "session_id": session_id,  # 返回会话ID
         }
 
     return {
@@ -192,6 +202,11 @@ async def chat_endpoint(
             "search_results": result.get("search_results") or {},
             "recommendations": result.get("recommendations") or {},
             "booking": result.get("booking_confirmation") or {},
+        },
+        "session_id": session_id,  # 返回会话ID
+        "memory_info": {  # 新增：记忆系统信息
+            "long_term_memory_count": result.get("long_term_memory", {}).get("count", 0),
+            "rewritten_query": result.get("rewritten_query"),
         },
     }
 

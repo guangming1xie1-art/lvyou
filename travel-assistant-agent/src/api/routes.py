@@ -1048,3 +1048,316 @@ async def chat_endpoint(
         response=result.get("response", ""),
         status=result.get("status", "error"),
     )
+
+
+# ============== Memory System Endpoints ==============
+
+memory_router = APIRouter(prefix="/api/memory", tags=["memory"])
+
+
+@memory_router.get("/sessions/{session_id}")
+async def get_session_memory_endpoint(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    获取会话记忆
+    
+    Args:
+        session_id: 会话ID
+        
+    Returns:
+        会话记忆数据
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        memory = await memory_gateway.get_session_memory(
+            user_id=current_user.id,
+            session_id=session_id
+        )
+        
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "memory": memory
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to get session memory: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.get("/sessions")
+async def get_user_sessions_endpoint(
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    获取用户的所有会话
+    
+    Args:
+        limit: 返回数量限制
+        
+    Returns:
+        会话列表
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        sessions = await memory_gateway.get_user_sessions(
+            user_id=current_user.id,
+            limit=limit
+        )
+        
+        return {
+            "status": "success",
+            "total": len(sessions),
+            "sessions": sessions
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to get user sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.get("/preferences")
+async def get_user_preferences_endpoint(
+    preference_type: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    获取用户偏好
+    
+    Args:
+        preference_type: 偏好类型（可选）
+        
+    Returns:
+        偏好列表
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        preferences = await memory_gateway.get_user_preferences(
+            user_id=current_user.id,
+            preference_type=preference_type
+        )
+        
+        return {
+            "status": "success",
+            "total": len(preferences),
+            "preferences": preferences
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to get user preferences: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.post("/preferences")
+async def save_user_preference_endpoint(
+    preference_type: str,
+    preference_value: str,
+    confidence: float = Query(0.8, ge=0.0, le=1.0),
+    source: str = Query("conversation"),
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    保存用户偏好
+    
+    Args:
+        preference_type: 偏好类型
+        preference_value: 偏好值
+        confidence: 置信度（0-1）
+        source: 来源
+        
+    Returns:
+        保存结果
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        preference_id = await memory_gateway.save_preference(
+            user_id=current_user.id,
+            preference_type=preference_type,
+            preference_value=preference_value,
+            confidence=confidence,
+            source=source
+        )
+        
+        return {
+            "status": "success",
+            "preference_id": preference_id
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to save preference: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.get("/task-cases")
+async def get_task_cases_endpoint(
+    destination: Optional[str] = Query(None),
+    limit: int = Query(10, ge=1, le=50),
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    获取历史任务案例
+    
+    Args:
+        destination: 目的地（可选）
+        limit: 返回数量限制
+        
+    Returns:
+        案例列表
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        cases = await memory_gateway.get_task_cases(
+            user_id=current_user.id,
+            destination=destination,
+            limit=limit
+        )
+        
+        return {
+            "status": "success",
+            "total": len(cases),
+            "cases": cases
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to get task cases: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.post("/task-cases")
+async def save_task_case_endpoint(
+    destination: str,
+    duration_days: int,
+    budget_range: str,
+    plan_summary: str,
+    satisfaction: Optional[float] = Query(None, ge=0.0, le=5.0),
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    保存历史任务案例
+    
+    Args:
+        destination: 目的地
+        duration_days: 天数
+        budget_range: 预算范围
+        plan_summary: 计划摘要
+        satisfaction: 满意度（0-5）
+        
+    Returns:
+        保存结果
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        case_id = await memory_gateway.save_task_case(
+            user_id=current_user.id,
+            destination=destination,
+            duration_days=duration_days,
+            budget_range=budget_range,
+            plan_summary=plan_summary,
+            satisfaction=satisfaction
+        )
+        
+        return {
+            "status": "success",
+            "case_id": case_id
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to save task case: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.post("/sessions/{session_id}/archive")
+async def archive_session_endpoint(
+    session_id: str,
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    归档会话
+    
+    Args:
+        session_id: 会话ID
+        
+    Returns:
+        归档结果
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        
+        success = await memory_gateway.archive_session(
+            user_id=current_user.id,
+            session_id=session_id
+        )
+        
+        return {
+            "status": "success" if success else "failed",
+            "session_id": session_id
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to archive session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@memory_router.get("/stats")
+async def get_memory_stats_endpoint(
+    current_user: User = Depends(get_current_active_user),
+    user_token: str = Depends(get_user_token)
+):
+    """
+    获取记忆系统统计信息
+    
+    Returns:
+        统计信息
+    """
+    try:
+        from memory.memory_gateway import memory_gateway
+        from memory.memory_retriever import memory_retriever
+        from memory.query_rewriter import query_rewriter
+        from memory.session_manager import session_manager
+        
+        stats = {
+            "memory_gateway": {
+                "enabled": True,
+                "core_memory_loaded": bool(memory_gateway.get_core_memory())
+            },
+            "memory_retriever": memory_retriever.get_stats(),
+            "query_rewriter": {
+                "enabled": settings.query_rewrite_enabled,
+                "confidence_threshold": settings.query_rewrite_confidence_threshold,
+                "use_local_model": settings.query_rewrite_use_local_model
+            },
+            "session_manager": session_manager.get_stats()
+        }
+        
+        return {
+            "status": "success",
+            "stats": stats
+        }
+    except ImportError:
+        raise HTTPException(status_code=501, detail="Memory system not available")
+    except Exception as e:
+        app_logger.error(f"Failed to get memory stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
