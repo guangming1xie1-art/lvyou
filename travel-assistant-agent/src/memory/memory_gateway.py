@@ -17,6 +17,8 @@ from enum import Enum
 
 from utils.java_api_client import java_api_client
 from utils.logger import app_logger
+from prompts.prompt_loader import prompt_loader
+from prompts.prompt_renderer import prompt_renderer
 
 logger = app_logger.getChild(__name__)
 
@@ -59,24 +61,29 @@ class MemoryGateway:
     
     async def _load_core_memory(self):
         """加载核心记忆（系统提示词）"""
-        self._core_memory = {
-            "role": "你是一个专业的旅游规划助手",
-            "core_tasks": [
-                "帮助用户规划行程",
-                "搜索景点酒店",
-                "提供推荐"
-            ],
-            "tool_guidelines": {
-                "search_flights": "用于搜索航班信息",
-                "search_hotels": "用于搜索酒店信息",
-                "recommend_destinations": "用于推荐旅游目的地"
-            },
-            "prohibitions": [
-                "不要推荐超出预算的方案",
-                "不要编造虚假信息"
-            ]
-        }
-        logger.info("Core memory loaded")
+        try:
+            core_memory_template = await prompt_loader.get_prompt("memory", "core_memory")
+            self._core_memory = prompt_renderer.render(core_memory_template)
+            logger.info("Core memory loaded from prompt manager")
+        except Exception as e:
+            logger.warning(f"Failed to load core memory from prompt manager, using fallback: {e}")
+            self._core_memory = {
+                "role": "你是一个专业的旅游规划助手",
+                "core_tasks": [
+                    "帮助用户规划行程",
+                    "搜索景点酒店",
+                    "提供推荐"
+                ],
+                "tool_guidelines": {
+                    "search_flights": "用于搜索航班信息",
+                    "search_hotels": "用于搜索酒店信息",
+                    "recommend_destinations": "用于推荐旅游目的地"
+                },
+                "prohibitions": [
+                    "不要推荐超出预算的方案",
+                    "不要编造虚假信息"
+                ]
+            }
     
     async def create_conversation(
         self,

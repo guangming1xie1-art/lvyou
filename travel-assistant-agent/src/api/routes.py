@@ -1317,3 +1317,19 @@ async def get_memory_stats_endpoint(
     except Exception as e:
         app_logger.error(f"Failed to get memory stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== Prompt Management Endpoints ==============
+from .prompt_routes import router as prompt_router
+
+
+# Export all routers
+__all__ = [
+    "router",
+    "chat_router",
+    "rag_router",
+    "memory_router",
+    "prompt_router"
+]
+
+

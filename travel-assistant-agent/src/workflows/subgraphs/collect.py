@@ -10,6 +10,8 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from utils.token_counter import TokenCounter
 from llm.factory import LLMFactory
+from prompts.prompt_loader import prompt_loader
+from prompts.prompt_renderer import prompt_renderer
 
 from .common import SubState, cache_strategy
 
@@ -41,95 +43,17 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
             "collection_message": cached.get("collection_message", "")
         }
 
-    # 系统提示词
-    system_prompt = f"""你是信息收集员，负责与用户交互收集旅游需求。
+    # 加载系统提示词
+    system_prompt = await prompt_loader.get_prompt("collect", "system_prompt")
+    
+    history_text = "\n".join([f"{msg.type}: {msg.content}" for msg in messages[:-1]])
+    rendered_prompt = prompt_renderer.render(system_prompt, {"history_text": history_text})
 
-    你的核心任务：
-    1. 分析用户的旅游需求
-    2. 识别关键信息：目的地、时间、预算、偏好等
-    3. ⚠️ 【重要】严格验证信息的合法性和完整性：
-    - 日期必须合法（检查月份天数、日期格式等）
-    - 检查月份范围: 1-12月
-    - 检查日期范围：根据月份的实际天数(如2月最多29天)
-    - 关键信息（目的地、日期）不能缺失
-    4. 如果信息有问题或不足，生成友好的澄清提问
-
-    🔴 【critical】complete 字段的含义（这个字段直接影响后续工作流）：
-    - complete = true: ✅ 所有关键信息都有效且完整，工作流将进入搜索阶段
-    - complete = false: ❌ 发现信息错误或不足，工作流停止，用户需要澄清
-
-    【重点】如果发现任何信息错误（日期无效、信息缺失等），你必须：
-    1. 设置 complete = false
-    2. 在回复中清楚地指出问题
-    3. 提供修正建议和追问
-
-    之前的对话历史：
-    {history_text if history_text else "（无历史记录）"}
-
-    返回格式（必须是有效的 JSON):
-    {{
-        "destination": "目的地（如北京）",
-        "duration": "天数（整数或描述）",
-        "budget": "预算范围(如5000-10000元)",
-        "preferences": ["偏好1", "偏好2"],
-        "dates": "出发时间(YYYY-MM-DD格式或描述)",
-        "complete": true or false,
-        "message": "你对用户的回复（澄清问题或确认信息）"
-    }}
-
-    注意:message 字段将单独存储用于对话展示，不会传递给下游搜索和推荐流程。
-
-    【规则 1】设置 complete=true 的条件：
-    ✅ 目的地明确
-    ✅ 日期有效且合法（特别注意月份天数）
-    ✅ 出行时长清晰
-    ✅ 足以进行搜索
-
-    【规则 2】设置 complete=false 的条件：
-    ❌ 日期错误(如2月30号、13月等)
-    ❌ 日期格式不清楚或模糊
-    ❌ 缺少关键信息（目的地、日期）
-    ❌ 信息逻辑矛盾
-    ❌ 其他需要用户确认的问题
-
-    【示例 1】完整输入 - complete=true:
-    用户输入:我现在在大连,2026年2月28号出发,想去北京玩3天
-    返回：
-    {{
-        "origin":"大连",
-        "destination": "北京",
-        "duration": "3天",
-        "budget": "4000-6000元",
-        "preferences": ["喜欢博物馆"],
-        "dates": "2026-02-28",
-        "complete": true,
-        "message": "客户计划在2026年2月28日从大连出发去北京,游玩3天,预算在4000-6000元内,偏好是喜欢博物馆,请为客户搜索合适的酒店、航班和景点推荐。"
-    }}
-
-    【示例 2】错误输入 - complete=false:
-    用户输入:我现在在大连,2026年2月30号,想去北京玩3天
-    返回：
-    {{
-        "origin":"大连",
-        "destination": "北京",
-        "duration": "3天",
-        "budget": "未指定",
-        "preferences": ["无偏好"],
-        "dates": "2026-02-30(❌ 无效)",
-        "complete": false,
-        "message": "我注意到您提供的信息中有一个小问题需要澄清。2026年2月30日这个日期是不存在的,因为2月份最多只有29天(闰年)。\\n\\n请问您是想在以下哪个日期出发呢?\\n- 2026年2月29日\\n- 2026年3月1日\\n- 或其他时间？"
-    }}
-
-    说明：以上返回中的 message 字段将被提取并单独存储为 collection_message,用于对话展示;其他字段作为 collected_info 传递给下游流程。
-    """
-
-    # 调用 LLM（便宜层）
     try:
-        # 使用 LLMFactory 创建便宜层模型
         llm = LLMFactory.create_model_by_tier(tier="cheap")
 
         messages = [
-            SystemMessage(content=system_prompt),
+            SystemMessage(content=rendered_prompt),
             HumanMessage(content=user_content)
         ]
 

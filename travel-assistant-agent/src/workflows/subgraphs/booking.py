@@ -11,6 +11,8 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from utils.token_counter import TokenCounter
 from llm.factory import LLMFactory
 from agents.mcp_client import get_mcp_client
+from prompts.prompt_loader import prompt_loader
+from prompts.prompt_renderer import prompt_renderer
 
 from .common import SubState, cache_strategy, get_tools_and_skills_text, mcp_client
 
@@ -27,28 +29,13 @@ async def booking_node(state: SubState) -> Dict[str, Any]:
     # 获取工具文本
     tools_text = await get_tools_and_skills_text()
 
-    # 系统提示词
-    system_prompt = f"""你是预订员，负责完成用户选定的旅游预订。
+    base_prompt = await prompt_loader.get_prompt("booking", "system_prompt")
+    
+    system_prompt = prompt_renderer.render(base_prompt, {
+        "recommendations": recommendations,
+        "tools_text": tools_text
+    })
 
-你的任务：
-1. 确认用户选择的推荐方案
-2. 使用 create_booking 工具创建预订
-3. 返回预订确认信息
-
-推荐方案：
-{recommendations}
-
-可用工具：
-{tools_text}
-
-返回格式（JSON）：
-{{
-    "booking_id": "预订ID",
-    "status": "confirmed/pending",
-    "details": {{...}},
-    "confirmation_message": "确认信息"
-}}
-"""
 
     # 获取工具
     try:

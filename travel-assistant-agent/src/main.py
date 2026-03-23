@@ -4,11 +4,13 @@ FastAPI 主应用入口
 """
 import uuid
 import time
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from workflows.main_workflow import run_main_workflow_async
-from api.routes import router, chat_router, rag_router, memory_router
+from api.routes import router, chat_router, rag_router, memory_router, prompt_router
 from api.auth_routes import router as auth_router
 from api.websocket import router as ws_router
 from auth.dependencies import get_current_active_user, get_user_token
@@ -34,7 +36,74 @@ StructuredLogger.setup_logging(
 
 logger = get_app_logger(__name__)
 
-app = FastAPI(title="Travel Assistant Agent API", version="2.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # Startup
+    logger.info("Starting up Travel Assistant Agent API...")
+    
+    # 初始化提示词加载器
+    try:
+        from prompts.prompt_loader import prompt_loader
+        await prompt_loader.initialize()
+        logger.info("Prompt loader initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize prompt loader: {e}")
+    
+    # 初始化消息队列消费者
+    mq_task = None
+    try:
+        from prompts.mq_consumer import prompt_mq_consumer
+        from prompts.prompt_loader import prompt_loader
+        
+        async def handle_prompt_update(message: dict):
+            """处理提示词更新消息"""
+            from prompts.prompt_cache import prompt_cache
+            
+            update_type = message.get("type")
+            category = message.get("category")
+            name = message.get("name")
+            
+            logger.info(f"Processing prompt update: {update_type}, category={category}, name={name}")
+            
+            if update_type == "reload_all":
+                await prompt_loader.reload()
+                prompt_cache.clear()
+                logger.info("All prompts reloaded from MQ message")
+            elif update_type in ["create", "update", "delete"]:
+                if category and name:
+                    prompt_cache.delete(f"{category}:{name}")
+                    if update_type != "delete":
+                        await prompt_loader.reload()
+                    logger.info(f"Prompt {category}:{name} cache cleared")
+                    
+        prompt_mq_consumer.set_message_callback(handle_prompt_update)
+        mq_task = asyncio.create_task(prompt_mq_consumer.run_forever())
+        logger.info("Prompt MQ consumer started")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize MQ consumer: {e}")
+    
+    yield  # 应用运行中
+    
+    # Shutdown
+    logger.info("Shutting down Travel Assistant Agent API...")
+    
+    # 停止消息队列消费者
+    try:
+        from prompts.mq_consumer import prompt_mq_consumer
+        prompt_mq_consumer.stop_consuming()
+        if mq_task:
+            mq_task.cancel()
+        await prompt_mq_consumer.disconnect()
+        logger.info("MQ consumer disconnected")
+    except Exception as e:
+        logger.error(f"Error disconnecting MQ consumer: {e}")
+
+
+app = FastAPI(title="Travel Assistant Agent API", version="2.0.0", lifespan=lifespan)
+
 
 # 配置 CORS
 
@@ -130,6 +199,7 @@ app.include_router(chat_router)  # 现有：chat路由
 app.include_router(rag_router)   # 现有：rag路由
 app.include_router(memory_router)  # 新增：记忆系统路由
 app.include_router(ws_router)    # 新增：WebSocket路由
+app.include_router(prompt_router)  # 新增：提示词管理路由
 
 class ChatRequest(BaseModel):
     message: str
