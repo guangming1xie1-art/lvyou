@@ -571,3 +571,247 @@ BEGIN
     RAISE NOTICE 'Deleted % low confidence preferences', ROW_COUNT;
 END;
 $$ LANGUAGE plpgsql;
+
+-- =============================================================================
+-- 表 9：admin_users - 管理员用户表
+-- 用途：存储后台管理系统的用户信息
+-- 对应实体类：admin-service/src/main/java/com/travelassistant/admin/entity/AdminUser.java
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS admin_users (
+  id BIGSERIAL PRIMARY KEY,
+  
+  -- 基本信息
+  username VARCHAR(100) NOT NULL UNIQUE,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  real_name VARCHAR(100),
+  phone VARCHAR(20),
+  avatar VARCHAR(255),
+  
+  -- 状态
+  is_active BOOLEAN DEFAULT TRUE,
+  last_login TIMESTAMP,
+  
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- admin_users 索引
+CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username);
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+CREATE INDEX IF NOT EXISTS idx_admin_users_active ON admin_users(is_active);
+
+COMMENT ON TABLE admin_users IS '管理员用户表：存储后台管理系统的用户信息';
+COMMENT ON COLUMN admin_users.id IS '主键：自增ID';
+COMMENT ON COLUMN admin_users.username IS '用户名：唯一';
+COMMENT ON COLUMN admin_users.email IS '邮箱：唯一';
+COMMENT ON COLUMN admin_users.password_hash IS '密码哈希';
+COMMENT ON COLUMN admin_users.real_name IS '真实姓名';
+COMMENT ON COLUMN admin_users.phone IS '手机号';
+COMMENT ON COLUMN admin_users.avatar IS '头像URL';
+COMMENT ON COLUMN admin_users.is_active IS '是否激活';
+COMMENT ON COLUMN admin_users.last_login IS '最后登录时间';
+COMMENT ON COLUMN admin_users.created_at IS '创建时间';
+COMMENT ON COLUMN admin_users.updated_at IS '更新时间';
+
+-- 触发器：admin_users 表 updated_at 自动更新
+DROP TRIGGER IF EXISTS trg_set_updated_at_admin_users ON admin_users;
+CREATE TRIGGER trg_set_updated_at_admin_users
+BEFORE UPDATE ON admin_users
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+-- =============================================================================
+-- 表 10：roles - 角色表
+-- 用途：存储后台管理系统的角色信息
+-- 对应实体类：admin-service/src/main/java/com/travelassistant/admin/entity/Role.java
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS roles (
+  id BIGSERIAL PRIMARY KEY,
+  
+  -- 基本信息
+  name VARCHAR(50) NOT NULL UNIQUE,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  description TEXT,
+  
+  -- 状态
+  is_active BOOLEAN DEFAULT TRUE,
+  
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- roles 索引
+CREATE INDEX IF NOT EXISTS idx_roles_code ON roles(code);
+CREATE INDEX IF NOT EXISTS idx_roles_active ON roles(is_active);
+
+COMMENT ON TABLE roles IS '角色表：存储后台管理系统的角色信息';
+COMMENT ON COLUMN roles.id IS '主键：自增ID';
+COMMENT ON COLUMN roles.name IS '角色名称：唯一';
+COMMENT ON COLUMN roles.code IS '角色代码：唯一';
+COMMENT ON COLUMN roles.description IS '角色描述';
+COMMENT ON COLUMN roles.is_active IS '是否激活';
+COMMENT ON COLUMN roles.created_at IS '创建时间';
+COMMENT ON COLUMN roles.updated_at IS '更新时间';
+
+-- 触发器：roles 表 updated_at 自动更新
+DROP TRIGGER IF EXISTS trg_set_updated_at_roles ON roles;
+CREATE TRIGGER trg_set_updated_at_roles
+BEFORE UPDATE ON roles
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+-- =============================================================================
+-- 表 11：permissions - 权限表
+-- 用途：存储后台管理系统的权限信息（菜单、按钮、API）
+-- 对应实体类：admin-service/src/main/java/com/travelassistant/admin/entity/Permission.java
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS permissions (
+  id BIGSERIAL PRIMARY KEY,
+  
+  -- 基本信息
+  name VARCHAR(100) NOT NULL UNIQUE,
+  code VARCHAR(100) NOT NULL UNIQUE,
+  type VARCHAR(20) NOT NULL, -- MENU, BUTTON, API
+  
+  -- 层级结构
+  parent_id BIGINT,
+  path VARCHAR(255),
+  icon VARCHAR(100),
+  sort_order INTEGER DEFAULT 0,
+  
+  -- 状态
+  is_active BOOLEAN DEFAULT TRUE,
+  
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  
+  CONSTRAINT fk_permissions_parent FOREIGN KEY (parent_id) REFERENCES permissions(id) ON DELETE SET NULL
+);
+
+-- permissions 索引
+CREATE INDEX IF NOT EXISTS idx_permissions_code ON permissions(code);
+CREATE INDEX IF NOT EXISTS idx_permissions_type ON permissions(type);
+CREATE INDEX IF NOT EXISTS idx_permissions_parent_id ON permissions(parent_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_active ON permissions(is_active);
+
+COMMENT ON TABLE permissions IS '权限表：存储后台管理系统的权限信息（菜单、按钮、API）';
+COMMENT ON COLUMN permissions.id IS '主键：自增ID';
+COMMENT ON COLUMN permissions.name IS '权限名称：唯一';
+COMMENT ON COLUMN permissions.code IS '权限代码：唯一';
+COMMENT ON COLUMN permissions.type IS '权限类型：MENU=菜单, BUTTON=按钮, API=接口';
+COMMENT ON COLUMN permissions.parent_id IS '父权限ID';
+COMMENT ON COLUMN permissions.path IS '路由路径';
+COMMENT ON COLUMN permissions.icon IS '图标';
+COMMENT ON COLUMN permissions.sort_order IS '排序';
+COMMENT ON COLUMN permissions.is_active IS '是否激活';
+COMMENT ON COLUMN permissions.created_at IS '创建时间';
+COMMENT ON COLUMN permissions.updated_at IS '更新时间';
+
+-- 触发器：permissions 表 updated_at 自动更新
+DROP TRIGGER IF EXISTS trg_set_updated_at_permissions ON permissions;
+CREATE TRIGGER trg_set_updated_at_permissions
+BEFORE UPDATE ON permissions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+-- =============================================================================
+-- 表 12：admin_user_roles - 管理员用户角色关联表
+-- 用途：多对多关联：管理员用户和角色
+-- 对应实体类：admin-service/src/main/java/com/travelassistant/admin/entity/AdminUserRole.java
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS admin_user_roles (
+  user_id BIGINT NOT NULL,
+  role_id BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  
+  PRIMARY KEY (user_id, role_id),
+  CONSTRAINT fk_admin_user_roles_user FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_admin_user_roles_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+
+-- admin_user_roles 索引
+CREATE INDEX IF NOT EXISTS idx_admin_user_roles_user_id ON admin_user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_user_roles_role_id ON admin_user_roles(role_id);
+
+COMMENT ON TABLE admin_user_roles IS '管理员用户角色关联表：多对多关联管理员用户和角色';
+COMMENT ON COLUMN admin_user_roles.user_id IS '用户ID';
+COMMENT ON COLUMN admin_user_roles.role_id IS '角色ID';
+COMMENT ON COLUMN admin_user_roles.created_at IS '创建时间';
+
+-- =============================================================================
+-- 表 13：role_permissions - 角色权限关联表
+-- 用途：多对多关联：角色和权限
+-- 对应实体类：admin-service/src/main/java/com/travelassistant/admin/entity/RolePermission.java
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS role_permissions (
+  role_id BIGINT NOT NULL,
+  permission_id BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  
+  PRIMARY KEY (role_id, permission_id),
+  CONSTRAINT fk_role_permissions_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+  CONSTRAINT fk_role_permissions_permission FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+
+-- role_permissions 索引
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id);
+
+COMMENT ON TABLE role_permissions IS '角色权限关联表：多对多关联角色和权限';
+COMMENT ON COLUMN role_permissions.role_id IS '角色ID';
+COMMENT ON COLUMN role_permissions.permission_id IS '权限ID';
+COMMENT ON COLUMN role_permissions.created_at IS '创建时间';
+
+-- =============================================================================
+-- 表 14：prompts - 提示词管理表
+-- 用途：集中管理所有 AI Agent 的提示词，支持热更新
+-- 对应实体类：admin-service/src/main/java/com/travelassistant/admin/entity/Prompt.java
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS prompts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- 提示词标识
+  name VARCHAR(100) NOT NULL UNIQUE,
+  category VARCHAR(50) NOT NULL,
+  
+  -- 提示词内容
+  content TEXT NOT NULL,
+  variables JSONB DEFAULT '{}'::jsonb,
+  
+  -- 元数据
+  description TEXT,
+  version VARCHAR(20) DEFAULT '1.0.0',
+  is_active BOOLEAN DEFAULT TRUE,
+  
+  -- 审计字段
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- prompts 索引
+CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);
+CREATE INDEX IF NOT EXISTS idx_prompts_active ON prompts(is_active);
+CREATE INDEX IF NOT EXISTS idx_prompts_created_at ON prompts(created_at);
+
+COMMENT ON TABLE prompts IS '提示词管理表：集中管理所有 AI Agent 的提示词，支持热更新';
+COMMENT ON COLUMN prompts.id IS '主键：UUID';
+COMMENT ON COLUMN prompts.name IS '提示词名称：唯一标识，如 collect_system_prompt';
+COMMENT ON COLUMN prompts.category IS '提示词分类：如 collect, search_plan, recommend_plan';
+COMMENT ON COLUMN prompts.content IS '提示词内容：支持变量占位符';
+COMMENT ON COLUMN prompts.variables IS '变量列表：JSON格式，如 {"history_text": "对话历史"}';
+COMMENT ON COLUMN prompts.description IS '描述：提示词用途说明';
+COMMENT ON COLUMN prompts.version IS '版本号：如 1.0.0';
+COMMENT ON COLUMN prompts.is_active IS '是否激活：true=启用，false=禁用';
+COMMENT ON COLUMN prompts.created_at IS '创建时间';
+COMMENT ON COLUMN prompts.updated_at IS '更新时间';
+
+-- 触发器：prompts 表 updated_at 自动更新
+DROP TRIGGER IF EXISTS trg_set_updated_at_prompts ON prompts;
+CREATE TRIGGER trg_set_updated_at_prompts
+BEFORE UPDATE ON prompts
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
