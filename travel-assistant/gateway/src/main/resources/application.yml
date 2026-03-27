@@ -15,9 +15,9 @@ spring:
         name: travel-gateway-mcp
         version: 1.0.0
         protocol: STREAMABLE
-        type: ASYNC  # 同步模式
+        type: ASYNC
         streamable-http:
-          mcp-endpoint: /mcp  # 默认端点，可以自定义
+          mcp-endpoint: /mcp
         capabilities:
           tool: true
           resource: false
@@ -46,6 +46,72 @@ spring:
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
         file-extension: yaml
+
+mcp:
+  tools:
+    search-hotels:
+      name: search_hotels
+      description: 搜索酒店，支持目的地、日期、价格和评分过滤
+      service: hotel-service
+      path: /api/hotel/search
+      method: GET
+      enabled: true
+    search-flights:
+      name: search_flights
+      description: 搜索航班，支持航线、日期、价格和航空公司过滤
+      service: flight-service
+      path: /api/flight/flight_info
+      method: POST
+      enabled: true
+    search-attractions:
+      name: search_attractions
+      description: 搜索景点，支持目的地、分类、评分和标签过滤
+      service: attraction-service
+      path: /api/attraction/search
+      method: GET
+      enabled: true
+    get-hotel-details:
+      name: get_hotel_details
+      description: 获取酒店详细信息
+      service: hotel-service
+      path: /api/hotel/{id}
+      method: GET
+      enabled: true
+    get-flight-details:
+      name: get_flight_details
+      description: 获取航班详细信息
+      service: flight-service
+      path: /api/flight/{id}
+      method: GET
+      enabled: true
+    get-attraction-details:
+      name: get_attraction_details
+      description: 获取景点详细信息
+      service: attraction-service
+      path: /api/attraction/{id}
+      method: GET
+      enabled: true
+    create-booking:
+      name: create_booking
+      description: 创建酒店、航班或景点预订
+      service: booking-service
+      path: /api/booking
+      method: POST
+      enabled: true
+    get-booking-status:
+      name: get_booking_status
+      description: 获取预订状态和详情
+      service: booking-service
+      path: /api/booking/{id}
+      method: GET
+      enabled: true
+    get-recommendations:
+      name: get_recommendations
+      description: 获取个性化推荐
+      service: recommendation-service
+      path: /api/recommendation/comprehensive/{userId}
+      method: GET
+      enabled: true
 
     gateway:
       discovery:

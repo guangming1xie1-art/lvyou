@@ -3,6 +3,7 @@ package com.travelassistant.auth.controller;
 import com.travelassistant.auth.dto.*;
 import com.travelassistant.auth.service.AuthService;
 import com.travelassistant.auth.service.JwtService;
+import com.travelassistant.auth.service.TokenBlacklistService;
 import com.travelassistant.common.api.ApiResponse;
 import com.travelassistant.common.api.ResultCode;
 import jakarta.validation.Valid;
@@ -15,10 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
   private final AuthService authService;
   private final JwtService jwtService;
+  private final TokenBlacklistService tokenBlacklistService;
 
-  public AuthController(AuthService authService, JwtService jwtService) {
+  public AuthController(AuthService authService, JwtService jwtService, TokenBlacklistService tokenBlacklistService) {
     this.authService = authService;
     this.jwtService = jwtService;
+    this.tokenBlacklistService = tokenBlacklistService;
   }
 
   @PostMapping("/register")
@@ -65,7 +68,18 @@ public class AuthController {
 
   @PostMapping("/logout")
   public ApiResponse<String> logout(@RequestHeader("Authorization") String authHeader) {
-    // 在无状态JWT中，logout在客户端清除token即可
-    return ApiResponse.success("Logged out successfully");
+    try {
+      String token = authHeader.substring(7);
+      String userIdStr = jwtService.getUserIdFromToken(token);
+      Long userId = Long.parseLong(userIdStr);
+      
+      tokenBlacklistService.addToBlacklist(token, userId);
+      log.info("User {} logged out, token added to blacklist", userId);
+      
+      return ApiResponse.success("Logged out successfully");
+    } catch (Exception e) {
+      log.error("Logout failed: {}", e.getMessage());
+      return ApiResponse.error(ResultCode.INTERNAL_SERVER_ERROR.getCode(), "Logout failed: " + e.getMessage());
+    }
   }
 }

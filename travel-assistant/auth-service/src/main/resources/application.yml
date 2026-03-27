@@ -5,11 +5,6 @@ spring:
   application:
     name: auth-service
 
-#  datasource:
-#    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/travel_assistant?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
-#    username: ${SPRING_DATASOURCE_USERNAME:root}
-#    password: ${SPRING_DATASOURCE_PASSWORD:password}
-#    driver-class-name: com.mysql.cj.jdbc.Driver
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lvyou_db}
     username: ${DB_USERNAME:postgres}
@@ -17,12 +12,26 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate  # 使用migration文件，不自动建表
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
   config:
     import: optional:nacos:${spring.application.name}.yaml

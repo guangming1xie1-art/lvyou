@@ -38,6 +38,13 @@ spring:
     serialization:
       write-dates-as-timestamps: false
       date-format: yyyy-MM-dd'T'HH:mm:ss'Z
+  
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
 
 # 日志配置
 logging:

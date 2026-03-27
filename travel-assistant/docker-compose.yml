@@ -51,6 +51,21 @@ services:
     networks:
       - travel-assistant-network
 
+  # RabbitMQ 消息队列
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - travel-assistant-network
+
   # API Gateway
   gateway:
     build:
@@ -58,12 +73,36 @@ services:
       dockerfile: Dockerfile
     container_name: gateway
     ports:
-      - "8080:8080"
+      - "9000:9000"
     environment:
       - NACOS_ADDR=nacos:8848
+      - REDIS_HOST=redis
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - nacos
+      - redis
+    networks:
+      - travel-assistant-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8080:8080"
+    environment:
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=auth_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - nacos
+      - postgres
+      - redis
     networks:
       - travel-assistant-network
 
@@ -74,7 +113,7 @@ services:
       dockerfile: Dockerfile
     container_name: user-service
     ports:
-      - "8083:8083"
+      - "8082:8082"
     environment:
       - NACOS_ADDR=nacos:8848
       - DB_HOST=postgres
@@ -95,7 +134,7 @@ services:
       dockerfile: Dockerfile
     container_name: hotel-service
     ports:
-      - "8081:8081"
+      - "8083:8083"
     environment:
       - NACOS_ADDR=nacos:8848
       - DB_HOST=postgres
@@ -116,7 +155,7 @@ services:
       dockerfile: Dockerfile
     container_name: flight-service
     ports:
-      - "8082:8082"
+      - "8084:8084"
     environment:
       - NACOS_ADDR=nacos:8848
       - DB_HOST=postgres
@@ -137,39 +176,11 @@ services:
       dockerfile: Dockerfile
     container_name: attraction-service
     ports:
-      - "8084:8084"
-    environment:
-      - NACOS_ADDR=nacos:8848
-      - DB_HOST=postgres
-      - DB_NAME=attraction_db
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=password
-      - SPRING_PROFILES_ACTIVE=docker
-    depends_on:
-      - nacos
-      - postgres
-    networks:
-      - travel-assistant-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
-
-  # Booking Service
-  booking-service:
-    build:
-      context: ./booking-service
-      dockerfile: Dockerfile
-    container_name: booking-service
-    ports:
       - "8085:8085"
     environment:
       - NACOS_ADDR=nacos:8848
       - DB_HOST=postgres
-      - DB_NAME=booking_db
+      - DB_NAME=attraction_db
       - DB_USERNAME=postgres
       - DB_PASSWORD=password
       - SPRING_PROFILES_ACTIVE=docker
@@ -186,19 +197,24 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # Recommendation Service
-  recommendation-service:
+  # Booking Service
+  booking-service:
     build:
-      context: ./recommendation-service
+      context: ./booking-service
       dockerfile: Dockerfile
-    container_name: recommendation-service
+    container_name: booking-service
     ports:
       - "8086:8086"
     environment:
       - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=booking_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - nacos
+      - postgres
     networks:
       - travel-assistant-network
     healthcheck:
@@ -209,6 +225,54 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # Recommendation Service
+  recommendation-service:
+    build:
+      context: ./recommendation-service
+      dockerfile: Dockerfile
+    container_name: recommendation-service
+    ports:
+      - "8087:8087"
+    environment:
+      - NACOS_ADDR=nacos:8848
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - nacos
+    networks:
+      - travel-assistant-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Memory Service
+  memory-service:
+    build:
+      context: ./memory-service
+      dockerfile: Dockerfile
+    container_name: memory-service
+    ports:
+      - "8088:8088"
+    environment:
+      - NACOS_ADDR=nacos:8848
+      - DB_HOST=postgres
+      - DB_NAME=memory_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=password
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - nacos
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - travel-assistant-network
+
   # Travel Assistant Agent
   travel-assistant-agent:
     build:
@@ -218,7 +282,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - API_BASE_URL=http://gateway:8080
+      - API_BASE_URL=http://gateway:9000
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       - gateway

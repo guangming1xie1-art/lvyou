@@ -7,5 +7,5 @@ RUN mvn -pl gateway -am -DskipTests package
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 COPY --from=build /workspace/gateway/target/*.jar /app/app.jar
-EXPOSE 8080
+EXPOSE 9000
 ENTRYPOINT ["java","-jar","/app/app.jar"]
