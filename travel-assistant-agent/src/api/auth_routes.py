@@ -213,7 +213,7 @@ async def get_current_user(authorization: str = None):
 @router.post("/logout")
 async def logout(authorization: str = None):
     """
-    代理登出请求到Java auth-service
+    代理登出请求到Java auth-service，Java服务会将Token加入黑名单
     
     前端调用: POST /api/auth/logout
             Header: Authorization: Bearer <token>
@@ -228,6 +228,7 @@ async def logout(authorization: str = None):
         token = authorization.replace("Bearer ", "")
         logger.info("Logout request received")
         
+        # 转发到 Java auth-service（Java 会在数据库中记录黑名单）
         result = await auth_api_client.logout(token)
         
         logger.info("Logout successful")
@@ -243,6 +244,6 @@ async def logout(authorization: str = None):
             }
         )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Logout failed"
+            status_code=status.HTTP_500_BAD_REQUEST,
+            detail=str(e)
         )

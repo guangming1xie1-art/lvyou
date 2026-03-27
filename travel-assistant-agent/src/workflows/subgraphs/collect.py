@@ -16,16 +16,25 @@ from prompts.prompt_renderer import prompt_renderer
 from .common import SubState, cache_strategy
 
 async def collect_info_node(state: SubState) -> Dict[str, Any]:
-    """信息收集节点（便宜层 + 缓存）"""
+    """信息收集节点（便宜层 + 缓存）- 支持 Memory-First 架构"""
     counter = TokenCounter()
 
-    # 获取用户消息
+    # === Memory-First 架构支持 ===
+    # 1. 尝试从改写后的查询获取用户意图
+    rewritten_query = state.get("rewritten_query")
+    extracted_info = state.get("extracted_info", {})
+    memory = state.get("memory", {})
+    
+    # 2. 获取用户消息（优先使用改写后的查询）
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
-    user_content = last_msg.content if last_msg else ""
-
-    # 获取对话历史
+    user_content = rewritten_query if rewritten_query else (last_msg.content if last_msg else "")
+    
+    # 3. 获取对话历史
     conversation_history = state.get("conversation_history", [])
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history[-6:]])
+    
+    # 4. 获取用户画像（从记忆系统）
+    user_profile = memory.get("user_profile", {}) if memory else {}
 
     # 尝试从缓存获取（基于用户消息）
     cache_key = f"collect:{user_content[:100]}"
@@ -46,8 +55,12 @@ async def collect_info_node(state: SubState) -> Dict[str, Any]:
     # 加载系统提示词
     system_prompt = await prompt_loader.get_prompt("collect", "system_prompt")
     
-    history_text = "\n".join([f"{msg.type}: {msg.content}" for msg in messages[:-1]])
-    rendered_prompt = prompt_renderer.render(system_prompt, {"history_text": history_text})
+    # 渲染提示词（添加记忆和画像信息）
+    rendered_prompt = prompt_renderer.render(system_prompt, {
+        "history_text": history_text,
+        "user_profile": user_profile,
+        "extracted_info": extracted_info
+    })
 
     try:
         llm = LLMFactory.create_model_by_tier(tier="cheap")

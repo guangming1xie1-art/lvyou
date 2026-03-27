@@ -49,10 +49,26 @@ async def get_token(
 async def get_current_user(token: str = Depends(get_token)) -> User:
     """
     Verify JWT and extract user information from token
-    ✅ Only verify signature, no database queries
+    通过调用 Java API 检查 Token 黑名单
     """
     try:
-        # Only verify JWT signature
+        # 通过 Java API 检查 Token 是否在黑名单中
+        from utils.auth_api_client import AuthAPIClient
+        auth_client = AuthAPIClient()
+        try:
+            is_blacklisted = await auth_client.is_token_blacklisted(token)
+            if is_blacklisted:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            app_logger.warning(f"Failed to check token blacklist, continuing: {e}")
+        
+        # Verify JWT signature
         payload = jwt_handler.verify_token(token)
         user_id = payload.get("sub")
         
@@ -67,8 +83,7 @@ async def get_current_user(token: str = Depends(get_token)) -> User:
         user = User(
             id=user_id,
             username=payload.get("username"),
-            # email=payload.get("email"),
-            is_active=True  # JWT is verified, user must be valid
+            is_active=True
         )
         
         app_logger.debug(f"Authenticated user: {user.username}")

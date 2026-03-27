@@ -32,7 +32,7 @@ def merge_dicts(left: Dict[str, int], right: Dict[str, int]) -> Dict[str, int]:
 # ============ SubState 定义 ============
 
 class SubState(dict):
-    """子图状态（增强版，支持对话历史）"""
+    """子图状态（增强版，支持对话历史和记忆系统）"""
     messages: Sequence[BaseMessage]
     usage: Annotated[Dict[str, int], merge_dicts]
     # usage: Annotated[Dict[str, int], operator.add]  # ← 自动累加
@@ -48,6 +48,10 @@ class SubState(dict):
     clarification_questions: Optional[List[str]]
     stage: Optional[str]
     conversation_history: Optional[list]  # ← 新增：对话历史支持
+    # Memory-First 架构相关字段
+    memory: Optional[Dict[str, Any]]  # ← 新增：记忆上下文
+    rewritten_query: Optional[str]  # ← 新增：改写后的查询
+    extracted_info: Optional[Dict[str, Any]]  # ← 新增：提取的信息
 
 
 # ============ 增强组件 ============

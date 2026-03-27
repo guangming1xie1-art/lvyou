@@ -309,11 +309,86 @@ class AuthAPIClient:
                 "Java auth-service logout failed",
                 exc_info=True,
                 extra={
+                    "extra_error": str(e),
                     "extra_service": "auth-service",
-                    "extra_error": str(e)
+                    "extra_endpoint": "/auth/logout"
                 }
             )
             raise
+    
+    async def add_token_to_blacklist(self, token: str, user_id: int) -> Dict[str, Any]:
+        """调用Java auth-service将Token加入黑名单"""
+        try:
+            logger.info(
+                "Calling Java auth-service add token to blacklist",
+                extra={
+                    "extra_user_id": user_id,
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/blacklist/add"
+                }
+            )
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/auth/blacklist/add",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"user_id": user_id},
+                    timeout=self.timeout
+                )
+                
+                if response.status_code not in [200, 201]:
+                    error_data = response.json() if response.content else {"detail": f"HTTP {response.status_code}"}
+                    if isinstance(error_data, dict) and "data" in error_data:
+                        if error_data.get("code", 0) != 0:
+                            raise Exception(error_data.get("message", f"Add to blacklist failed: {response.text}"))
+                    raise Exception(error_data.get("detail", f"Add to blacklist failed: {response.text}"))
+                
+                result = response.json()
+                logger.info("Token added to blacklist successfully")
+                
+                if isinstance(result, dict) and "data" in result:
+                    if result.get("code", 0) == 0:
+                        return result["data"]
+                    else:
+                        raise Exception(result.get("message", "Add to blacklist failed"))
+                
+                return result
+                
+        except Exception as e:
+            error_logger.error(
+                "Java auth-service add to blacklist failed",
+                exc_info=True,
+                extra={
+                    "extra_error": str(e),
+                    "extra_service": "auth-service",
+                    "extra_endpoint": "/auth/blacklist/add"
+                }
+            )
+            raise
+    
+    async def is_token_blacklisted(self, token: str) -> bool:
+        """调用Java auth-service检查Token是否在黑名单中"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/auth/blacklist/check",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=self.timeout
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if isinstance(result, dict) and "data" in result:
+                        return result.get("data", {}).get("blacklisted", False)
+                    return result.get("blacklisted", False)
+                elif response.status_code == 404:
+                    return False
+                else:
+                    return False
+                    
+        except Exception as e:
+            logger.warning(f"Failed to check token blacklist: {e}")
+            return False
 
 
 # 全局客户端实例

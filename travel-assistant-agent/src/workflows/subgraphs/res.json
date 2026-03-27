@@ -1,0 +1,724 @@
+{
+  "recommendations": {
+    "summary": "根据您的需求，我们为您制定了三种不同风格的北京3日游推荐方案：经典文化深度游、轻松城市漫步版和高端体验定制版。每种方案都兼顾了历史文化与城市特色，并结合高品质住宿和交通安排，确保您在有限的时间内获得最佳旅行体验。",
+    "plans": [
+      {
+        "id": "plan_1",
+        "title": "经典文化深度游",
+        "subtitle": "适合首次到北京的游客",
+        "theme": "历史文化探索",
+        "duration": "3天",
+        "itinerary": [
+          {
+            "day": 1,
+            "date": "2026-03-30",
+            "title": "故宫探秘与皇家文化初体验",
+            "activities": [
+              {
+                "time": "09:00-12:00",
+                "location": "故宫",
+                "description": "参观中国明清两代皇宫，了解中国古代宫廷生活与建筑艺术。",
+                "reason": "故宫是北京最具代表性的历史景点之一，世界文化遗产，不可错过。",
+                "estimated_duration": "3小时",
+                "tips": [
+                  "提前预约门票",
+                  "穿着舒适的鞋子",
+                  "避开中午人流高峰"
+                ]
+              },
+              {
+                "time": "12:30-14:00",
+                "location": "故宫附近餐厅",
+                "description": "享用午餐，品尝京味美食。",
+                "reason": "方便快捷，节省时间。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "可尝试烤鸭或宫廷点心"
+                ]
+              },
+              {
+                "time": "14:30-17:00",
+                "location": "故宫",
+                "description": "继续游览后半部分，包括珍宝馆和钟表馆。",
+                "reason": "深入了解皇家收藏与工艺。",
+                "estimated_duration": "2.5小时",
+                "tips": [
+                  "注意闭馆时间"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "地理位置优越，服务优质，便于次日行程。"
+            },
+            "transportation": {
+              "from_to": "大连 → 北京",
+              "mode": "飞机",
+              "cost": "720元",
+              "duration": "2h15m"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "故宫附近餐厅",
+                "type": "中餐",
+                "cost": "100元",
+                "reason": "方便快捷，体验本地风味。"
+              }
+            ]
+          },
+          {
+            "day": 2,
+            "date": "2026-03-31",
+            "title": "长城徒步与自然风光",
+            "activities": [
+              {
+                "time": "08:00-10:00",
+                "location": "八达岭长城",
+                "description": "徒步长城，感受古代军事防御工程的壮观。",
+                "reason": "八达岭是最具代表性的一段长城，风景优美。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "携带水和零食",
+                  "穿运动鞋"
+                ]
+              },
+              {
+                "time": "10:30-12:00",
+                "location": "长城景区内餐厅",
+                "description": "享用简餐，补充体力。",
+                "reason": "方便快捷，节省返程时间。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "选择清淡口味"
+                ]
+              },
+              {
+                "time": "12:30-14:00",
+                "location": "返回北京市区",
+                "description": "乘坐大巴返回市区。",
+                "reason": "节省时间，避免夜间交通拥堵。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "提前预订车票"
+                ]
+              },
+              {
+                "time": "15:00-17:00",
+                "location": "颐和园",
+                "description": "游览皇家园林，欣赏湖光山色。",
+                "reason": "颐和园是中国古典园林的典范，适合放松身心。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "乘船游览更佳"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "连续入住，节省交通时间。"
+            },
+            "transportation": {
+              "from_to": "北京市区 → 八达岭长城",
+              "mode": "大巴",
+              "cost": "150元",
+              "duration": "1.5小时"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "长城景区内餐厅",
+                "type": "快餐",
+                "cost": "80元",
+                "reason": "方便快捷，节省时间。"
+              },
+              {
+                "meal_type": "晚餐",
+                "name": "酒店内餐厅",
+                "type": "中餐",
+                "cost": "200元",
+                "reason": "享受高品质餐饮体验。"
+              }
+            ]
+          },
+          {
+            "day": 3,
+            "date": "2026-04-01",
+            "title": "天坛祈福与城市漫步",
+            "activities": [
+              {
+                "time": "09:00-11:00",
+                "location": "天坛",
+                "description": "参观皇帝祭天的圣地，感受古代宗教仪式。",
+                "reason": "天坛是中国古代祭祀文化的象征，建筑宏伟。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "清晨人少，适合拍照"
+                ]
+              },
+              {
+                "time": "11:30-13:00",
+                "location": "王府井步行街",
+                "description": "自由购物与休闲，体验北京现代都市风貌。",
+                "reason": "王府井是北京最繁华的商业街之一，适合购买纪念品。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "提前规划购物清单"
+                ]
+              },
+              {
+                "time": "13:30-15:00",
+                "location": "王府井附近餐厅",
+                "description": "享用午餐，品尝地道北京菜。",
+                "reason": "体验正宗京味，为旅程画上圆满句号。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "推荐尝试炸酱面或豆汁焦圈"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "临近机场，方便返程。"
+            },
+            "transportation": {
+              "from_to": "北京 → 大连",
+              "mode": "飞机",
+              "cost": "720元",
+              "duration": "2h15m"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "王府井附近餐厅",
+                "type": "中餐",
+                "cost": "120元",
+                "reason": "体验地道北京风味。"
+              }
+            ]
+          }
+        ],
+        "budget_breakdown": {
+          "total_budget": 8000,
+          "accommodation": 3600,
+          "transportation": 1440,
+          "meals": 600,
+          "attractions": 600,
+          "shopping_other": 1760
+        },
+        "highlights": [
+          "故宫深度游览",
+          "长城徒步体验",
+          "颐和园湖景漫步",
+          "天坛文化探索",
+          "王府井购物体验"
+        ],
+        "travel_tips": [
+          "提前预约热门景点门票以避免排队。",
+          "穿着舒适，适合长时间行走。",
+          "合理安排行程，避免疲劳。"
+        ],
+        "best_for": [
+          "首次到北京的游客",
+          "对历史文化感兴趣的旅行者"
+        ]
+      },
+      {
+        "id": "plan_2",
+        "title": "轻松城市漫步版",
+        "subtitle": "适合希望放松并感受城市氛围的游客",
+        "theme": "城市漫步与文化体验",
+        "duration": "3天",
+        "itinerary": [
+          {
+            "day": 1,
+            "date": "2026-03-30",
+            "title": "故宫慢游与老北京风情",
+            "activities": [
+              {
+                "time": "09:00-12:00",
+                "location": "故宫",
+                "description": "悠闲地游览故宫，感受皇家气派。",
+                "reason": "故宫是北京最具代表性的历史景点之一，世界文化遗产。",
+                "estimated_duration": "3小时",
+                "tips": [
+                  "提前预约门票",
+                  "穿着舒适的鞋子"
+                ]
+              },
+              {
+                "time": "12:30-14:00",
+                "location": "故宫附近餐厅",
+                "description": "享用午餐，品尝京味美食。",
+                "reason": "方便快捷，节省时间。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "可尝试烤鸭或宫廷点心"
+                ]
+              },
+              {
+                "time": "14:30-17:00",
+                "location": "故宫",
+                "description": "继续游览后半部分，包括珍宝馆和钟表馆。",
+                "reason": "深入了解皇家收藏与工艺。",
+                "estimated_duration": "2.5小时",
+                "tips": [
+                  "注意闭馆时间"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "地理位置优越，服务优质，便于次日行程。"
+            },
+            "transportation": {
+              "from_to": "大连 → 北京",
+              "mode": "飞机",
+              "cost": "720元",
+              "duration": "2h15m"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "故宫附近餐厅",
+                "type": "中餐",
+                "cost": "100元",
+                "reason": "方便快捷，体验本地风味。"
+              }
+            ]
+          },
+          {
+            "day": 2,
+            "date": "2026-03-31",
+            "title": "天坛祈福与王府井漫步",
+            "activities": [
+              {
+                "time": "09:00-11:00",
+                "location": "天坛",
+                "description": "参观皇帝祭天的圣地，感受古代宗教仪式。",
+                "reason": "天坛是中国古代祭祀文化的象征，建筑宏伟。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "清晨人少，适合拍照"
+                ]
+              },
+              {
+                "time": "11:30-13:00",
+                "location": "王府井步行街",
+                "description": "自由购物与休闲，体验北京现代都市风貌。",
+                "reason": "王府井是北京最繁华的商业街之一，适合购买纪念品。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "提前规划购物清单"
+                ]
+              },
+              {
+                "time": "13:30-15:00",
+                "location": "王府井附近餐厅",
+                "description": "享用午餐，品尝地道北京菜。",
+                "reason": "体验正宗京味，为旅程画上圆满句号。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "推荐尝试炸酱面或豆汁焦圈"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "连续入住，节省交通时间。"
+            },
+            "transportation": {
+              "from_to": "北京市区 → 天坛",
+              "mode": "地铁",
+              "cost": "5元",
+              "duration": "30分钟"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "王府井附近餐厅",
+                "type": "中餐",
+                "cost": "120元",
+                "reason": "体验地道北京风味。"
+              }
+            ]
+          },
+          {
+            "day": 3,
+            "date": "2026-04-01",
+            "title": "颐和园休闲与返程准备",
+            "activities": [
+              {
+                "time": "09:00-11:00",
+                "location": "颐和园",
+                "description": "游览皇家园林，欣赏湖光山色。",
+                "reason": "颐和园是中国古典园林的典范，适合放松身心。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "乘船游览更佳"
+                ]
+              },
+              {
+                "time": "11:30-13:00",
+                "location": "颐和园附近餐厅",
+                "description": "享用午餐，品尝京味美食。",
+                "reason": "方便快捷，节省时间。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "可尝试烤鸭或宫廷点心"
+                ]
+              },
+              {
+                "time": "13:30-15:00",
+                "location": "酒店",
+                "description": "休息与整理行李，准备返程。",
+                "reason": "临近机场，方便返程。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "提前确认航班信息"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "临近机场，方便返程。"
+            },
+            "transportation": {
+              "from_to": "北京 → 大连",
+              "mode": "飞机",
+              "cost": "720元",
+              "duration": "2h15m"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "颐和园附近餐厅",
+                "type": "中餐",
+                "cost": "100元",
+                "reason": "方便快捷，体验本地风味。"
+              }
+            ]
+          }
+        ],
+        "budget_breakdown": {
+          "total_budget": 8000,
+          "accommodation": 3600,
+          "transportation": 1440,
+          "meals": 420,
+          "attractions": 600,
+          "shopping_other": 1940
+        },
+        "highlights": [
+          "故宫慢游",
+          "天坛文化探索",
+          "王府井购物体验",
+          "颐和园休闲漫步"
+        ],
+        "travel_tips": [
+          "提前预约热门景点门票以避免排队。",
+          "穿着舒适，适合长时间行走。",
+          "合理安排行程，避免疲劳。"
+        ],
+        "best_for": [
+          "希望放松并感受城市氛围的游客",
+          "喜欢购物与文化体验的旅行者"
+        ]
+      },
+      {
+        "id": "plan_3",
+        "title": "高端体验定制版",
+        "subtitle": "适合追求品质与舒适度的游客",
+        "theme": "高端体验与文化探索",
+        "duration": "3天",
+        "itinerary": [
+          {
+            "day": 1,
+            "date": "2026-03-30",
+            "title": "故宫探秘与酒店文化体验",
+            "activities": [
+              {
+                "time": "09:00-12:00",
+                "location": "故宫",
+                "description": "参观中国明清两代皇宫，了解中国古代宫廷生活与建筑艺术。",
+                "reason": "故宫是北京最具代表性的历史景点之一，世界文化遗产，不可错过。",
+                "estimated_duration": "3小时",
+                "tips": [
+                  "提前预约门票",
+                  "穿着舒适的鞋子",
+                  "避开中午人流高峰"
+                ]
+              },
+              {
+                "time": "12:30-14:00",
+                "location": "故宫附近餐厅",
+                "description": "享用午餐，品尝京味美食。",
+                "reason": "方便快捷，节省时间。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "可尝试烤鸭或宫廷点心"
+                ]
+              },
+              {
+                "time": "14:30-17:00",
+                "location": "故宫",
+                "description": "继续游览后半部分，包括珍宝馆和钟表馆。",
+                "reason": "深入了解皇家收藏与工艺。",
+                "estimated_duration": "2.5小时",
+                "tips": [
+                  "注意闭馆时间"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "地理位置优越，服务优质，便于次日行程。"
+            },
+            "transportation": {
+              "from_to": "大连 → 北京",
+              "mode": "飞机",
+              "cost": "720元",
+              "duration": "2h15m"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "故宫附近餐厅",
+                "type": "中餐",
+                "cost": "100元",
+                "reason": "方便快捷，体验本地风味。"
+              }
+            ]
+          },
+          {
+            "day": 2,
+            "date": "2026-03-31",
+            "title": "长城徒步与高端酒店体验",
+            "activities": [
+              {
+                "time": "08:00-10:00",
+                "location": "八达岭长城",
+                "description": "徒步长城，感受古代军事防御工程的壮观。",
+                "reason": "八达岭是最具代表性的一段长城，风景优美。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "携带水和零食",
+                  "穿运动鞋"
+                ]
+              },
+              {
+                "time": "10:30-12:00",
+                "location": "长城景区内餐厅",
+                "description": "享用简餐，补充体力。",
+                "reason": "方便快捷，节省返程时间。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "选择清淡口味"
+                ]
+              },
+              {
+                "time": "12:30-14:00",
+                "location": "返回北京市区",
+                "description": "乘坐大巴返回市区。",
+                "reason": "节省时间，避免夜间交通拥堵。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "提前预订车票"
+                ]
+              },
+              {
+                "time": "15:00-17:00",
+                "location": "颐和园",
+                "description": "游览皇家园林，欣赏湖光山色。",
+                "reason": "颐和园是中国古典园林的典范，适合放松身心。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "乘船游览更佳"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "连续入住，节省交通时间。"
+            },
+            "transportation": {
+              "from_to": "北京市区 → 八达岭长城",
+              "mode": "大巴",
+              "cost": "150元",
+              "duration": "1.5小时"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "长城景区内餐厅",
+                "type": "快餐",
+                "cost": "80元",
+                "reason": "方便快捷，节省时间。"
+              },
+              {
+                "meal_type": "晚餐",
+                "name": "酒店内餐厅",
+                "type": "中餐",
+                "cost": "200元",
+                "reason": "享受高品质餐饮体验。"
+              }
+            ]
+          },
+          {
+            "day": 3,
+            "date": "2026-04-01",
+            "title": "天坛祈福与高端购物体验",
+            "activities": [
+              {
+                "time": "09:00-11:00",
+                "location": "天坛",
+                "description": "参观皇帝祭天的圣地，感受古代宗教仪式。",
+                "reason": "天坛是中国古代祭祀文化的象征，建筑宏伟。",
+                "estimated_duration": "2小时",
+                "tips": [
+                  "清晨人少，适合拍照"
+                ]
+              },
+              {
+                "time": "11:30-13:00",
+                "location": "王府井步行街",
+                "description": "自由购物与休闲，体验北京现代都市风貌。",
+                "reason": "王府井是北京最繁华的商业街之一，适合购买纪念品。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "提前规划购物清单"
+                ]
+              },
+              {
+                "time": "13:30-15:00",
+                "location": "王府井附近餐厅",
+                "description": "享用午餐，品尝地道北京菜。",
+                "reason": "体验正宗京味，为旅程画上圆满句号。",
+                "estimated_duration": "1.5小时",
+                "tips": [
+                  "推荐尝试炸酱面或豆汁焦圈"
+                ]
+              }
+            ],
+            "accommodation": {
+              "name": "北京皇家宫殿酒店",
+              "rating": 4.8,
+              "location": "故宫附近",
+              "price_range": "1200元/晚",
+              "features": [
+                "传统中式设计",
+                "文化之旅",
+                "水疗中心"
+              ],
+              "reason": "临近机场，方便返程。"
+            },
+            "transportation": {
+              "from_to": "北京 → 大连",
+              "mode": "飞机",
+              "cost": "720元",
+              "duration": "2h15m"
+            },
+            "meals": [
+              {
+                "meal_type": "午餐",
+                "name": "王府井附近餐厅",
+                "type": "中餐",
+                "cost": "120元",
+                "reason": "体验地道北京风味。"
+              }
+            ]
+          }
+        ],
+        "budget_breakdown": {
+          "total_budget": 8000,
+          "accommodation": 3600,
+          "transportation": 1440,
+          "meals": 600,
+          "attractions": 600,
+          "shopping_other": 1760
+        },
+        "highlights": [
+          "故宫深度游览",
+          "长城徒步体验",
+          "颐和园湖景漫步",
+          "天坛文化探索",
+          "王府井购物体验",
+          "高端酒店文化之旅"
+        ],
+        "travel_tips": [
+          "提前预约热门景点门票以避免排队。",
+          "穿着舒适，适合长时间行走。",
+          "合理安排行程，避免疲劳。"
+        ],
+        "best_for": [
+          "追求品质与舒适度的游客",
+          "喜欢高端体验与文化探索的旅行者"
+        ]
+      }
+    ]
+  },
+  "output": "我们为您制定了三种不同风格的北京3日游推荐方案：经典文化深度游、轻松城市漫步版和高端体验定制版。每种方案都兼顾了历史文化与城市特色，并结合高品质住宿和交通安排，确保您在有限的时间内获得最佳旅行体验。您可以根据个人喜好选择最适合的方案。"
+}

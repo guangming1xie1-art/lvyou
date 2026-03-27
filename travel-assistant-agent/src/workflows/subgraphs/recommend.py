@@ -27,25 +27,36 @@ from .hybrid_retrieval import hybrid_rank
 logger = logging.getLogger(__name__)
 
 async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
-    """推荐规划节点 - 利用 Prompt Cache 优化成本"""
+    """推荐规划节点 - 支持 Memory-First 架构"""
     counter = TokenCounter()
     
+    # === Memory-First 架构支持 ===
+    # 1. 优先使用意图识别提取的信息
+    extracted_info = state.get("extracted_info", {})
+    memory = state.get("memory", {})
+    rewritten_query = state.get("rewritten_query")
+    
+    # 2. 获取传统方式的信息
     collected_info = state.get("collected_info", {})
     search_results = state.get("search_results", {})
-    last_msg = state.get("messages", [])[-1] if state.get("messages") else None
-    user_content = last_msg.content if last_msg else ""
     
-    destination = collected_info.get("destination", "unknown")
+    # 3. 合并信息（extracted_info 优先级更高）
+    merged_info = {**collected_info, **extracted_info}
+    
+    last_msg = state.get("messages", [])[-1] if state.get("messages") else None
+    user_content = rewritten_query if rewritten_query else (last_msg.content if last_msg else "")
+    
+    destination = merged_info.get("destination", "unknown")
     cache_key_biz = f"recommend_plan:{user_content[:50]}:{destination}"
     
     # 1️⃣ 业务缓存
     cached = cache_strategy.get_recommendations(
         user_id=cache_key_biz,
-        interests=collected_info.get("preferences", []),
-        budget=collected_info.get("budget")
+        interests=merged_info.get("preferences", []),
+        budget=merged_info.get("budget")
     )
     if cached:
-        logger.info("🎯 业务缓存命中(recommend_plan)")
+        logger.info("🎯 业务缓存命中 (recommend_plan)")
         need_clarification = cached.get("need_clarification", False)
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
@@ -67,11 +78,11 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
     
     user_query = await prompt_renderer.render(
         user_query_template,
-        destination=collected_info.get('destination'),
-        dates=collected_info.get('dates'),
-        duration=collected_info.get('duration'),
-        budget=collected_info.get('budget', '未指定'),
-        preferences=', '.join(collected_info.get('preferences', [])) or '无特殊偏好',
+        destination=merged_info.get('destination'),
+        dates=merged_info.get('dates'),
+        duration=merged_info.get('duration'),
+        budget=merged_info.get('budget', '未指定'),
+        preferences=', '.join(merged_info.get('preferences', [])) or '无特殊偏好',
         search_results=str(search_results)[:1000],
         user_content=user_content
     )
@@ -144,28 +155,38 @@ async def recommend_plan_node(state: SubState) -> Dict[str, Any]:
         "stage": "ready_for_execution"
     }
 async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
-    """推荐执行节点 - 直接调用大模型进行推荐"""
+    """推荐执行节点 - 直接调用大模型进行推荐 + Memory-First 架构支持"""
     counter = TokenCounter()
+    
+    # === Memory-First 架构支持 ===
+    # 1. 优先使用意图识别提取的信息
+    extracted_info = state.get("extracted_info", {})
+    memory = state.get("memory", {})
+    rewritten_query = state.get("rewritten_query")
     
     recommend_plan = state.get("recommend_plan", {})
     collected_info = state.get("collected_info", {})
     search_results = state.get("search_results", {})
+    
+    # 2. 合并信息（extracted_info 优先级更高）
+    merged_info = {**collected_info, **extracted_info}
+    
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
-    user_content = last_msg.content if last_msg else ""
+    user_content = rewritten_query if rewritten_query else (last_msg.content if last_msg else "")
 
     plan_payload = recommend_plan.get("recommend_plan", {}) if isinstance(recommend_plan, dict) else {}
-    destination = plan_payload.get("destination", collected_info.get("destination", "unknown"))
+    destination = plan_payload.get("destination", merged_info.get("destination", "unknown"))
     
     cache_key_biz = f"recommend_execute:{user_content[:50]}:{destination}"
 
     # 1️⃣ 业务缓存
     cached = cache_strategy.get_recommendations(
         user_id=cache_key_biz,
-        interests=collected_info.get("preferences", []),
-        budget=collected_info.get("budget")
+        interests=merged_info.get("preferences", []),
+        budget=merged_info.get("budget")
     )
     if cached:
-        logger.info("🎯 业务缓存命中(recommend_execute)")
+        logger.info("🎯 业务缓存命中 (recommend_execute)")
         return {
             "messages": [AIMessage(content=cached.get("output", ""))],
             "usage": {"prompt": 0, "completion": 0, "cached": 0, "total": 0},
@@ -186,14 +207,14 @@ async def recommend_execute_agent_node(state: SubState) -> Dict[str, Any]:
 
     user_query = await prompt_renderer.render(
         user_query_template,
-        destination=collected_info.get('destination'),
-        origin=collected_info.get('origin', '未知'),
-        dates=collected_info.get('dates'),
-        duration=collected_info.get('duration'),
-        budget=collected_info.get('budget', '未指定'),
-        preferences=', '.join(collected_info.get('preferences', [])) or '无特殊偏好',
-        group_size=collected_info.get('group_size', '未知'),
-        special_requests=collected_info.get('special_requests', '无'),
+        destination=merged_info.get('destination'),
+        origin=merged_info.get('origin', '未知'),
+        dates=merged_info.get('dates'),
+        duration=merged_info.get('duration'),
+        budget=merged_info.get('budget', '未指定'),
+        preferences=', '.join(merged_info.get('preferences', [])) or '无特殊偏好',
+        group_size=merged_info.get('group_size', '未知'),
+        special_requests=merged_info.get('special_requests', '无'),
         user_profile=json.dumps(user_profile, ensure_ascii=False),
         framework=json.dumps(framework, ensure_ascii=False),
         gaps=json.dumps(gaps, ensure_ascii=False),

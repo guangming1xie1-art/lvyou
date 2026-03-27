@@ -18,13 +18,24 @@ from .common import SubState, cache_strategy, get_tools_and_skills_text, mcp_cli
 
 
 async def booking_node(state: SubState) -> Dict[str, Any]:
-    """预订节点（便宜层 + 缓存）"""
+    """预订节点（便宜层 + 缓存）- 支持 Memory-First 架构"""
     counter = TokenCounter()
 
-    # 获取前面步骤的信息
+    # === Memory-First 架构支持 ===
+    # 1. 优先使用意图识别提取的信息
+    extracted_info = state.get("extracted_info", {})
+    memory = state.get("memory", {})
+    rewritten_query = state.get("rewritten_query")
+    
+    # 2. 获取传统方式的信息
     recommendations = state.get("recommendations", {})
+    collected_info = state.get("collected_info", {})
+    
+    # 3. 合并信息（extracted_info 优先级更高）
+    merged_info = {**collected_info, **extracted_info}
+    
     last_msg = state.get("messages", [])[-1] if state.get("messages") else None
-    user_content = last_msg.content if last_msg else ""
+    user_content = rewritten_query if rewritten_query else (last_msg.content if last_msg else "")
 
     # 获取工具文本
     tools_text = await get_tools_and_skills_text()
@@ -33,7 +44,9 @@ async def booking_node(state: SubState) -> Dict[str, Any]:
     
     system_prompt = prompt_renderer.render(base_prompt, {
         "recommendations": recommendations,
-        "tools_text": tools_text
+        "tools_text": tools_text,
+        "user_profile": memory.get("user_profile", {}) if memory else {},
+        "extracted_info": extracted_info
     })
 
 

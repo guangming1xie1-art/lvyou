@@ -67,6 +67,7 @@ async def lifespan(app: FastAPI):
             
             logger.info(f"Processing prompt update: {update_type}, category={category}, name={name}")
             
+            
             if update_type == "reload_all":
                 await prompt_loader.reload()
                 prompt_cache.clear()
@@ -85,6 +86,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize MQ consumer: {e}")
     
+    # 初始化消息发布者
+    try:
+        from memory.mq_publisher import message_mq_publisher
+        await message_mq_publisher.connect()
+        logger.info("Message MQ publisher initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize message MQ publisher: {e}")
+    
     yield  # 应用运行中
     
     # Shutdown
@@ -100,6 +109,14 @@ async def lifespan(app: FastAPI):
         logger.info("MQ consumer disconnected")
     except Exception as e:
         logger.error(f"Error disconnecting MQ consumer: {e}")
+    
+    # 停止消息发布者
+    try:
+        from memory.mq_publisher import message_mq_publisher
+        await message_mq_publisher.disconnect()
+        logger.info("Message MQ publisher disconnected")
+    except Exception as e:
+        logger.error(f"Error disconnecting message MQ publisher: {e}")
 
 
 app = FastAPI(title="Travel Assistant Agent API", version="2.0.0", lifespan=lifespan)
@@ -238,6 +255,21 @@ async def chat_endpoint(
     # 如果没有提供session_id，生成一个新的
     session_id = request.session_id or str(uuid.uuid4())
 
+    # 异步发送用户消息到 MQ（非阻塞）
+    try:
+        from memory.mq_publisher import message_mq_publisher
+        asyncio.create_task(
+            message_mq_publisher.publish_message(
+                session_id=session_id,
+                user_id=current_user.id,
+                role="user",
+                content=request.message,
+                metadata={}
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Failed to publish user message to MQ: {e}")
+
     result = await run_main_workflow_async(
         user_message=request.message,
         user_id=current_user.id,
@@ -248,6 +280,24 @@ async def chat_endpoint(
     is_complete = bool(collected_info.get("complete", False))
 
     total_usage = result.get("total_usage", {})
+
+    # 提取 AI 响应
+    ai_response = _extract_response_from_workflow_result(result)
+    
+    # 异步发送 AI 响应到 MQ（非阻塞）
+    try:
+        from memory.mq_publisher import message_mq_publisher
+        asyncio.create_task(
+            message_mq_publisher.publish_message(
+                session_id=session_id,
+                user_id=current_user.id,
+                role="assistant",
+                content=ai_response,
+                metadata={"collected_info": collected_info}
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Failed to publish assistant message to MQ: {e}")
 
     if not is_complete:
         clarification_message = (
@@ -266,7 +316,7 @@ async def chat_endpoint(
 
     return {
         "status": "success",
-        "response": _extract_response_from_workflow_result(result),
+        "response": ai_response,
         "stage": "completed",
         "total_usage": total_usage,
         "details": {
