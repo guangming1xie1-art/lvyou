@@ -293,6 +293,7 @@ volumes:
   postgres-data:
   nacos-data:
   redis-data:
+  rabbitmq-data:
 
 networks:
   travel-assistant-network:
